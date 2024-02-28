@@ -405,14 +405,27 @@ def cace_run(datasheet, paramname=None):
         # electrical or physical parameter, and call the appropriate
         # routine to handle it.
 
+        found = False
         for eparam in datasheet['electrical_parameters']:
             if eparam['name'] == paramname:
                 cace_run_eparam(datasheet, eparam)
+                found = True
                 break
         for pparam in datasheet['physical_parameters']:
             if pparam['name'] == paramname:
                 cace_run_pparam(datasheet, pparam)
+                found = True
                 break
+
+        if not found:
+            print('\nError:  No parameter named ' + paramname + ' found!')
+            print('Valid electrical parameter names are:')
+            for eparam in datasheet['electrical_parameters']:
+                print('   ' + eparam['name'])
+            print('Valid physical parameter names are:')
+            for pparam in datasheet['physical_parameters']:
+                print('   ' + pparam['name'])
+            
         return datasheet
 
     # From this point:  Running characterization on the entire datasheet
