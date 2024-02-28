@@ -306,7 +306,7 @@ class CACECharacterize(ttk.Frame):
         self.origin.set('Schematic Capture')
         self.toppane.title2_frame.origin_select = ttk.OptionMenu(self.toppane.title2_frame,
 		self.origin, 'Schematic Capture', 'Schematic Capture', 'Layout Extracted', 'R-C Extracted',
-		style='blue.TMenubutton', command=self.load_results)
+		style='blue.TMenubutton', command=self.swap_results)
         self.toppane.title2_frame.origin_select.grid(column=5, row=0, ipadx = 5)
 
         #---------------------------------------------
@@ -480,6 +480,8 @@ class CACECharacterize(ttk.Frame):
             print('Error:  File ' + datasheet + ' not found.')
             return
 
+        debug = self.settings.get_debug()
+
         [dspath, dsname] = os.path.split(datasheet)
         # Read the datasheet
         if os.path.splitext(datasheet)[1] == '.json':
@@ -494,20 +496,16 @@ class CACECharacterize(ttk.Frame):
                     print(str(e))
                     return
         else:
-            datatop = cace_read.cace_read(datasheet)
+            datatop = cace_read.cace_read(datasheet, debug)
 
         # Ensure that datasheet complies with CACE version 4.0 format
-        dsheet = cace_compat.cace_compat(datatop)
+        dsheet = cace_compat.cace_compat(datatop, debug)
 
         self.filename = datasheet
         self.datasheet = dsheet
         self.create_datasheet_view()
         self.toppane.title2_frame.datasheet_select.configure(text=dsname)
         self.toppane.title2_frame.path_label.configure(text=datasheet)
-
-        # Determine if there is a saved, annotated datasheet that is
-        # more recent than the netlist used for simulation.
-        self.load_results()
 
         # Attempt to set the datasheet viewer width to the interior width
         # but do not set it larger than the available desktop.
@@ -941,7 +939,8 @@ class CACECharacterize(ttk.Frame):
                 with open(anno, 'r') as file:
                     self.datasheet = json.load(file)
             else:
-                self.datasheet = cace_read.cace_read(file)
+                debug = self.settings.get_debug()
+                self.datasheet = cace_read.cace_read(file, debug)
         else:
             print('Error in simulation, no update to results.', file=sys.stderr)
 
@@ -1057,7 +1056,8 @@ class CACECharacterize(ttk.Frame):
                     if os.path.splitext(file)[1] == '.json':
                         self.datasheet = json.load(file)
                     else:
-                        self.datasheet = cace_read.cace_read(file)
+                        debug = self.settings.get_debug()
+                        self.datasheet = cace_read.cace_read(file, debug)
             except:
                 print('Error in file, no update to results.', file=sys.stderr)
 
@@ -1065,7 +1065,14 @@ class CACECharacterize(ttk.Frame):
                 # Regenerate datasheet view
                 self.create_datasheet_view()
 
+    def swap_results(self, value={}):
+        # This routine just calls self.create_datasheet_view(), but the
+        # button callback has an argument that needs to be handled even
+        # if it is just discarded.
+        self.create_datasheet_view()
+
     def load_results(self, value={}):
+
         # Check if datasheet_save exists and is more recent than the
         # latest design netlist.  If so, load it;  otherwise, not.
         # NOTE:  Name of .spice file comes from the project 'name'
@@ -1326,7 +1333,7 @@ class CACECharacterize(ttk.Frame):
                 # Which information is provided depends on which origin is
                 # selected.
 
-                resultdict = {}
+                valid = False
                 if 'results' in param:
                     resultlist = param['results']
                     if not isinstance(resultlist, list):
@@ -1335,15 +1342,22 @@ class CACECharacterize(ttk.Frame):
                     if self.origin.get() == 'Layout Extracted':
                         for resultdict in resultlist:
                             if resultdict['name'] == 'layout':
+                                valid = True
                                 break
                     elif self.origin.get() == 'R-C Extracted':
                         for resultdict in resultlist:
                             if resultdict['name'] == 'rcx':
+                                valid = True
                                 break
                     else:	# Schematic capture
                         for resultdict in resultlist:
                             if resultdict['name'] == 'schematic':
+                                valid = True
                                 break
+
+                if valid == False:
+                    # No result dictionary exists for this netlist origin type
+                    resultdict = {}
 
                 # Fill in information for the spec minimum and result
                 if 'minimum' in specdict:

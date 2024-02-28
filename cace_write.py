@@ -201,7 +201,7 @@ def cace_output_item(key, value, outlines, indent):
         newline = tabs + '}'
     elif isinstance(value, list):
         # Handle lists that are not dictionaries
-        just_lists = ['minimum', 'maximum', 'typical', 'Vmin', 'Vmax', 'format']
+        just_lists = ['minimum', 'maximum', 'typical', 'Vmin', 'Vmax', 'format', 'tool']
         if key in just_lists:
             moretab = '\t' if len(str(key)) < 7 else ''
             newline = tabs + key + ':\t' + moretab + ' '.join(value)

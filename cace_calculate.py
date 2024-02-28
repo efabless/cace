@@ -47,7 +47,7 @@ def twos_complement(val, bits):
 
 def cace_calculate(varresult, measure, variables):
 
-    # 'condition' defaults to TIME;  but this only applies to transient analysis data!
+    # 'condition' defaults to 'time';  but this only applies to transient analysis data!
     if 'condition' in measure:
         condition = measure['condition']
         if condition == 'result':
@@ -65,7 +65,7 @@ def cace_calculate(varresult, measure, variables):
                     condition = activevar['condition']
                 
     else:
-        condition = 'TIME'
+        condition = 'time'
 
     try:
         activevar = next(item for item in variables if item['condition'] == condition)
@@ -86,10 +86,10 @@ def cace_calculate(varresult, measure, variables):
 
     rsize = len(activetrace)
  
-    if 'TIME' in varresult:
-        timevector = varresult['TIME']
+    if 'time' in varresult:
+        timevector = varresult['time']
         try:
-            timevar = next(item for item in variables if item['condition'] == 'TIME')
+            timevar = next(item for item in variables if item['condition'] == 'time')
         except:
             timeunit = 's'
         else:
@@ -113,24 +113,24 @@ def cace_calculate(varresult, measure, variables):
 
         activevar['result'] = True
 
-    elif calctype == 'REMOVE':
+    elif calctype == 'remove':
         # Remove the indicated condition vector.
         varresult.pop(condition)
 
-    elif calctype == 'REBASE':
+    elif calctype == 'rebase':
         # Rebase specified vector (subtract minimum value from all components)
         base = min(activetrace)
         varresult[condition] = [i - base for i in activetrace]
 
-    elif calctype == 'ABS':
+    elif calctype == 'abs':
         # Take absolute value of activetrace.
         varresult[condition] = [abs(i) for i in activetrace]
         
-    elif calctype == 'NEGATE':
+    elif calctype == 'negate':
         # Negate the specified vector
         varresult[condition] = [-i for i in activetrace]
         
-    elif calctype == 'ADD':
+    elif calctype == 'add':
         if 'value' in measure:
             v = float(measure['value'])
             varresult[condition] = [i + v for i in activetrace]
@@ -138,7 +138,7 @@ def cace_calculate(varresult, measure, variables):
             # Add the specified vector to the result and replace the result
             varresult[condition] = [i + j for i, j in zip(activetrace, paramresult)]
         
-    elif calctype == 'SUBTRACT':
+    elif calctype == 'subtract':
         if 'value' in measure:
             v = float(measure['value'])
             varresult[condition] = [i - v for i in activetrace]
@@ -146,7 +146,7 @@ def cace_calculate(varresult, measure, variables):
             # Subtract the specified vector from the result
             varresult[condition] = [j - i for i, j in zip(activetrace, paramresult)]
 
-    elif calctype == 'MULTIPLY':
+    elif calctype == 'multiply':
         if 'value' in measure:
             v = float(measure['value'])
             varresult[condition] = [i * v for i in activetrace]
@@ -154,7 +154,7 @@ def cace_calculate(varresult, measure, variables):
             # Multiply the specified vector by the result (e.g., to get power)
             varresult[condition] = [j * i for i, j in zip(activetrace, paramresult)]
         
-    elif calctype == 'CLIP':
+    elif calctype == 'clip':
         if timevector == []:
             return
         # Clip specified vector to the indicated times
@@ -183,7 +183,7 @@ def cace_calculate(varresult, measure, variables):
 
         rsize = toidx - fromidx
 
-    elif calctype == 'MEAN':
+    elif calctype == 'mean':
         if timevector == []:
             return
 
@@ -230,11 +230,11 @@ def cace_calculate(varresult, measure, variables):
 
         rsize = 1
         
-    elif calctype == 'RISINGEDGE':
+    elif calctype == 'risingedge':
         if timevector == []:
             return
 
-        # RISINGEDGE finds the time of a signal rising edge.
+        # "risingedge" finds the time of a signal rising edge.
         # parameters used are:
         # 'from':   start time of search (default zero)
         # 'to':     end time of search (default end)
@@ -273,13 +273,13 @@ def cace_calculate(varresult, measure, variables):
             riseidx = toidx - startidx - 1
         riseidx += startidx
 
-        # If not specified, 'keep' defaults to 'INSTANT'.
+        # If not specified, 'keep' defaults to 'instant'.
         if 'keep' in measure:
             keeptype = measure['keep']
-            if keeptype == 'BEFORE':
+            if keeptype == 'before':
                 istart = 0
                 istop = riseidx
-            elif keeptype == 'AFTER':
+            elif keeptype == 'after':
                 istart = riseidx
                 istop = len(timevector)
             else:
@@ -295,11 +295,11 @@ def cace_calculate(varresult, measure, variables):
 
         rsize = istop - istart
         
-    elif calctype == 'FALLINGEDGE':
+    elif calctype == 'fallingedge':
         if timevector == []:
             return
 
-        # FALLINGEDGE finds the time of a signal rising edge.
+        # 'fallingedge' finds the time of a signal rising edge.
         # parameters used are:
         # 'from':   start time of search (default zero)
         # 'to':     end time of search (default end)
@@ -338,13 +338,13 @@ def cace_calculate(varresult, measure, variables):
             fallidx = toidx - startidx - 1
         fallidx += startidx
 
-        # If not specified, 'keep' defaults to 'INSTANT'.
+        # If not specified, 'keep' defaults to 'instant'.
         if 'keep' in measure:
             keeptype = measure['keep']
-            if keeptype == 'BEFORE':
+            if keeptype == 'before':
                 istart = 0
                 istop = fallidx
-            elif keeptype == 'AFTER':
+            elif keeptype == 'after':
                 istart = fallidx
                 istop = len(timevector)
             else:
@@ -360,11 +360,11 @@ def cace_calculate(varresult, measure, variables):
 
         rsize = istop - istart
 
-    elif calctype == 'STABLETIME':
+    elif calctype == 'stabletime':
         if timevector == []:
             return
 
-        # STABLETIME finds the time at which the signal stabilizes
+        # 'stabletime' finds the time at which the signal stabilizes
         # parameters used are:
         # 'from':  start time of search (default zero)
         # 'to':    end time of search (works backwards from here) (default end)
@@ -401,13 +401,13 @@ def cace_calculate(varresult, measure, variables):
             breakidx = 0
         breakidx += fromidx
 
-        # If not specified, 'keep' defaults to 'INSTANT'.
+        # If not specified, 'keep' defaults to 'instant'.
         if 'keep' in measure:
             keeptype = measure['keep']
-            if keeptype == 'BEFORE':
+            if keeptype == 'before':
                 istart = 0
                 istop = breakidx
-            elif keeptype == 'AFTER':
+            elif keeptype == 'after':
                 istart = breakidx
                 istop = len(timevector)
             else:
@@ -423,11 +423,11 @@ def cace_calculate(varresult, measure, variables):
 
         rsize = istop - istart
 
-    elif calctype == 'INSIDE':
+    elif calctype == 'inside':
         if timevector == []:
             return
 
-        # INSIDE retains only values which are inside the indicated limits
+        # 'inside' retains only values which are inside the indicated limits
         # 'minimum':  minimum value limit to keep results
         # 'maximum':  maximum value limit to keep results
         if 'from' in measure:

@@ -54,7 +54,8 @@ def cace_read(filename, debug=False):
     # These keys correspond to lists of dictionaries.  All other keys
     # must have a single value which is a string or a dictionary.
     listkeys = ['conditions', 'default_conditions', 'variables', 'pins',
-		'measure', 'electrical_parameters', 'physical_parameters']
+		'measure', 'electrical_parameters', 'physical_parameters',
+		'testbenches', 'results']
 
     # These keys have text string values with optional whitespace to end-of-line
     stringkeys = ['description', 'display', 'designer', 'company',
@@ -84,11 +85,14 @@ def cace_read(filename, debug=False):
     # Key:dictionary entries
     kdrex = re.compile('^[ \t]*([^ \t\{]+)[ \t]*\{[ \t]*(.*)$')
 
-    # New list entry
+    # New list-of-dictionaries entry
     listrex = re.compile('^[ \t]*\+[ \t]*(.*)$')
 
     # End of dictionary
     endrex = re.compile('^[ \t]*\}[ \t]*$')
+
+    # End of list
+    lendrex = re.compile('^[ \t]*\][ \t]*$')
 
     # Now split into lines
     for line in clines.splitlines():
@@ -118,8 +122,12 @@ def cace_read(filename, debug=False):
 
         else:
             # Find key: dictionary entries
-            kmatch = kdrex.match(line)
+            # Avoid treating special character substitutions like "{degrees}"
+            # as dictionaries.
+            testline = specchar_sub(line)
+            kmatch = kdrex.match(testline)
             if kmatch:
+                kmatch = kdrex.match(line)
                 newdict = {}
                 key = kmatch.group(1)
 
@@ -176,6 +184,18 @@ def cace_read(filename, debug=False):
                             newdict = {}
                             curlist.append(newdict)
                             curdict = newdict
+
+                    elif isinstance(curlist, list):
+                        # curdict should not exist in this case, so remove it
+                        if isinstance(curlist[0], dict):
+                            curlist.pop(0)
+                            curdict = None
+                        # Append item line by line.
+                        tokens = line.strip().split(' ')
+                        if len(tokens) == 1:
+                            curlist.append(line.strip())
+                        else:
+                            curlist.append(tokens)
 
                     else:
                         print('Error:  Undefined syntax in "' + line + '"')
