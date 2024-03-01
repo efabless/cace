@@ -728,6 +728,7 @@ class CACECharacterize(ttk.Frame):
 
         runtime_options['force'] = self.settings.get_force()
         runtime_options['keep'] = self.settings.get_keep()
+        runtime_options['sequential'] = self.settings.get_sequential()
         runtime_options['noplot'] = self.settings.get_noplot()
         runtime_options['debug'] = self.settings.get_debug()
 
@@ -1607,5 +1608,42 @@ if __name__ == '__main__':
     if arguments:
         print('Calling set_datasheet with argument ' + arguments[0])
         app.set_datasheet(arguments[0])
+    else:
+        # Check the current working directory and determine if there
+        # is a .txt or .json file with the name of the directory, which
+        # is assumed to have the same name as the project circuit.  Also
+        # check subdirectories one level down.
+        curdir = os.getcwd()
+        dirname = os.path.split(curdir)[1]
+        dirlist = os.listdir(curdir)
+        for item in dirlist:
+            if os.path.isfile(item):
+                fileext = os.path.splitext(item)[1]
+                basename = os.path.splitext(item)[0]
+                # Prefer '.txt' to '.json', if both exist
+                if fileext == '.txt':
+                    if basename == dirname:
+                        print('Calling set_datasheet using ' + item)
+                        app.set_datasheet(item)
+                elif fileext == '.json':
+                    if basename == dirname:
+                        print('Calling set_datasheet using ' + item)
+                        app.set_datasheet(item)
+            elif os.path.isdir(item):
+                subdirlist = os.listdir(item)
+                for subitem in subdirlist:
+                    subitemref = os.path.join(item, subitem)
+                    if os.path.isfile(subitemref):
+                        fileext = os.path.splitext(subitem)[1]
+                        basename = os.path.splitext(subitem)[0]
+                        # Prefer '.txt' to '.json', if both exist
+                        if fileext == '.txt':
+                            if basename == dirname:
+                                print('Calling set_datasheet using ' + subitemref)
+                                app.set_datasheet(subitemref)
+                        elif fileext == '.json':
+                            if basename == dirname:
+                                print('Calling set_datasheet using ' + subitemref)
+                                app.set_datasheet(subitemref)
 
     root.mainloop()

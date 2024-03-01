@@ -189,8 +189,8 @@ class FailReport(tkinter.Toplevel):
 
         param = self.data
         plotrec = {}
-        plotrec['xaxis'] = param['method']
-        plotrec['xlabel'] = param['method']
+        plotrec['xaxis'] = param['name']
+        plotrec['xlabel'] = param['name']
         plotrec['ylabel'] = 'COUNT'
         plotrec['type'] = 'histogram'
         if 'unit' in param:
@@ -205,7 +205,7 @@ class FailReport(tkinter.Toplevel):
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
         self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot.makeplot(plotrec, results, variables, parent = self.plotframe)
+        canvas = cace_makeplot.cace_makeplot(plotrec, results, variables, parent = self.plotframe)
         if 'display' in param:
             ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
         canvas.draw()
@@ -226,7 +226,7 @@ class FailReport(tkinter.Toplevel):
         plotrec['xaxis'] = condition
         plotrec['xlabel'] = condition
         # Note: cace_makeplot adds text for units, if available
-        plotrec['ylabel'] = param['method']
+        plotrec['ylabel'] = param['name']
         plotrec['type'] = 'xyplot'
 
         results = param['results']
@@ -239,7 +239,7 @@ class FailReport(tkinter.Toplevel):
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
         self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot.makeplot(plotrec, results, variables, parent = self.plotframe)
+        canvas = cace_makeplot.cace_makeplot(plotrec, results, variables, parent = self.plotframe)
         if 'display' in param:
             ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
         canvas.draw()
@@ -285,7 +285,7 @@ class FailReport(tkinter.Toplevel):
                 variables = param['variables']
             else:
                 variables = []
-            canvas = cace_makeplot.makeplot(plotrec, results, variables, parent = self.plotframe)
+            canvas = cace_makeplot.cace_makeplot(plotrec, results, variables, parent = self.plotframe)
             if 'display' in param:
                 ttk.Label(self.plotframe, text=param['display'],
 				style='title.TLabel').grid(row=1, column=0)

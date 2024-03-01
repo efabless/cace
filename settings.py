@@ -54,6 +54,12 @@ class Settings(tkinter.Toplevel):
 		variable = self.doedit)
         self.sframe.edit.pack(side = 'top', anchor = 'w')
 
+        self.dosequential = tkinter.IntVar(self.sframe)
+        self.dosequential.set(0)
+        self.sframe.seq = ttk.Checkbutton(self.sframe, text='Simulate single-threaded',
+		variable = self.dosequential)
+        self.sframe.seq.pack(side = 'top', anchor = 'w')
+
         self.dokeep = tkinter.IntVar(self.sframe)
         self.dokeep.set(0)
         self.sframe.keep = ttk.Checkbutton(self.sframe, text='Keep simulation files',
@@ -117,6 +123,10 @@ class Settings(tkinter.Toplevel):
     def get_keep(self):
         # return the state of the "keep simulation files" checkbox
         return False if self.dokeep.get() == 0 else True
+
+    def get_sequential(self):
+        # return the state of the "simulate single-threaded" checkbox
+        return False if self.dosequential.get() == 0 else True
 
     def get_noplot(self):
         # return the state of the "do not create plot files" checkbox
