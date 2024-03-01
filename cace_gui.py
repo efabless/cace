@@ -637,6 +637,10 @@ class CACECharacterize(ttk.Frame):
         self.allsimbutton.configure(style = 'bluetitle.TButton', text='Simulate All',
 		command=self.sim_all)
 
+        # Return all individual "Simulate" buttons to normal text
+        for simbutton in self.simbuttons.keys():
+            simbutton.configure(text='Simulate')
+
     def edit_param(self, param):
         # Edit the conditions under which the parameter is tested.
         if ('editable' in param and param['editable'] == True) or self.settings.get_edit() == True:
@@ -784,6 +788,10 @@ class CACECharacterize(ttk.Frame):
                 print('Note: Parameter status changed from "skip" to "active".')
                 param['status'] = 'active'
 
+        # Set the "Simulate" button to say "in progress"
+        simbutton = self.simbuttons[name]
+        simbutton.configure(text='(in progress)')
+
         # Diagnostic
         print('Simulating parameter ' + name)
         runtime_options['pid'] = os.getpid()
@@ -824,6 +832,11 @@ class CACECharacterize(ttk.Frame):
             newparam = None
             iseparam = True
             pname = charresult['simname']
+
+            # Return "Simulate" button to original text
+            simbutton = self.simbuttons[pname]
+            simbutton.configure(text='Simulate')
+
             print('Simulation of ' + pname + ' has completed.')
             if 'electrical_parameters' in charresult:
                 eparams = charresult['electrical_parameters']
@@ -1242,6 +1255,9 @@ class CACECharacterize(ttk.Frame):
         else:
             isschem = False
 
+        # Track the "Simulate" buttons by parameter name (dictionary)
+        self.simbuttons = {}
+
         for param in paramstodo:
             pname = param['name']
             # Fill frame with electrical parameter information
@@ -1518,7 +1534,12 @@ class CACECharacterize(ttk.Frame):
             else:
                 simtext = 'Check'
 
+            if self.procs_pending:
+                if pname in self.procs_pending:
+                    simtext = '(in progress)'
+
             simbutton = ttk.Menubutton(dframe, text=simtext, style = normbutton)
+            self.simbuttons[pname] = simbutton
 
             # Generate pull-down menu on Simulate button.  Most items apply
             # only to electrical parameters (at least for now)
