@@ -918,9 +918,12 @@ def regenerate_netlists(dsheet):
 
 #-----------------------------------------------------------------------
 # Regenerate all testbenches.
+#
+# If paramname is passed to regenerate_testbenches and is not None, then
+# only generate testbenches required by the specified parameter.
 #-----------------------------------------------------------------------
 
-def regenerate_testbenches(dsheet):
+def regenerate_testbenches(dsheet, paramname=None):
 
     paths = dsheet['paths']
     if 'testbench' in paths:
@@ -933,6 +936,8 @@ def regenerate_testbenches(dsheet):
     eparams = dsheet['electrical_parameters']
 
     for eparam in eparams:
+        if paramname and paramname != eparam['name']:
+            continue
         if 'simulate' in eparam:
             simlist = eparam['simulate']
             if isinstance(simlist, dict):

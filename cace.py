@@ -384,7 +384,7 @@ def cace_run(datasheet, paramname=None):
         return datasheet
 
     # Generate testbench netlists if needed
-    result = cace_regenerate.regenerate_testbenches(datasheet)
+    result = cace_regenerate.regenerate_testbenches(datasheet, paramname)
     if result == 1:
         print('Failed to regenerate testbench netlists;  stopping.')
         runtime_options['status'] = 'failed'
