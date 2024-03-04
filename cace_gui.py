@@ -1284,6 +1284,8 @@ class CACECharacterize(ttk.Frame):
                     p = p[0]
                 j = 0
             else:
+                p = 'none'
+                paramtype = 'unknown'
                 print('Parameter ' + pname + ' unknown type.')
 
             if 'editable' in param and param['editable'] == True:
@@ -1630,18 +1632,56 @@ class CACECharacterize(ttk.Frame):
         for child in dframe.winfo_children():
             child.grid_configure(ipadx = 5, ipady = 1, padx = 2, pady = 2)
 
+#--------------------------------------------------------------------------
+# Print usage information for cace_gui.py
+#--------------------------------------------------------------------------
+
+def usage():
+    print('')
+    print('CACE GUI')
+    print('   Graphical interface for the Circuit Automatic Characterization Engine,')
+    print('   an analog and mixed-signal design flow system.')
+    print('')
+    print('Usage:')
+    print('   cace_gui.py [characterization_file] [option]')
+    print('')
+    print('where:')
+    print('   characterization_file is a text or JSON file with the')
+    print('       specification of the circuit.')
+    print('')
+    print('and valid options are:')
+    print('   -term')
+    print('       Generate all output to the terminal, not the window.')
+    print('   -help')
+    print('       Print this help text.')
+    print('')
+
+#--------------------------------------------------------------------------
+# Main entry point for cace_gui.py
+#--------------------------------------------------------------------------
+
 if __name__ == '__main__':
     options = []
     arguments = []
     for item in sys.argv[1:]:
         if item.find('-', 0) == 0:
-            options.append(item)
+            options.append(item.strip('-'))
         else:
             arguments.append(item)
 
     signal.signal(signal.SIGUSR1, signal.SIG_IGN)
     root = tkinter.Tk()
     app = CACECharacterize(root)
+
+    if 'term' in options or 'help' in options:
+        # Revert output to the terminal
+        sys.stdout = app.stdout
+        sys.stderr = app.stderr
+
+    if 'help' in options:
+        usage()
+        sys.exit(0)
+
     if arguments:
         print('Setting datasheet to ' + arguments[0])
         app.set_datasheet(arguments[0])
@@ -1653,19 +1693,19 @@ if __name__ == '__main__':
         curdir = os.getcwd()
         dirname = os.path.split(curdir)[1]
         dirlist = os.listdir(curdir)
+
+        # Look through all directories for a '.txt' file
+        found = False
         for item in dirlist:
             if os.path.isfile(item):
                 fileext = os.path.splitext(item)[1]
                 basename = os.path.splitext(item)[0]
-                # Prefer '.txt' to '.json', if both exist
                 if fileext == '.txt':
                     if basename == dirname:
                         print('Setting datasheet to ' + item)
                         app.set_datasheet(item)
-                elif fileext == '.json':
-                    if basename == dirname:
-                        print('Setting datasheet to ' + item)
-                        app.set_datasheet(item)
+                        found = True
+                        break
             elif os.path.isdir(item):
                 subdirlist = os.listdir(item)
                 for subitem in subdirlist:
@@ -1673,14 +1713,42 @@ if __name__ == '__main__':
                     if os.path.isfile(subitemref):
                         fileext = os.path.splitext(subitem)[1]
                         basename = os.path.splitext(subitem)[0]
-                        # Prefer '.txt' to '.json', if both exist
                         if fileext == '.txt':
                             if basename == dirname:
                                 print('Setting datasheet to ' + subitemref)
                                 app.set_datasheet(subitemref)
-                        elif fileext == '.json':
-                            if basename == dirname:
-                                print('Setting datasheet to ' + subitemref)
-                                app.set_datasheet(subitemref)
+                                found = True
+                                break
+
+        # Look through all directories for a '.json' file
+        # ('.txt') is preferred to ('.json')
+
+        if not found:
+            for item in dirlist:
+                if os.path.isfile(item):
+                    fileext = os.path.splitext(item)[1]
+                    basename = os.path.splitext(item)[0]
+                    if fileext == '.json':
+                        if basename == dirname:
+                            print('Setting datasheet to ' + item)
+                            app.set_datasheet(item)
+                            found = True
+                            break
+                elif os.path.isdir(item):
+                    subdirlist = os.listdir(item)
+                    for subitem in subdirlist:
+                        subitemref = os.path.join(item, subitem)
+                        if os.path.isfile(subitemref):
+                            fileext = os.path.splitext(subitem)[1]
+                            basename = os.path.splitext(subitem)[0]
+                            if fileext == '.json':
+                                if basename == dirname:
+                                    print('Setting datasheet to ' + subitemref)
+                                    app.set_datasheet(subitemref)
+                                    found = True
+                                    break
+
+        if not found:
+            print('No datasheet found in local project (JSON or text file).')
 
     root.mainloop()
