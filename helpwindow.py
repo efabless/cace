@@ -187,9 +187,12 @@ class HelpWindow(tkinter.Toplevel):
                             pageid = parentid + '.' + pageid
                         newdict['text'] = page_text
                         newdict['title'] = pageid + '.  ' + toc_text
-                        self.hframe.toc.insert(parentid, 'end',
-				text=newdict['title'], tag='title',
-				value = newpageno - 1, iid = pageid)
+                        try:
+                            self.hframe.toc.insert(parentid, 'end',
+					text=newdict['title'], tag='title',
+					value = newpageno - 1, iid = pageid)
+                        except:
+                            print('Text helper error:  Line ' + line)
                     if newpagerex.match(line):
                         hierarchy = line.rstrip()
                         toc_text = []

@@ -46,7 +46,7 @@ class Settings(tkinter.Toplevel):
         self.doforce.set(0)
         self.sframe.force = ttk.Checkbutton(self.sframe, text='Force netlist regeneration',
 		variable = self.doforce)
-        self.sframe.force.pack(side = 'top', anchor = 'w')
+        # self.sframe.force.pack(side = 'top', anchor = 'w')
 
         self.doedit = tkinter.IntVar(self.sframe)
         self.doedit.set(0)
@@ -89,7 +89,7 @@ class Settings(tkinter.Toplevel):
         self.loadsave.set(0)
         self.sframe.loadsave = ttk.Checkbutton(self.sframe, text='Unlimited loads/saves',
 		variable = self.loadsave)
-        self.sframe.loadsave.pack(side = 'top', anchor = 'w')
+        # self.sframe.loadsave.pack(side = 'top', anchor = 'w')
 
         # self.sframe.sdisplay.sopts(side = 'top', fill = 'x', expand = 'true')
 

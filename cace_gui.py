@@ -208,7 +208,10 @@ class CACECharacterize(ttk.Frame):
         self.help = HelpWindow(self, fontsize = fontsize)
 
         with io.StringIO() as buf, contextlib.redirect_stdout(buf):
-            self.help.add_pages_from_file(apps_path + '/characterize_help.txt')
+            helpfile = os.path.join(apps_path, 'doc', 'characterize_help.txt')
+            self.help.add_pages_from_file(helpfile)
+            helpfile = os.path.join(apps_path, 'doc', 'format.txt')
+            self.help.add_pages_from_file(helpfile)
             message = buf.getvalue()
 
         # Set the help display to the first page
@@ -1566,8 +1569,8 @@ class CACECharacterize(ttk.Frame):
 			command = lambda pname=pname: self.sim_param(pname))
             simmenu.add_command(label='Stop', command = self.stop_sims)
             if paramtype == 'electrical':
-                simmenu.add_command(label='Hints',
-			command = lambda param=param, simbutton=simbutton: self.add_hints(param, simbutton))
+                # simmenu.add_command(label='Hints',
+		#	command = lambda param=param, simbutton=simbutton: self.add_hints(param, simbutton))
                 simmenu.add_command(label='Edit',
 			command = lambda param=param: self.edit_param(param))
                 simmenu.add_command(label='Copy',

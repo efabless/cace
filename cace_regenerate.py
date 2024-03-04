@@ -744,6 +744,33 @@ def regenerate_schematic_netlist(dsheet):
         if pdk and 'PDK' not in newenv:
             newenv['PDK'] = pdk
 
+        tclstr = 'set lvs_netlist 1 ; append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path)
+
+        paths = dsheet['paths']
+        if 'schematic' in paths:
+            schempath = os.path.join(root_path, paths['schematic'])
+            tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + schempath
+
+        # If dependencies are declared, then pull in their locations
+
+        # NOTE:  This depends on the setup of the dependent repository.
+        # The code below assumes that there is a subdirectory 'xschem'
+        # in the repository.  There needs to be a routine that recursively
+        # determines dependencies from the dependent repository's own CACE
+        # definition file.
+
+        if 'dependencies' in dsheet:
+            # If there is only one dependency it may be a dictionary and not a
+            # list of dictionaries.
+            if isinstance(dsheet['dependencies'], dict):
+                dependencies = [dsheet['dependencies']]
+            else:
+                dependencies = dsheet['dependencies']
+            for dependency in dependencies:
+                print('dependency = ' + str(dependency))
+                dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
+                tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
+        
         # Xschem arguments:
         # -n:  Generate a netlist
         # -s:  Netlist type is SPICE
@@ -752,7 +779,7 @@ def regenerate_schematic_netlist(dsheet):
         # -q:  Quit after processing command line
         # --tcl "set lvs_netlist 1":  Require ".subckt ... .ends" wrapper
 
-        xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', 'set lvs_netlist 1']
+        xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
 
         # Use the PDK xschemrc file for xschem startup
         xschemrcfile = os.path.join(pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc')
@@ -783,6 +810,18 @@ def regenerate_schematic_netlist(dsheet):
         if not os.path.isfile(schem_netlist):
             print('Error: No netlist found for the circuit!\n')
             print('(schematic netlist for simulation ' + schem_netlist + ' not found.)\n')
+
+        else:
+            # Do a quick parse of the netlist to check for errors
+            missrex = re.compile('[ \t]*([^ \t]+)[ \t]+IS MISSING')
+            with open(schem_netlist, 'r') as ifile:
+                schemlines = ifile.read().splitlines()
+                for line in schemlines:
+                    mmatch = missrex.search(line)
+                    if mmatch:
+                        print('Error in netlist generation:')
+                        print('Subcircuit ' + mmatch.group(1) + ' was not found!') 
+                        os.remove(schem_netlist)
 
     if need_schem_capture:
         if (not os.path.isfile(schem_netlist)):
@@ -854,7 +893,7 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q']
+    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', 'append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path)]
 
     # Use the PDK xschemrc file for xschem startup
     xschemrcfile = os.path.join(pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc')
@@ -868,6 +907,7 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if debug:
         print('Executing: ' + ' '.join(xschemargs))
 
+
     xproc = subprocess.Popen(xschemargs,
 		stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
 		cwd=root_path, env=newenv)
@@ -880,6 +920,17 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
         print('Xschem process returned error code ' + str(xproc.returncode) + '\n')
     else:
         printwarn(xout)
+
+    # Do a quick parse of the netlist to check for errors
+    missrex = re.compile('[ \t]*([^ \t]+)[ \t]+IS MISSING')
+    with open(netlist_file, 'r') as ifile:
+        schemlines = ifile.read().splitlines()
+        for line in schemlines:
+            mmatch = missrex.search(line)
+            if mmatch:
+                print('Error in netlist generation:')
+                print('Subcircuit ' + mmatch.group(1) + ' was not found!')
+                os.remove(netlist_file)
 
     if not os.path.isfile(netlist_file):
         print('Error: No netlist found for the testbench ' + testbench + '!')
