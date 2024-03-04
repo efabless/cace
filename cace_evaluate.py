@@ -169,7 +169,7 @@ def cace_area(datasheet, param, cond, toolargs=None):
 
     if source == 'schematic':
         print('Source netlist is schematic:  Physical parameters are estimated.')
-        netlist_path = paths['schem_netlist']
+        netlist_path = os.path.join(paths['netlist'], 'schematic')
         netlist_filename = os.path.join(netlist_path, projname + '.spice')
         namespace = get_magic_namespace(datasheet)
         layoutest = layout_estimate.layout_estimate(netlist_filename, namespace, rcfile, debug, keep)
@@ -369,8 +369,8 @@ def run_invalid_device_check(datasheet):
     pdk_path = os.path.join(pdk_root, pdk)
 
     schem_netlist = None
-    if 'schem_netlist' in paths:
-        schem_netlist_path = paths['schem_netlist']
+    if 'netlist' in paths:
+        schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
         schem_netlist = os.path.join(schem_netlist_path, projname + '.spice')
 
     if debug:
@@ -409,12 +409,11 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
     layout_netlist = None
     verilog_netlist = None
 
-    if 'lvs_netlist' in paths:
-        layout_netlist_path = paths['lvs_netlist']
+    if 'netlist' in paths:
+        layout_netlist_path = os.path.join(paths['netlist'], 'layout')
         layout_netlist = os.path.join(layout_netlist_path, projname + '.spice')
 
-    if 'schem_netlist' in paths:
-        schem_netlist_path = paths['schem_netlist']
+        schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
         schem_netlist = os.path.join(schem_netlist_path, projname + '.spice')
 
     if 'verilog' in paths:

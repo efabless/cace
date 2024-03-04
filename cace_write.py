@@ -315,9 +315,8 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
 
     elif dictname == 'paths':
         orderedlist = ['root', 'documentation', 'schematic', 'layout',
-		'magic', 'lvs_netlist', 'rcx_netlist', 'schem_netlist',
-		'netgen', 'verilog', 'testbench', 'simulation', 'plots',
-		'logs']
+		'magic', 'netlist', 'netgen', 'verilog', 'testbench',
+		'simulation', 'plots', 'logs']
 
     elif dictname == 'dependencies':
         orderedlist = ['name', 'path', 'repository', 'commit', 'note']
@@ -353,7 +352,7 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
         orderedlist = ['minimum', 'typical', 'maximum', 'note']
 
     elif dictname == 'results':
-        orderedlist = ['name', 'minimum', 'typical', 'maximum']
+        orderedlist = ['name', 'minimum', 'typical', 'maximum', 'status']
 
     elif dictname == 'simulate':
         orderedlist = ['tool', 'template', 'filename', 'format', 'collate',

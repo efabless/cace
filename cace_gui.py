@@ -1181,10 +1181,10 @@ class CACECharacterize(ttk.Frame):
         self.status = {}	# Clear dictionary
 
         dsheet = self.datasheet
-        if 'default_conditions' in dsheet:
-            globcond = dsheet['default_conditions']
+        if 'runtime_options' in dsheet:
+            runtime_options = dsheet['runtime_options']
         else:
-            globcond = []
+            runtime_options = {}
 
         # Add basic information at the top
 
@@ -1321,14 +1321,30 @@ class CACECharacterize(ttk.Frame):
             dframe.method = ttk.Label(dframe, text = p, style = normlabel)
             dframe.method.grid(column = 1, row=n, sticky='ewns')
             if 'plot' in param:
+                # For plots, the status still comes from the 'results' dictionary
                 status_style = normlabel
                 dframe.plots = ttk.Frame(dframe)
                 dframe.plots.grid(column = 2, row=n, columnspan = 6, sticky='ewns')
+                status_value = '(not checked)'
+                if 'results' in param:
+                    reslist = param['results']
+                    if 'netlist_source' in runtime_options:
+                        netlist_source = runtime_options['netlist_source']
+                    if isinstance(reslist, list):
+                        try:
+                            resdict = list(item for item in reslist if item['name'] == netlist_source)
+                        except:
+                            resdict = None
+                    elif reslist['name'] == netlist_source:
+                        resdict = reslist
+                    else:
+                        resdict = None
+                        
+                    if resdict:
+                        if 'status' in resdict:
+                            status_value = resdict['status']
+                            
                 plotrec = param['plot']
-                if 'status' in plotrec:
-                    status_value = plotrec['status']
-                else:
-                    status_value = '(not checked)'
                 dframe_plot = ttk.Label(dframe.plots, text=plotrec['filename'],
 				style = normlabel)
                 dframe_plot.grid(column = j, row = n, sticky='ewns')
@@ -1583,8 +1599,8 @@ class CACECharacterize(ttk.Frame):
                     bstyle=greenbutton
                 if paramtype == 'electrical':
                     stat_label = ttk.Button(dframe, text=status_value, style=bstyle,
-				command = lambda param=param, globcond=globcond:
-				self.failreport.display(param, globcond,
+				command = lambda param=param, dsheet=dsheet:
+				self.failreport.display(param, dsheet,
 				self.datasheet))
                 elif p == 'LVS_errors':
                     dspath = os.path.split(self.filename)[0]
@@ -1627,7 +1643,7 @@ if __name__ == '__main__':
     root = tkinter.Tk()
     app = CACECharacterize(root)
     if arguments:
-        print('Calling set_datasheet with argument ' + arguments[0])
+        print('Setting datasheet to ' + arguments[0])
         app.set_datasheet(arguments[0])
     else:
         # Check the current working directory and determine if there
@@ -1644,11 +1660,11 @@ if __name__ == '__main__':
                 # Prefer '.txt' to '.json', if both exist
                 if fileext == '.txt':
                     if basename == dirname:
-                        print('Calling set_datasheet using ' + item)
+                        print('Setting datasheet to ' + item)
                         app.set_datasheet(item)
                 elif fileext == '.json':
                     if basename == dirname:
-                        print('Calling set_datasheet using ' + item)
+                        print('Setting datasheet to ' + item)
                         app.set_datasheet(item)
             elif os.path.isdir(item):
                 subdirlist = os.listdir(item)
@@ -1660,11 +1676,11 @@ if __name__ == '__main__':
                         # Prefer '.txt' to '.json', if both exist
                         if fileext == '.txt':
                             if basename == dirname:
-                                print('Calling set_datasheet using ' + subitemref)
+                                print('Setting datasheet to ' + subitemref)
                                 app.set_datasheet(subitemref)
                         elif fileext == '.json':
                             if basename == dirname:
-                                print('Calling set_datasheet using ' + subitemref)
+                                print('Setting datasheet to ' + subitemref)
                                 app.set_datasheet(subitemref)
 
     root.mainloop()

@@ -407,8 +407,8 @@ def regenerate_rcx_netlist(dsheet):
         gdsfilename = None
 
     # Layout-extracted netlist with R-C parasitics
-    if 'rcx_netlist' in paths:
-        rcx_netlist_path = paths['rcx_netlist']
+    if 'netlist' in paths:
+        rcx_netlist_path = os.path.join(paths['netlist'], 'rcx')
         rcx_netlist = os.path.join(rcx_netlist_path, netlistname)
     else:
         rcx_netlist = None
@@ -554,8 +554,8 @@ def regenerate_lvs_netlist(dsheet, pex=False):
         gdsfilename = None
 
     # Layout-extracted netlist for LVS
-    if 'lvs_netlist' in paths:
-        lvs_netlist_path = paths['lvs_netlist']
+    if 'netlist' in paths:
+        lvs_netlist_path = os.path.join(paths['netlist'], 'layout')
         lvs_netlist = os.path.join(lvs_netlist_path, netlistname)
     else:
         lvs_netlist_path = None
@@ -683,16 +683,16 @@ def regenerate_schematic_netlist(dsheet):
         schemfilename = None
 
     # Schematic-captured netlist
-    if 'schem_netlist' in paths:
-        schem_netlist_path = paths['schem_netlist']
+    if 'netlist' in paths:
+        schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
         schem_netlist = os.path.join(schem_netlist_path, netlistname)
     else:
         schem_netlist_path = None
         schem_netlist = None
 
     # Verilog netlist
-    if 'verilog_netlist' in paths:
-        verilog_netlist_path = paths['verilog_netlist']
+    if 'verilog' in paths:
+        verilog_netlist_path = paths['verilog']
         verilog_netlist = os.path.join(verilog_netlist_path, netlistname)
     else:
         verilog_netlist_path = None

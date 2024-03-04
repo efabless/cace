@@ -57,11 +57,10 @@ def cace_compat(datasheet, debug=False):
         pathdict['documentation'] = 'doc'
         pathdict['schematic'] = 'xschem'
         pathdict['layout'] = 'gds'
-        pathdict['lvs_netlist'] = os.path.join('netlist', 'lvs')
-        pathdict['rcx_netlist'] = os.path.join('netlist', 'rcx')
-        pathdict['schem_netlist'] = os.path.join('netlist', 'schem')
+        pathdict['netlist'] = 'netlist'
         pathdict['testbench'] = 'testbench'
         pathdict['simulation'] = 'ngspice'
+        pathdict['plots'] = 'plots'
         pathdict['logs'] = os.path.join('ngspice', 'log')
         datasheet['paths'] = pathdict
 

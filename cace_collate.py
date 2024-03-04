@@ -270,8 +270,7 @@ def incompleteresult(param, noplotmode=False):
 
     if 'plot' in param:
         if noplotmode == False:
-            plotrec = param['plot']
-            plotrec['status'] = 'incomplete'
+            resultdict['status'] = 'incomplete'
 
     if 'spec' not in param:
         return resultdict
@@ -601,24 +600,6 @@ def cace_collate(dsheet, param):
             elif score != 'fail':
                 score = typresult[1]
             resultdict['typical'] = typresult
-
-    # Handle any plot requests
-
-    if 'plot' in param:
-        # If in plotmode then create a plot and save it to a file.
-        plotrec = param['plot']
-        if noplotmode == False:
-            if 'variables' in param:
-                variables = param['variables']
-            else:
-                variables = []
-            result = cace_makeplot.cace_makeplot(plotrec, param, variables, runtime_options)
-            if result:
-                plotrec['status'] = 'done'
-            else:
-                print('Failure:  No plot from file ' + filename + '\n')
-        else:
-            plotrec['status'] = 'skipped'
 
     # Results belong to a key name in the electrical parameter that
     # depends on where the source netlists came from.

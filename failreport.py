@@ -127,15 +127,16 @@ class FailReport(tkinter.Toplevel):
 
     # Given an electrical parameter 'param' and a condition name 'condname', find
     # the units of that condition.  If the condition isn't found in the local
-    # parameters, then it is searched for in 'globcond'.
+    # parameters, then it is searched for in dsheet['global_conditions'].
 
-    def findunit(self, condname, param, globcond):
+    def findunit(self, condname, param, dsheet):
         unit = ''
         try:
-            loccond = next(item for item in param['conditions'] if item['condition'] == condname)
+            loccond = next(item for item in param['conditions'] if item['name'] == condname)
         except StopIteration:
+            globcond = dsheet['default_conditions']
             try:
-                globitem = next(item for item in globcond if item['condition'] == condname)
+                globitem = next(item for item in globcond if item['name'] == condname)
             except (TypeError, StopIteration):
                 unit = ''	# No units
             else:
@@ -179,7 +180,7 @@ class FailReport(tkinter.Toplevel):
         else:
             self.mainarea.configure(height=height)
 
-    def table_to_histogram(self, globcond, filename):
+    def table_to_histogram(self, dsheet, filename):
         # Switch from a table view to a histogram plot view, using the
         # result as the X axis variable and count for the Y axis.
 
@@ -196,16 +197,15 @@ class FailReport(tkinter.Toplevel):
         if 'unit' in param:
             plotrec['xlabel'] += ' (' + param['unit'] + ')'
 
-        results = param['results']
+        # Temporarily set a 'plot' record in param
+        param['plot'] = plotrec
 
-        if 'variables' in param:
-            variables = param['variables']
-        else:
-            variables = []
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
         self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot.cace_makeplot(plotrec, results, variables, parent = self.plotframe)
+        canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+        param.pop('plot')
+
         if 'display' in param:
             ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
         canvas.draw()
@@ -213,7 +213,7 @@ class FailReport(tkinter.Toplevel):
         # Finally, open the window if it was not already open.
         self.open()
 
-    def table_to_plot(self, condition, globcond, filename):
+    def table_to_plot(self, condition, dsheet, filename):
         # Switch from a table view to a plot view, using the condname as
         # the X axis variable.
 
@@ -229,32 +229,36 @@ class FailReport(tkinter.Toplevel):
         plotrec['ylabel'] = param['name']
         plotrec['type'] = 'xyplot'
 
-        results = param['results']
-
-        if 'variables' in param:
-            variables = param['variables']
-        else:
-            variables = []
-
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
         self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot.cace_makeplot(plotrec, results, variables, parent = self.plotframe)
+
+        # Temporarily set a 'plot' record in param
+        param['plot'] = plotrec
+
+        canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+        param.pop('plot')
         if 'display' in param:
             ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
-        canvas.draw()
-        canvas.get_tk_widget().grid(row=0, column=0, sticky = 'nsew')
-        # Display the button to return to the table view
-        # except for transient and Monte Carlo simulations which are too large to tabulate.
-        if not condition == 'TIME':
-            self.bbar.table_button.grid(column=1, row=0, padx = 5)
-            self.bbar.table_button.configure(command=lambda param=param, globcond=globcond,
-			filename=filename: self.display(param, globcond, filename))
 
-        # Finally, open the window if it was not already open.
-        self.open()
+        if canvas:
+            canvas.draw()
+            canvas.get_tk_widget().grid(row=0, column=0, sticky = 'nsew')
 
-    def display(self, param=None, globcond=None, filename=None):
+            # Display the button to return to the table view
+            # except for transient and Monte Carlo simulations which are too large to tabulate.
+            if not condition == 'time':
+                self.bbar.table_button.grid(column=1, row=0, padx = 5)
+                self.bbar.table_button.configure(command=lambda param=param, dsheet=dsheet,
+			filename=filename: self.display(param, dsheet, filename))
+
+            # Finally, open the window if it was not already open.
+            self.open()
+        else:
+            # Plot failed;  revert to the table view
+            self.display(param, dsheet, filename)
+
+    def display(self, param=None, dsheet=None, filename=None):
         # (Diagnostic)
         # print('failure report:  passed parameter ' + str(param))
 
@@ -270,8 +274,7 @@ class FailReport(tkinter.Toplevel):
         # record called 'results'.  If the parameter has no results, then
         # there is nothing to do.
 
-        if filename and 'plot' in param:
-            simfiles = os.path.split(filename)[0] + '/ngspice/char/simulation_files/'
+        if 'plot' in param:
             self.failframe.grid_forget()
             self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
 
@@ -279,13 +282,7 @@ class FailReport(tkinter.Toplevel):
             for widget in self.plotframe.winfo_children():
                 widget.destroy()
 
-            plotrec = param['plot']
-            results = param['results']
-            if 'variables' in param:
-                variables = param['variables']
-            else:
-                variables = []
-            canvas = cace_makeplot.cace_makeplot(plotrec, results, variables, parent = self.plotframe)
+            canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
             if 'display' in param:
                 ttk.Label(self.plotframe, text=param['display'],
 				style='title.TLabel').grid(row=1, column=0)
@@ -294,8 +291,8 @@ class FailReport(tkinter.Toplevel):
             self.data = param
             # Display the button to return to the table view
             self.bbar.table_button.grid(column=1, row=0, padx = 5)
-            self.bbar.table_button.configure(command=lambda param=param, globcond=globcond,
-			filename=filename: self.display(param, globcond, filename))
+            self.bbar.table_button.configure(command=lambda param=param, dsheet=dsheet,
+			filename=filename: self.display(param, dsheet, filename))
 
         elif not 'testbenches' in param:
             print("No testbench results to build a report with.")
@@ -327,12 +324,21 @@ class FailReport(tkinter.Toplevel):
                     units.append('')
 
             results = []
+
             for testbench in testbenches:
                 tresult = []
                 result = testbench['results']
                 # To do:  handle vector results here, which imply
                 # that conditions list needs to be expanded by variables.
-                while isinstance(result, list):
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        print('Warning: result truncated from length ' + str(len(result)))
+                    result = result[0]
+
+                # Results get double-nested?
+                if isinstance(result, list):
+                    if len(result) > 1:
+                        print('Warning: result truncated from length ' + str(len(result)))
                     result = result[0]
                 tresult.append(result)
 
@@ -346,18 +352,21 @@ class FailReport(tkinter.Toplevel):
             # Check for transient simulation
             if 'time' in names:
                 # Transient data are (usually) too numerous to tabulate, so go straight to plot
-                self.table_to_plot('TIME', globcond, filename)
+                self.table_to_plot('time', dsheet, filename)
                 return
 
             # Check for Monte Carlo simulation
             if 'iterations' in names:
                 # Monte Carlo data are too numerous to tabulate, so go straight to plot
-                self.table_to_histogram(globcond, filename)
+                self.table_to_histogram(dsheet, filename)
                 return
 
             # Numerically sort by result (to be done:  sort according to up/down
             # criteria, which will be retained per header entry)
-            results.sort(key = lambda row: float(row[0]), reverse = self.sortdir)
+            try:
+                results.sort(key = lambda row: float(row[0]), reverse = self.sortdir)
+            except:
+                print('Failure to sort results:  results = ' + str(results))
 
             # To get ranges, transpose the results matrix, then make unique
             ranges = list(map(list, zip(*results)))
@@ -431,7 +440,7 @@ class FailReport(tkinter.Toplevel):
             for condname, unit, drange in zip(names, units, ranges):
                 if len(drange) == 1:
                     labtext = condname
-                    # unit = self.findunit(condname, param, globcond)
+                    # unit = self.findunit(condname, param, dsheet)
                     labtext += ' = ' + drange[0] + ' ' + unit + ' '
                     row = int(j / 3)
                     col = 1 + (j % 3)
@@ -460,12 +469,13 @@ class FailReport(tkinter.Toplevel):
                     # Add unicode arrow up/down depending on sort direction
                     labtext += ' \u21e9' if self.sortdir else ' \u21e7'
                     header = ttk.Button(body, text=labtext, style = 'title.TButton',
-				command = self.changesort)
+				command = lambda param=param,
+				dsheet=dsheet: self.changesort(param, dsheet))
                     tooltip.ToolTip(header, text='Reverse order of results')
                 else:
                     header = ttk.Button(body, text=labtext, style = 'title.TLabel',
-				command = lambda plottext=plottext, globcond=globcond,
-				filename=filename: self.table_to_plot(plottext, globcond, filename))
+				command = lambda plottext=plottext, dsheet=dsheet,
+				filename=filename: self.table_to_plot(plottext, dsheet, filename))
                     tooltip.ToolTip(header, text='Plot results with this condition on the X axis')
                 header.grid(row = 0, column = j, sticky = 'ewns')
 
@@ -479,7 +489,7 @@ class FailReport(tkinter.Toplevel):
                 # else:
                 #     # Measurement unit of condition in other columns
                 #     # Find condition in local conditions else global conditions
-                #     unit = self.findunit(condname, param, globcond)
+                #     unit = self.findunit(condname, param, dsheet)
 
                 unitlabel = ttk.Label(body, text=unit, style = 'brown.TLabel')
                 unitlabel.grid(row = 1, column = j, sticky = 'ewns')
@@ -556,9 +566,9 @@ class FailReport(tkinter.Toplevel):
         # Finally, open the window if it was not already open.
         self.open()
 
-    def changesort(self):
+    def changesort(self, param, dsheet):
         self.sortdir = False if self.sortdir == True else True
-        self.display(param=None)
+        self.display(param, dsheet)
 
     def close(self):
         # pop down failure report window

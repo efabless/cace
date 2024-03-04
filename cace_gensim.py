@@ -1077,16 +1077,18 @@ def cace_gensim(dataset, param):
     pname = dataset['name']
 
     if source != 'schematic':
-        if source == 'layout' or source == 'pex': 
-            layoutpath = paths['lvs_netlist']
+        if source == 'layout':
+            layoutpath = os.path.join(paths['netlist'], 'layout')
+        elif source == 'pex': 
+            layoutpath = os.path.join(paths['netlist'], 'pex')
         else:
-            layoutpath = paths['rcx_netlist']
+            layoutpath = os.path.join(paths['netlist'], 'rcx')
         layoutname = pname + '.spice'
         dutpath = os.path.join(root_path, layoutpath, layoutname)
 
     if source == 'schematic' or not os.path.isfile(dutpath):
         if source == 'schematic':
-            schempath = paths['schem_netlist']
+            schempath = os.path.join(paths['netlist'], 'schematic')
             schemname = pname + '.spice'
             dutpath = os.path.join(root_path, schempath, schemname)
 

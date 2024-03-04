@@ -7,6 +7,7 @@
 
 import re
 import os
+import copy
 import matplotlib
 
 from matplotlib.figure import Figure
@@ -18,6 +19,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from cace_gensim import twos_comp
+from cace_collate import addnewresult
 
 #-----------------------------------------------------------------------------
 # Given a plot record from a spec sheet and a full set of testbenches, generate
@@ -60,13 +62,11 @@ def cace_makeplot(dsheet, param, parent=None):
     # of conditions.  Multiple testbench data will be steps in the graph.
 
     numtbs = len(param['testbenches'])
-    if numtbs > 1:
-        print('Warning:  Plot is taken only from 1st of ' + str(numtbs) + ' testbenches.')
-    elif numtbs == 0:
+    if numtbs == 0:
         print('Error:  Plot has no results.')
 
     tbzero = param['testbenches'][0]
-    results = tbzero['results']
+    results = copy.deepcopy(tbzero['results'])
 
     binrex = re.compile(r'([0-9]*)\'([bodh])', re.IGNORECASE)
     # Organize data into plot lines according to formatting
@@ -78,12 +78,18 @@ def cace_makeplot(dsheet, param, parent=None):
 
     # The 'format' record of the 'simulate' dictionary in the parameter
     # indicates how the simulation data should be formatted.  The first
-    # two items were previously handled to generate the results vector,
-    # so remove them, leaving only the names of the result columns.
+    # two items describe how to read the file and are discarded.  The
+    # routine that reads the simulation data always moves the "result"
+    # entry to the 1st position, so the format needs to be adjusted
+    # accordingly.
 
-    simdict = param['simulate']
+    simdict = copy.deepcopy(param['simulate'])
     if 'format' in simdict:
         simformat = simdict['format'][2:]
+        if 'result' in simformat:
+            ridx = simformat.index('result')
+            if ridx != 0:
+                simformat.insert(0, simformat.pop(simformat.index('result')))
     else:
         simformat = ['result']
 
@@ -94,17 +100,50 @@ def cace_makeplot(dsheet, param, parent=None):
 
     # Find index of X data in results.  All results lines have the same
     # data, so pick up the number of items per result from the 1st entry.
-
+ 
     rlen = len(results[0])
     try:
         xidx = next(r for r in range(rlen) if simformat[r] == xname)
     except StopIteration:
-        print('Plot error:  No signal ' + xname + ' recorded in format.')
-        return None
-                            
+
+        # x-axis variable is not in the variable list.  If it exists as
+        # a testbench condition and varies over the testbenches, then
+        # add a column to each row of results to represent the variable,
+        # and add all testbench results to the <results> array.
+
+        conditions = tbzero['conditions']
+        notfound = True
+        for cond in conditions:
+            if cond[0] == xname:
+                condvalue = cond[2]
+                notfound = False
+                break
+
+        if notfound: 
+            print('Plot error:  No signal ' + xname + ' recorded in format.')
+            return None
+
+        for result in results:
+            result.append(condvalue)
+
+        for tbi in param['testbenches'][1:]:
+            conditions = tbi['conditions']
+            for cond in conditions:
+                if cond[0] == xname:
+                    condvalue = cond[2]
+                    break
+            for result in tbi['results']:
+                newresult = result.copy()
+                newresult.append(condvalue)
+                results.append(newresult)
+
+        rlen = len(results[0])
+        xidx = rlen - 1
+        simformat.append(xname)
+
     # Find unique values of each variable (except results, traces, and iterations)
-    traces = [0]
-    bmatch = binrex.match(results[1][0])	# FIXME
+
+    bmatch = binrex.match(results[1][0])	# FIXME---results[1] no longer units
     if bmatch:
         digits = bmatch.group(1)
         if digits == '':
@@ -127,43 +166,39 @@ def cace_makeplot(dsheet, param, parent=None):
     if debug:
         print('Processing ' + str(rlen) + ' plot variables.')
 
+    # Collect the records of everything being plotted.
+
     tracedicts = []
-    for i in range(1, rlen):
-
-        # results labeled 'iterations', 'result', 'trace', or 'time' are treated as plot vectors
-        isvector = False
-        if simformat[i] == 'iterations':
-            isvector = True
-        elif simformat[i] == 'result':
-            isvector = True
-        elif simformat[i] == 'time':
-            isvector = True
-        elif simformat[i].split('|')[0] == 'trace':
-            isvector = True
-
-        # Results whose labels are in the 'variables' list are treated as plot vectors
-        if isvector == False:
-            if variables:
-                try:
-                    varrec = next(item for item in variables if item['name'] == simformat[i])
-                except StopIteration:
-                    tracedicts.append([])
-                else:
-                    isvector = True
-                    tracedicts.append(varrec)
-        else:
-            tracedicts.append([])
-
-        # 'iterations' and 'time' are the x-axis variable, so don't add them to traces
-        # (but maybe just check that xaxis name is not made into a trace?)
-        if simformat[i] != 'iterations' and simformat[i] != 'time':
+    traces = []
+    residx = 0
+    for i in range(0, rlen):
+        if i != xidx:
+            # Keep track of which indexes have traces (i.e., not the X axis values)
             traces.append(i)
+        try:
+            varrec = next(item for item in variables if item['name'] == simformat[i])
+        except StopIteration:
+            if simformat[i] == 'result':
+                varrec = {}
+                varrec['name'] = 'result'
+                if 'unit' in param:
+                    varrec['unit'] = param['unit']
+                residx = i
+            else:
+                varrec = {}
+
+        tracedicts.append(varrec)
 
         # Mark which items need converting from digital.  Format is verilog-like.  Use
         # a format width that is larger than the actual number of digits to force
         # unsigned conversion.
 
-        bmatch = binrex.match(results[1][i])	# FIXME
+        if 'name' in varrec:
+            varname = varrec['name']
+        else:
+            varname = ''
+
+        bmatch = binrex.match(varname)
         if bmatch:
             digits = bmatch.group(1)
             if digits == '':
@@ -183,10 +218,6 @@ def cace_makeplot(dsheet, param, parent=None):
         else:
             binconv.append([])
         
-    # Support older method of declaring a digital vector
-    if xname.split('|')[0] == 'digital':
-        binconv[xidx] = [2, len(results[2][0])]
-
     # Which stepped variables (ignoring X axis variable) have more than one value?
     # watchsteps = list(i for i in range(1, rlen) if len(steps[i]) > 1 and i != xidx)
     watchsteps = []
@@ -194,7 +225,7 @@ def cace_makeplot(dsheet, param, parent=None):
     # Diagnostic
     # print("Stepped conditions are: ")
     # for j in watchsteps:
-    #      print(results[0][j] + '  (' + str(len(steps[j])) + ' steps)')
+    #      print(results[0][j] + '  (' + str(len(steps[j])) + ' steps)')  # FIXME
 
     needconvert = False
     if xname.split('|')[0] == 'digital' or binconv[xidx] != []:
@@ -218,9 +249,9 @@ def cace_makeplot(dsheet, param, parent=None):
     else:
         stepsize = 1
         
-
     for idx in range(0, numpoints, stepsize):
         item = results[idx]
+
         if needconvert:
             base = binconv[xidx][0]
             digits = binconv[xidx][1]
@@ -242,8 +273,10 @@ def cace_makeplot(dsheet, param, parent=None):
             stextlist = []
             for j in watchsteps:
                 if results[1][j] == '':
+                    # FIXME:  results[0][x] is no longer the trace name
                     stextlist.append(results[0][j] + '=' + item[j])
                 else:
+                    # FIXME:  results[0][x] is no longer the trace name
                     stextlist.append(results[0][j] + '=' + item[j] + ' ' + results[1][j])
             pdict = {}
             pdata[istr] = pdict
@@ -257,19 +290,31 @@ def cace_makeplot(dsheet, param, parent=None):
                 aname = 'ydata' + str(i)
                 pdict[aname] = []
                 alabel = 'ylabel' + str(i)
-                tracename = results[0][i]
-                if ':' in tracename:
-                    tracename = tracename.split(':')[1]
 
-                if results[1][i] != '' and not binrex.match(results[1][i]):
-                    tracename += ' (' + results[1][i] + ')'
+                # Get the name of the trace.
+                tracedict = tracedicts[i]
+                if 'display' in tracedict:
+                    tracename = tracedict['display']
+                else:
+                    tracename = tracedict['name']
+
+                # Get the units of the trace
+                if 'unit' in tracedict:
+                    if not binrex.match(tracedict['unit']):
+                        tracename += ' (' + tracedict['unit'] + ')'
 
                 pdict[alabel] = tracename
 
             pdict['sdata'] = ' '.join(stextlist)
         else:
             pdict = pdata[istr]
-        pdict['xdata'].append(xvalue)
+
+        try:
+            xfloat = float(xvalue)
+        except:
+            pdict['xdata'].append(xvalue)
+        else:
+            pdict['xdata'].append(xfloat)
 
         for i in traces:
             # For each trace, convert the value from digital to integer if needed
@@ -283,7 +328,12 @@ def cace_makeplot(dsheet, param, parent=None):
                 yvalue = item[i]
 
             aname = 'ydata' + str(i)
-            pdict[aname].append(yvalue)
+            try:
+                yfloat = float(yvalue)
+            except:
+                pdict[aname].append(yvalue)
+            else:
+                pdict[aname].append(yfloat)
 
     fig = Figure()
     if parent == None:
@@ -321,36 +371,32 @@ def cace_makeplot(dsheet, param, parent=None):
                 aname = 'ydata' + str(i)
                 alabl = 'ylabel' + str(i)
                 ax.plot(xdata, pdict[aname], label=pdict[alabl] + ' ' + pdict['sdata'])
-                # Diagnostic
-                # print("Y values for " + aname + ": " + str(pdict[aname]))
 
         if not numeric:
             ax.set_xticks(xdata)
             ax.set_xticklabels(pdict['xdata'])
 
+    # Automatically generate X axis label if not given alternate text
+        
+    tracerec = tracedicts[xidx]
     if 'xlabel' in plotrec:
-        if results[1][xidx] == '' or binrex.match(results[1][xidx]):
-            ax.set_xlabel(plotrec['xlabel'])
-        else:
-            ax.set_xlabel(plotrec['xlabel'] + ' (' + results[1][xidx] + ')')
+        xtext = plotrec['xlabel']
     else:
-        # Automatically generate X axis label if not given alternate text
-        xtext = results[0][xidx]
-        if results[1][xidx] != '':
-            xtext += ' (' + results[1][xidx] + ')'
-        ax.set_xlabel(xtext)
+        xtext = tracerec['name']
+    if 'unit' in tracerec:
+        xtext += ' (' + tracerec['unit'] + ')'
+    ax.set_xlabel(xtext)
 
+    # Automatically generate Y axis label if not given alternate text
+
+    tracerec = tracedicts[residx]
     if 'ylabel' in plotrec:
-        if results[1][0] == '' or binrex.match(results[1][0]):
-            ax.set_ylabel(plotrec['ylabel'])
-        else:
-            ax.set_ylabel(plotrec['ylabel'] + ' (' + results[1][0] + ')')
+        ytext = plotrec['ylabel']
     else:
-        # Automatically generate Y axis label if not given alternate text
-        ytext = results[0][0]
-        if results[1][0] != '' or binrex.match(results[1][0]):
-            ytext += ' (' + results[1][0] + ')'
-        ax.set_ylabel(ytext)
+        ytext = tracerec['name']
+    if 'unit' in tracerec:
+        ytext += ' (' + tracerec['unit'] + ')'
+    ax.set_ylabel(ytext)
 
     ax.grid(True)
     if watchsteps or tracelegnd:
@@ -363,13 +409,23 @@ def cace_makeplot(dsheet, param, parent=None):
 
     if parent == None:
         paths = dsheet['paths']
-        simdir = paths['simulation']
+        if 'plots' in paths:
+            plotdir = paths['plots']
+        else:
+            plotdir = paths['simulation']
+
+        netlist_source = runtime_options['netlist_source']
+
         if 'filename' in plotrec:
             plotname = plotrec['filename']
         else:
             plotname = param['name'] + '.png'
 
-        filename = os.path.join(simdir, plotname)
+        filepath = os.path.join(plotdir, netlist_source)
+        if not os.path.isdir(filepath):
+            os.makedirs(filepath)
+
+        filename = os.path.join(plotdir, netlist_source, plotname)
 
         # NOTE: print_figure only makes use of bbox_extra_artists if
         # bbox_inches is set to 'tight'.  This forces a two-pass method
@@ -380,5 +436,10 @@ def cace_makeplot(dsheet, param, parent=None):
                         bbox_extra_artists = [legnd])
         else:
             canvas.print_figure(filename, bbox_inches = 'tight')
+
+    resultdict = {}
+    resultdict['status'] = 'done'
+    resultdict['name'] = runtime_options['netlist_source']
+    addnewresult(param, resultdict)
 
     return canvas

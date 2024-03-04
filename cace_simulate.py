@@ -154,7 +154,11 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
             if os.path.exists('simulator_pipe'):
                 os.remove('simulator_pipe')
 
-    # Read the output file from simulation.
+    # Read the output file from simulation into record testbench['results'].
+    # NOTE:  Any column marked as 'result' in the simulation line is moved
+    # to the first entry.  This makes the simulation['format'] incorrect,
+    # and other routines (like cace_makeplot) will need to adjust it.
+
     if os.path.isfile(simoutputfile):
         result = 1
         with open(simoutputfile, 'r') as ifile:
