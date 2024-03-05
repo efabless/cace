@@ -822,8 +822,8 @@ def regenerate_schematic_netlist(dsheet):
         # NOTE:  This depends on the setup of the dependent repository.
         # The code below assumes that there is a subdirectory 'xschem'
         # in the repository.  There needs to be a routine that recursively
-        # determines dependencies from the dependent repository's own CACE
-        # definition file.
+        # determines schematic paths from the dependent repository's own
+        # CACE definition file.
 
         if 'dependencies' in dsheet:
             # If there is only one dependency it may be a dictionary and not a
@@ -832,10 +832,11 @@ def regenerate_schematic_netlist(dsheet):
                 dependencies = [dsheet['dependencies']]
             else:
                 dependencies = dsheet['dependencies']
-                for dependency in dependencies:
-                    if 'path' in dependency and 'name' in dependency:
-                        dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
-                        tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
+
+            for dependency in dependencies:
+                if 'path' in dependency and 'name' in dependency:
+                    dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
+                    tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
         
         # Xschem arguments:
         # -n:  Generate a netlist
