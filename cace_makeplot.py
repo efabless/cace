@@ -98,6 +98,15 @@ def cace_makeplot(dsheet, param, parent=None):
     else:
         xname = plotrec['xaxis']
 
+    # In case results[] is not a vector. . .  This should have been handled
+    # outside of cace_makeplot and probably needs to be fixed.
+
+    if not isinstance(results[0], list):
+        for i in range(len(results)):
+            result = results[i]
+            if not isinstance(result, list): 
+                results[i] = [result]
+
     # Find index of X data in results.  All results lines have the same
     # data, so pick up the number of items per result from the 1st entry.
  

@@ -109,16 +109,23 @@ class FailReport(tkinter.Toplevel):
         self.mainarea.configure(scrollregion=self.mainarea.bbox("all"))
 
     def check_failure(self, record, calc, value):
-        if not 'target' in record:
+        #
+        # record will be a list of <value> ['fail'|''] [<calc-type>]
+        # 
+        # Return on any condition that is not specified as a failure
+
+        if len(record) < 2 or record[1] != 'fail':
             return None
         else:
-            target = record['target']
+            target = record[0]
+            if target == 'any':
+                return None
 
-        if calc == 'min':
+        if calc == 'minimum':
             targval = float(target)
             if value < targval:
                 return True
-        elif calc == 'max':
+        elif calc == 'maximum':
             targval = float(target)
             if value > targval:
                 return True
@@ -506,20 +513,14 @@ class FailReport(tkinter.Toplevel):
                 condition = result[0]
                 lstyle = 'normal.TLabel'
                 value = float(condition)
-                if 'min' in param:
-                    minrec = param['min']
-                    if 'calc' in minrec:
-                        calc = minrec['calc']
-                    else:
-                        calc = 'min'
+                if 'minimum' in spec:
+                    minrec = spec['minimum']
+                    calc = minrec[2] if len(minrec) > 2 else 'minimum'
                     if self.check_failure(minrec, calc, value):
                         lstyle = 'red.TLabel'
-                if 'max' in param:
-                    maxrec = param['max']
-                    if 'calc' in maxrec:
-                        calc = maxrec['calc']
-                    else:
-                        calc = 'max'
+                if 'maximum' in spec:
+                    maxrec = spec['maximum']
+                    calc = maxrec[2] if len(maxrec) > 2 else 'maximum'
                     if self.check_failure(maxrec, calc, value):
                         lstyle = 'red.TLabel'
 
