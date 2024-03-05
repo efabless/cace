@@ -649,6 +649,68 @@ def regenerate_lvs_netlist(dsheet, pex=False):
     return lvs_netlist
 
 #-----------------------------------------------------------------------
+# check_dependencies --
+#
+# Check the datasheet for listed dependencies and make sure they exist.
+# If not, and the dependency entry lists a repository, then clone the
+# dependency.
+#
+# Returns True if a dependency was cloned, and False if nothing needed
+# to be done.
+#
+# To do:  For each dependency, find a CACE datasheet and read the path
+# information to find the path to schematics, so this can be used to
+# add the correct search path to the xschemrc file.  For now, it is
+# assumed that the path name is 'xschem'.
+#-----------------------------------------------------------------------
+
+def check_dependencies(dsheet, debug=False):
+    dependencies = []
+    if 'dependencies' in dsheet:
+        # If there is only one dependency it may be a dictionary and not a
+        # list of dictionaries.
+        if isinstance(dsheet['dependencies'], dict):
+            dependencies = [dsheet['dependencies']]
+        else:
+            dependencies = dsheet['dependencies']
+        for dependency in dependencies:
+            if 'path' in dependency and 'name' in dependency:
+                if debug:
+                    print('Checking for dependency ' + dependency['name'])
+                dependdir = os.path.join(dependency['path'], dependency['name'])
+                if not os.path.isdir(dependdir):
+                    if 'repository' in dependency:
+                        deprepo = dependency['repository']
+                        deppath = dependency['path']
+                        if not os.path.isdir(os.path.abspath(deppath)):
+                            os.makedirs(os.path.abspath(deppath))
+
+                        # Now try to do a git clone on the repo.
+                        # To do:  Handle other formats than git
+                        
+                        gproc = subprocess.Popen(['git', 'clone', deprepo,
+				'--depth=1'],
+				stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+				cwd=deppath)
+
+                        gout = gproc.communicate()[0]
+                        if gproc.returncode != 0:
+                            for line in gout.splitlines():
+                                print(line.decode('utf-8'))
+
+                            print('git clone process returned error code ' + str(gproc.returncode) + '\n')
+                        else:
+                            printwarn(gout)
+
+                        return True
+
+                if not os.path.isdir(dependdir):
+                    print('Error: dependency ' + dependency['name'] + ' does not exist!')
+                    # Maybe should return here, but what if dependency isn't used
+                    # in the schematic?
+    return False
+        
+#-----------------------------------------------------------------------
 # regenerate_schematic_netlist
 #
 # Regenerate the schematic-captured netlist if out-of-date or if forced.
@@ -706,6 +768,10 @@ def regenerate_schematic_netlist(dsheet):
         print("Checking for out-of-date schematic-captured netlists.")
         need_schem_capture = check_schematic_out_of_date(schem_netlist, schemfilename, debug)
 
+    depupdated = check_dependencies(dsheet, debug)
+    if depupdated:
+        need_schem_capture = True
+
     if need_schem_capture:
         print("Forcing regeneration of schematic-captured netlist.")
 
@@ -756,8 +822,8 @@ def regenerate_schematic_netlist(dsheet):
         # NOTE:  This depends on the setup of the dependent repository.
         # The code below assumes that there is a subdirectory 'xschem'
         # in the repository.  There needs to be a routine that recursively
-        # determines dependencies from the dependent repository's own CACE
-        # definition file.
+        # determines schematic paths from the dependent repository's own
+        # CACE definition file.
 
         if 'dependencies' in dsheet:
             # If there is only one dependency it may be a dictionary and not a
@@ -766,8 +832,8 @@ def regenerate_schematic_netlist(dsheet):
                 dependencies = [dsheet['dependencies']]
             else:
                 dependencies = dsheet['dependencies']
+
             for dependency in dependencies:
-                print('dependency = ' + str(dependency))
                 if 'path' in dependency and 'name' in dependency:
                     dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
                     tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
