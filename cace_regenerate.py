@@ -681,13 +681,17 @@ def check_dependencies(dsheet, debug=False):
                 if not os.path.isdir(dependdir):
                     if 'repository' in dependency:
                         deprepo = dependency['repository']
+                        deppath = dependency['path']
+                        if not os.path.isdir(os.path.abspath(deppath)):
+                            os.makedirs(os.path.abspath(deppath))
+
                         # Now try to do a git clone on the repo.
                         # To do:  Handle other formats than git
                         
                         gproc = subprocess.Popen(['git', 'clone', deprepo,
 				'--depth=1'],
 				stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-				cwd=dependency['path'])
+				cwd=deppath)
 
                         gout = gproc.communicate()[0]
                         if gproc.returncode != 0:
