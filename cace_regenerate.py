@@ -768,8 +768,9 @@ def regenerate_schematic_netlist(dsheet):
                 dependencies = dsheet['dependencies']
             for dependency in dependencies:
                 print('dependency = ' + str(dependency))
-                dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
-                tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
+                if 'path' in dependency and 'name' in dependency:
+                    dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
+                    tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
         
         # Xschem arguments:
         # -n:  Generate a netlist
