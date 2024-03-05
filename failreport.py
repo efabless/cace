@@ -367,6 +367,14 @@ class FailReport(tkinter.Toplevel):
                 # Monte Carlo data are too numerous to tabulate, so go straight to plot
                 self.table_to_histogram(dsheet, filename)
                 return
+            else:
+                # Check for "collate: iterations" in simulate dictionary.  This is
+                # equivalent to having one testbench per iteration, but more compact.
+                simdict = param['simulate']
+                if 'collate' in simdict:
+                    if simdict['collate'] == 'iterations':
+                        self.table_to_histogram(dsheet, filename)
+                        return
 
             # Numerically sort by result (to be done:  sort according to up/down
             # criteria, which will be retained per header entry)
