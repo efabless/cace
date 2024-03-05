@@ -368,7 +368,8 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
         orderedlist = ['name', 'description', 'display', 'unit', 'minimum',
 		'typical', 'maximum', 'enumerate', 'step', 'stepsize', 'note']
     elif dictname == 'plot':
-        orderedlist = ['filename', 'title', 'xaxis', 'yaxis', 'note']
+        orderedlist = ['filename', 'title', 'type', 'xaxis', 'xlabel', 'yaxis',
+		'ylabel', 'note']
     elif dictname == 'variables':
         orderedlist = ['name', 'display', 'unit', 'note']
     elif dictname == 'runtime_options':

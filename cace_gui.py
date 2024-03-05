@@ -1350,7 +1350,13 @@ class CACECharacterize(ttk.Frame):
                             status_value = resdict['status']
                             
                 plotrec = param['plot']
-                dframe_plot = ttk.Label(dframe.plots, text=plotrec['filename'],
+                if 'filename' in plotrec:
+                    plottext = plotrec['filename']
+                elif 'type' in plotrec:
+                    plottext = plotrec['type']
+                else:
+                    plottext = 'plot'
+                dframe_plot = ttk.Label(dframe.plots, text=plottext,
 				style = normlabel)
                 dframe_plot.grid(column = j, row = n, sticky='ewns')
             else:

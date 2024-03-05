@@ -98,6 +98,15 @@ def cace_makeplot(dsheet, param, parent=None):
     else:
         xname = plotrec['xaxis']
 
+    # In case results[] is not a vector. . .  This should have been handled
+    # outside of cace_makeplot and probably needs to be fixed.
+
+    if not isinstance(results[0], list):
+        for i in range(len(results)):
+            result = results[i]
+            if not isinstance(result, list): 
+                results[i] = [result]
+
     # Find index of X data in results.  All results lines have the same
     # data, so pick up the number of items per result from the 1st entry.
  
@@ -133,7 +142,10 @@ def cace_makeplot(dsheet, param, parent=None):
                     condvalue = cond[2]
                     break
             for result in tbi['results']:
-                newresult = result.copy()
+                if isinstance(result, list):
+                    newresult = result.copy()
+                else:
+                    newresult = [result]
                 newresult.append(condvalue)
                 results.append(newresult)
 
@@ -143,25 +155,8 @@ def cace_makeplot(dsheet, param, parent=None):
 
     # Find unique values of each variable (except results, traces, and iterations)
 
-    bmatch = binrex.match(results[1][0])	# FIXME---results[1] no longer units
-    if bmatch:
-        digits = bmatch.group(1)
-        if digits == '':
-            digits = len(results[2][0])
-        else:
-            digits = int(digits)
-        cbase = bmatch.group(2)
-        if cbase == 'b':
-            base = 2
-        elif cbase == 'o':
-            base = 8
-        elif cbase == 'd':
-            base = 10
-        else:
-            base = 16
-        binconv = [[base, digits]]
-    else:
-        binconv = [[]]
+    conditions = tbzero['conditions']
+    binconv = []
 
     if debug:
         print('Processing ' + str(rlen) + ' plot variables.')
@@ -195,14 +190,14 @@ def cace_makeplot(dsheet, param, parent=None):
 
         if 'name' in varrec:
             varname = varrec['name']
-        else:
-            varname = ''
+        else :
+            varname = conditions[i][0]
 
         bmatch = binrex.match(varname)
         if bmatch:
             digits = bmatch.group(1)
             if digits == '':
-                digits = len(results[2][i])
+                digits = len(results[0][i])
             else:
                 digits = int(digits)
             cbase = bmatch.group(2)
