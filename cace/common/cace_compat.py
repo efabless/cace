@@ -325,7 +325,7 @@ if __name__ == '__main__':
             print('Diagnostic---dataset is:')
             print(str(new_dataset))
         else:
-            result = cace_write.cace_write(new_dataset, debug)
+            result = cace_write(new_dataset, debug)
 
     else:
         usage()

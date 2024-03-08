@@ -998,7 +998,7 @@ class CACECharacterize(ttk.Frame):
                 json.dump(self.datasheet, ofile, indent = 4)
         else:
             # NOTE:  This file contains the run-time settings dictionary
-            cace_write.cace_write(self.datasheet, doutfile)
+            cace_write(self.datasheet, doutfile)
 
         self.last_save = os.path.getmtime(doutfile)
 
@@ -1058,7 +1058,7 @@ class CACECharacterize(ttk.Frame):
                 with open(datasheet, 'w') as ofile:
                     json.dump(self.datasheet, ofile, indent = 4)
             else:
-                cace_write.cace_write(self.datasheet, datasheet)
+                cace_write(self.datasheet, datasheet)
 
     def load_manual(self, value={}):
         dspath = self.filename
@@ -1083,7 +1083,7 @@ class CACECharacterize(ttk.Frame):
             else:
                 debug = self.settings.get_debug()
                 try:
-                    self.datasheet = cace_read.cace_read(datasheet, debug)
+                    self.datasheet = cace_read(datasheet, debug)
                 except:
                     print('Error in file, no update to results.', file=sys.stderr)
                 else:
@@ -1092,7 +1092,7 @@ class CACECharacterize(ttk.Frame):
 
     def generate_html(self, value={}):
         debug = self.settings.get_debug()
-        cace_write.cace_generate_html(self.datasheet, None, debug)
+        cace_generate_html(self.datasheet, None, debug)
 
     def swap_results(self, value={}):
         # This routine just calls self.create_datasheet_view(), but the

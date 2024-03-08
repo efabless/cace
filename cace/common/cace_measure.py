@@ -230,7 +230,7 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
 
     if 'calc' in measure:
         # Measurement is an internal calculation type.
-        cace_calculate.cace_calculate(param, measure, testbench, debug)
+        cace_calculate(param, measure, testbench, debug)
 
     elif 'tool' in measure:
         tool = measure['tool']

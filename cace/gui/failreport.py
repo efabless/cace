@@ -210,7 +210,7 @@ class FailReport(tkinter.Toplevel):
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
         self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+        canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
         param.pop('plot')
 
         if 'display' in param:
@@ -243,7 +243,7 @@ class FailReport(tkinter.Toplevel):
         # Temporarily set a 'plot' record in param
         param['plot'] = plotrec
 
-        canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+        canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
         param.pop('plot')
         if 'display' in param:
             ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
@@ -289,7 +289,7 @@ class FailReport(tkinter.Toplevel):
             for widget in self.plotframe.winfo_children():
                 widget.destroy()
 
-            canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+            canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
             if 'display' in param:
                 ttk.Label(self.plotframe, text=param['display'],
 				style='title.TLabel').grid(row=1, column=0)

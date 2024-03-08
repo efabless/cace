@@ -105,18 +105,18 @@ def cace_run_eparam(datasheet, eparam):
 
     eparamname = eparam['name']
     print('Evaluating electrical parameter ' + eparamname)
-    cace_gensim.cace_gensim(datasheet, eparam)
+    cace_gensim(datasheet, eparam)
 
     print('Launching Simulations')
-    cace_launch.cace_launch(datasheet, eparam)
+    cace_launch(datasheet, eparam)
 
     if needplot:
         print('Plotting results')
-        cace_makeplot.cace_makeplot(datasheet, eparam)
+        cace_makeplot(datasheet, eparam)
 
     if needcollate:
         print('Collating results')
-        eparam = cace_collate.cace_collate(datasheet, eparam)
+        eparam = cace_collate(datasheet, eparam)
 
     return eparam
 
@@ -147,7 +147,7 @@ def cace_run_pparam(datasheet, pparam):
 
     pparamname = pparam['name']
     print('Evaluating physical parameter ' + pparamname)
-    return cace_evaluate.cace_evaluate(datasheet, pparam)
+    return cace_evaluate(datasheet, pparam)
 
 #-----------------------------------------------------------------------
 # cace_run_all_eparams
@@ -592,9 +592,9 @@ def cli():
                 if 'data-sheet' in dataset:
                     dataset = dataset['data-sheet']
                     # Attempt to upgrade this to format 4.0
-                    dataset = cace_compat.cace_compat(dataset, debug)
+                    dataset = cace_compat(dataset, debug)
         else:
-            dataset = cace_read.cace_read(filename, debug)
+            dataset = cace_read(filename, debug)
 
         if dataset == {}:
             result = 1
@@ -653,13 +653,13 @@ def cli():
                     json.dump(charresult, ofile, indent = 4)
             else:
                 # Write the result in CACE ASCII format version 4.0
-                cace_write.cace_write(charresult, outfile, doruntime=False)
+                cace_write(charresult, outfile, doruntime=False)
 
             if dosummary:
                 print('')
                 print('CACE Summary of results:')
                 print('------------------------')
-                cace_write.cace_summary(charresult, paramname)
+                cace_summary(charresult, paramname)
             
     else:
         if debug:
