@@ -713,6 +713,71 @@ def check_dependencies(dsheet, debug=False):
     return False
         
 #-----------------------------------------------------------------------
+# set_xschem_paths ---
+#
+#       Put together a set of Tcl commands that sets the search
+#       path for xschem.
+#
+#       If tclstr is not None, then it is assumed to be a valid
+#       Tcl command, and the rest of the Tcl command string is
+#       appended to it, with independent commands separated by
+#       semicolons.
+#
+#       Return the final Tcl command string.
+#-----------------------------------------------------------------------
+
+def set_xschem_paths(dsheet, tclstr = None):
+    paths = dsheet['paths']
+
+    # Root path
+    if 'root' in paths:
+        root_path = paths['root']
+    else:
+        root_path = '.'
+
+    # List of tcl commands to string together to make up the full
+    # string argument to pass to xschem.
+
+    tcllist = []
+    if tclstr and tclstr != '':
+        tcllist.append(tclstr)
+
+    # Add the root path to the search path (may not be necessary but covers
+    # cases where schematics have been specified from the project root for
+    # either the testbench or schematic directories, or both).
+
+    tcllist.append('append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path))
+
+    # Add the schematic path to the search path
+    if 'schematic' in paths:
+        schempath = os.path.join(root_path, paths['schematic'])
+        tcllist.append('append XSCHEM_LIBRARY_PATH :' + schempath)
+
+    # If dependencies are declared, then pull in their locations
+    # and add them to the search path as well.
+
+    # NOTE:  This depends on the setup of the dependent repository.
+    # The code below assumes that there is a subdirectory 'xschem'
+    # in the repository.  There needs to be a routine that recursively
+    # determines schematic paths from the dependent repository's own
+    # CACE definition file.
+
+    if 'dependencies' in dsheet:
+        # If there is only one dependency it may be a dictionary and not a
+        # list of dictionaries.
+        if isinstance(dsheet['dependencies'], dict):
+            dependencies = [dsheet['dependencies']]
+        else:
+            dependencies = dsheet['dependencies']
+
+        for dependency in dependencies:
+            if 'path' in dependency and 'name' in dependency:
+                dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
+                tcllist.append('append XSCHEM_LIBRARY_PATH :' + dependdir)
+
+    return ' ; '.join(tcllist)
+
+#-----------------------------------------------------------------------
 # regenerate_schematic_netlist
 #
 # Regenerate the schematic-captured netlist if out-of-date or if forced.
@@ -812,34 +877,8 @@ def regenerate_schematic_netlist(dsheet):
         if pdk and 'PDK' not in newenv:
             newenv['PDK'] = pdk
 
-        tclstr = 'set lvs_netlist 1 ; append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path)
+        tclstr = set_xschem_paths(dsheet, 'set lvs_netlist 1')
 
-        paths = dsheet['paths']
-        if 'schematic' in paths:
-            schempath = os.path.join(root_path, paths['schematic'])
-            tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + schempath
-
-        # If dependencies are declared, then pull in their locations
-
-        # NOTE:  This depends on the setup of the dependent repository.
-        # The code below assumes that there is a subdirectory 'xschem'
-        # in the repository.  There needs to be a routine that recursively
-        # determines schematic paths from the dependent repository's own
-        # CACE definition file.
-
-        if 'dependencies' in dsheet:
-            # If there is only one dependency it may be a dictionary and not a
-            # list of dictionaries.
-            if isinstance(dsheet['dependencies'], dict):
-                dependencies = [dsheet['dependencies']]
-            else:
-                dependencies = dsheet['dependencies']
-
-            for dependency in dependencies:
-                if 'path' in dependency and 'name' in dependency:
-                    dependdir = os.path.join(dependency['path'], dependency['name'], 'xschem')
-                    tclstr += ' ; append XSCHEM_LIBRARY_PATH :' + dependdir
-        
         # Xschem arguments:
         # -n:  Generate a netlist
         # -s:  Netlist type is SPICE
@@ -962,7 +1001,8 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', 'append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path)]
+    tclstr = set_xschem_paths(dsheet)
+    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
 
     # Use the PDK xschemrc file for xschem startup
     xschemrcfile = os.path.join(pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc')
