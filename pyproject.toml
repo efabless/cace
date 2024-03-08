@@ -1,6 +1,6 @@
 [project]
 name = "cace"
-version = "2.0.3"
+version = "2.1.0"
 requires-python = ">=3.8"
 dependencies = [
 ]
@@ -20,7 +20,7 @@ Homepage = "https://github.com/efabless/cace"
 Issues = "https://github.com/efabless/cace/issues"
 
 [build-system]
-requires = ["setuptools"]
+requires = ["setuptools>=64", "setuptools_scm>=8"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools.packages.find]

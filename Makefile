@@ -1,5 +1,5 @@
 init:
-	pip install -r requirements.txt
+	pip3 install -r requirements.txt
 
 test:
 	py.test tests
@@ -11,9 +11,9 @@ format:
 	black cace/
 
 build:
-	python -m build
+	python3 -m build
 
 install:
-	pip install -e .
+	pip3 install -e .
 
 .PHONY: init test
