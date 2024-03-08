@@ -7,3 +7,4 @@ __pycache__
 **/.Trashes/
 cace.egg-info/
 dist/
+docs/build/

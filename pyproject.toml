@@ -5,8 +5,7 @@ requires-python = ">=3.8"
 dependencies = [
 ]
 authors = [
-  { name="Tim Edwards", email="author@example.com" },
-  { name="Leo Moser", email="author@example.com" },
+  { name="Tim Edwards", email="tim@efabless.com" },
 ]
 description = "Circuit Automatic Characterization Engine"
 readme = "README.md"

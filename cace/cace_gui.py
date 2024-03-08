@@ -387,22 +387,13 @@ class CACECharacterize(ttk.Frame):
 		command=self.settings.open, style = 'normal.TButton')
         self.bbar.settings_button.grid(column=6, row=0, padx = 5)
 
-<<<<<<< HEAD:cace_gui.py
-        tooltip.ToolTip(self.bbar.quit_button, text = "Exit characterization tool")
-        tooltip.ToolTip(self.bbar.save_button, text = "Save current characterization state")
-        tooltip.ToolTip(self.bbar.saveas_button, text = "Save current characterization state")
-        tooltip.ToolTip(self.bbar.load_button, text = "Load characterization state from file")
-        tooltip.ToolTip(self.bbar.html_button, text = "Generate HTML output")
-        tooltip.ToolTip(self.bbar.help_button, text = "Start help tool")
-        tooltip.ToolTip(self.bbar.settings_button, text = "Manage characterization tool settings")
-=======
         ToolTip(self.bbar.quit_button, text = "Exit characterization tool")
         ToolTip(self.bbar.save_button, text = "Save current characterization state")
         ToolTip(self.bbar.saveas_button, text = "Save current characterization state")
+        ToolTip(self.bbar.html_button, text = "Generate HTML output")
         ToolTip(self.bbar.load_button, text = "Load characterization state from file")
         ToolTip(self.bbar.help_button, text = "Start help tool")
         ToolTip(self.bbar.settings_button, text = "Manage characterization tool settings")
->>>>>>> 865c58b (Adapt project structure):cace/cace_gui.py
 
         # Inside frame with main electrical parameter display and scrollbar
         # To make the frame scrollable, it must be a frame inside a canvas.
@@ -1693,8 +1684,6 @@ def usage():
 #--------------------------------------------------------------------------
 
 def gui():
-    print('starting gui')
-
     options = []
     arguments = []
     for item in sys.argv[1:]:
