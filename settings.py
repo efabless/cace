@@ -85,12 +85,6 @@ class Settings(tkinter.Toplevel):
 		variable = self.dolog)
         self.sframe.log.pack(side = 'top', anchor = 'w')
 
-        self.loadsave = tkinter.IntVar(self.sframe)
-        self.loadsave.set(0)
-        self.sframe.loadsave = ttk.Checkbutton(self.sframe, text='Unlimited loads/saves',
-		variable = self.loadsave)
-        # self.sframe.loadsave.pack(side = 'top', anchor = 'w')
-
         # self.sframe.sdisplay.sopts(side = 'top', fill = 'x', expand = 'true')
 
         self.bbar = ttk.Frame(self)
@@ -139,10 +133,6 @@ class Settings(tkinter.Toplevel):
     def get_log(self):
         # return the state of the "log simulation output" checkbox
         return False if self.dolog.get() == 0 else True
-
-    def get_loadsave(self):
-        # return the state of the "unlimited loads/saves" checkbox
-        return False if self.loadsave.get() == 0 else True
 
     def close(self):
         # pop down settings window
