@@ -18,8 +18,8 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.backends.backend_agg import FigureCanvasAgg
 
-from cace_gensim import twos_comp
-from cace_collate import addnewresult
+from .cace_gensim import twos_comp
+from .cace_collate import addnewresult
 
 #-----------------------------------------------------------------------------
 # Given a plot record from a spec sheet and a full set of testbenches, generate

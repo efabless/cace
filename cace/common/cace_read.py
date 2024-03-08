@@ -18,7 +18,7 @@ import os
 import sys
 import json
 
-import cace_compat
+from .cace_compat import *
 
 # Replace special character specifications with unicode characters
 

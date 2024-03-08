@@ -24,11 +24,11 @@ import shutil
 import subprocess
 from functools import reduce
 
-from spiceunits import spice_unit_convert
-from spiceunits import numeric
+from .spiceunits import spice_unit_convert
+from .spiceunits import numeric
 
-import cace_write
-from cace_regenerate import get_pdk_root
+from .cace_write import *
+from .cace_regenerate import get_pdk_root
 
 #-----------------------------------------------------------------------
 # Read the indicated file, find the .subckt line, and copy out the

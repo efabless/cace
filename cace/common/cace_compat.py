@@ -23,9 +23,9 @@ import os
 import sys
 import json
 
-import cace_write
+from .cace_write import *
 
-from cace_regenerate import get_pdk_root
+from .cace_regenerate import get_pdk_root
 
 #---------------------------------------------------------------
 # Modify CACE datasheet dictionary for version 4.0 compatibility

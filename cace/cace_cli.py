@@ -20,15 +20,15 @@ import sys
 import json
 import signal
 
-import cace_read
-import cace_compat
-import cace_write
-import cace_gensim
-import cace_launch
-import cace_collate
-import cace_evaluate
-import cace_regenerate
-import cace_makeplot
+from .common.cace_read import *
+from .common.cace_compat import *
+from .common.cace_write import *
+from .common.cace_gensim import *
+from .common.cace_launch import *
+from .common.cace_collate import *
+from .common.cace_evaluate import *
+from .common.cace_regenerate import *
+from .common.cace_makeplot import *
 
 import multiprocessing.pool
 
@@ -377,14 +377,14 @@ def cace_run(datasheet, paramname=None):
     # of the netlist, so it has to be done here and cannot be
     # parallelized).
 
-    fullnetlistpath = cace_regenerate.regenerate_netlists(datasheet)
+    fullnetlistpath = regenerate_netlists(datasheet)
     if not fullnetlistpath:
         print('Failed to regenerate project netlist;  stopping.')
         runtime_options['status'] = 'failed'
         return datasheet
 
     # Generate testbench netlists if needed
-    result = cace_regenerate.regenerate_testbenches(datasheet, paramname)
+    result = regenerate_testbenches(datasheet, paramname)
     if result == 1:
         print('Failed to regenerate testbench netlists;  stopping.')
         runtime_options['status'] = 'failed'
@@ -517,7 +517,7 @@ def usage():
 # If called from the command line
 #-----------------------------------------------------------------
 
-if __name__ == '__main__':
+def cli():
     options = []
     arguments = []
     for item in sys.argv[1:]:
@@ -669,3 +669,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     sys.exit(result)
+
+if __name__ == '__main__':
+    cli()

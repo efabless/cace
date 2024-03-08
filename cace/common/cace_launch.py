@@ -21,8 +21,8 @@ import shutil
 import signal
 import multiprocessing
 
-import cace_simulate
-import cace_measure
+from .cace_simulate import *
+from .cace_measure import *
 
 #---------------------------------------------------------------------------
 # collate_after_simulation

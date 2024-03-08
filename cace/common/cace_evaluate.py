@@ -20,15 +20,15 @@ import numpy
 import signal
 import subprocess
 
-from cace_regenerate import get_pdk_root
-from cace_regenerate import get_magic_rcfile
-from cace_regenerate import get_netgen_setupfile
-from cace_collate import addnewresult
-from cace_collate import find_limits
-from cace_collate import incompleteresult
+from .cace_regenerate import get_pdk_root
+from .cace_regenerate import get_magic_rcfile
+from .cace_regenerate import get_netgen_setupfile
+from .cace_collate import addnewresult
+from .cace_collate import find_limits
+from .cace_collate import incompleteresult
 
-import layout_estimate
-import netlist_precheck
+from .layout_estimate import *
+from .netlist_precheck import *
 
 #-----------------------------------------------------------------------
 # Run magic to querty the PDKNAMESPACE variable, which should be set

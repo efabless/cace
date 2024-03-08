@@ -22,7 +22,7 @@ import sys
 import json
 import datetime
 
-import cace_compat
+from .cace_compat import *
 
 #---------------------------------------------------------------
 # cace_generate_html

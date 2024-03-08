@@ -23,10 +23,10 @@ import json
 import re
 import subprocess
 
-import cace_calculate
+from .cace_calculate import *
 
-from spiceunits import spice_unit_unconvert
-from spiceunits import spice_unit_convert
+from .spiceunits import spice_unit_unconvert
+from .spiceunits import spice_unit_convert
 
 #---------------------------------------------------------------------------
 # results_to_octave ---

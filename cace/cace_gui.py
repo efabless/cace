@@ -49,20 +49,20 @@ import tkinter
 from tkinter import ttk
 from tkinter import filedialog
 
-import tksimpledialog
-import tooltip
-from consoletext import ConsoleText
-from helpwindow import HelpWindow
-from failreport import FailReport
-from textreport import TextReport
-from editparam import EditParam
-from settings import Settings
-from simhints import SimHints
+from .gui.tksimpledialog import *
+from .gui.tooltip import *
+from .gui.consoletext import ConsoleText
+from .gui.helpwindow import HelpWindow
+from .gui.failreport import FailReport
+from .gui.textreport import TextReport
+from .gui.editparam import EditParam
+from .gui.settings import Settings
+from .gui.simhints import SimHints
 
-import cace_read
-import cace_compat
-import cace_write
-import cace
+from .common.cace_read import *
+from .common.cace_compat import *
+from .common.cace_write import *
+from .cace_cli import *
 
 # User preferences file (if it exists)
 prefsfile = '~/design/.profile/prefs.json'
@@ -74,7 +74,7 @@ apps_path = os.path.realpath(os.path.dirname(__file__))
 # Simple dialog for confirming quit
 #------------------------------------------------------
 
-class ConfirmDialog(tksimpledialog.Dialog):
+class ConfirmDialog(Dialog):
     def body(self, master, warning, seed):
         ttk.Label(master, text=warning, wraplength=500).grid(row = 0, columnspan = 2, sticky = 'wns')
         return self
@@ -86,7 +86,7 @@ class ConfirmDialog(tksimpledialog.Dialog):
 # Simple dialog with no "OK" button (can only cancel)
 #------------------------------------------------------
 
-class PuntDialog(tksimpledialog.Dialog):
+class PuntDialog(Dialog):
     def body(self, master, warning, seed):
         if warning:
             ttk.Label(master, text=warning, wraplength=500).grid(row = 0, columnspan = 2, sticky = 'wns')
@@ -286,7 +286,7 @@ class CACECharacterize(ttk.Frame):
 		text=self.filename, style='normal.TButton', command=self.choose_datasheet)
         self.toppane.title2_frame.datasheet_select.grid(column=1, row=0, ipadx = 5)
 
-        tooltip.ToolTip(self.toppane.title2_frame.datasheet_select,
+        ToolTip(self.toppane.title2_frame.datasheet_select,
 			text = "Select new datasheet file")
 
         # Show path to datasheet
@@ -387,6 +387,7 @@ class CACECharacterize(ttk.Frame):
 		command=self.settings.open, style = 'normal.TButton')
         self.bbar.settings_button.grid(column=6, row=0, padx = 5)
 
+<<<<<<< HEAD:cace_gui.py
         tooltip.ToolTip(self.bbar.quit_button, text = "Exit characterization tool")
         tooltip.ToolTip(self.bbar.save_button, text = "Save current characterization state")
         tooltip.ToolTip(self.bbar.saveas_button, text = "Save current characterization state")
@@ -394,6 +395,14 @@ class CACECharacterize(ttk.Frame):
         tooltip.ToolTip(self.bbar.html_button, text = "Generate HTML output")
         tooltip.ToolTip(self.bbar.help_button, text = "Start help tool")
         tooltip.ToolTip(self.bbar.settings_button, text = "Manage characterization tool settings")
+=======
+        ToolTip(self.bbar.quit_button, text = "Exit characterization tool")
+        ToolTip(self.bbar.save_button, text = "Save current characterization state")
+        ToolTip(self.bbar.saveas_button, text = "Save current characterization state")
+        ToolTip(self.bbar.load_button, text = "Load characterization state from file")
+        ToolTip(self.bbar.help_button, text = "Start help tool")
+        ToolTip(self.bbar.settings_button, text = "Manage characterization tool settings")
+>>>>>>> 865c58b (Adapt project structure):cace/cace_gui.py
 
         # Inside frame with main electrical parameter display and scrollbar
         # To make the frame scrollable, it must be a frame inside a canvas.
@@ -507,10 +516,10 @@ class CACECharacterize(ttk.Frame):
                     print(str(e))
                     return
         else:
-            datatop = cace_read.cace_read(datasheet, debug)
+            datatop = cace_read(datasheet, debug)
 
         # Ensure that datasheet complies with CACE version 4.0 format
-        dsheet = cace_compat.cace_compat(datatop, debug)
+        dsheet = cace_compat(datatop, debug)
 
         self.filename = datasheet
         self.datasheet = dsheet
@@ -720,7 +729,7 @@ class CACECharacterize(ttk.Frame):
         else:
             os.chdir(dspath)
 
-        charresult = cace.cace_run(datasheet, name)
+        charresult = cace_run(datasheet, name)
         charresult['simname'] = name
         self.queue.put(charresult)
         sys.stdout.flush()
@@ -758,7 +767,7 @@ class CACECharacterize(ttk.Frame):
         if name == 'check':
             # For the special keyword "check", do not multiprocess,
             # and return a pass/fail result according to the runtime status.
-            cace.cace_run(dsheet, name)
+            cace_run(dsheet, name)
             if 'status' in runtime_options:
                 status = runtime_options['status']
                 runtime_options.pop('status') 
@@ -965,7 +974,7 @@ class CACECharacterize(ttk.Frame):
                     self.datasheet = json.load(file)
             else:
                 debug = self.settings.get_debug()
-                self.datasheet = cace_read.cace_read(file, debug)
+                self.datasheet = cace_read(file, debug)
         else:
             print('Error in simulation, no update to results.', file=sys.stderr)
 
@@ -1252,7 +1261,7 @@ class CACECharacterize(ttk.Frame):
 			style = 'redtitle.TButton', command = self.stop_sims)
         self.allsimbutton.grid(column = 9, row=n, sticky='ewns')
 
-        tooltip.ToolTip(self.allsimbutton, text = "Simulate all electrical parameters")
+        ToolTip(self.allsimbutton, text = "Simulate all electrical parameters")
 
         # Make all columns equally expandable
         for i in range(10):
@@ -1608,9 +1617,9 @@ class CACECharacterize(ttk.Frame):
             simbutton.grid(column = 9, row=n, sticky='ewns')
 
             if paramtype == 'electrical':
-                tooltip.ToolTip(simbutton, text = "Simulate one electrical parameter")
+                ToolTip(simbutton, text = "Simulate one electrical parameter")
             else:
-                tooltip.ToolTip(simbutton, text = "Check one physical parameter")
+                ToolTip(simbutton, text = "Check one physical parameter")
 
             # If 'pass', then just display message.  If 'fail', then create a button that
             # opens and configures the failure report window.
@@ -1646,7 +1655,7 @@ class CACECharacterize(ttk.Frame):
 				command = lambda lvs_file=lvs_file: self.textreport.display(lvs_file))
                 else:
                     stat_label = ttk.Label(dframe, text=status_value, style=bstyle)
-                tooltip.ToolTip(stat_label,
+                ToolTip(stat_label,
 			text = "Show detail view of simulation conditions and results")
             stat_label.grid(column = 8, row=n, sticky='ewns')
             self.status[pname] = stat_label
@@ -1683,7 +1692,9 @@ def usage():
 # Main entry point for cace_gui.py
 #--------------------------------------------------------------------------
 
-if __name__ == '__main__':
+def gui():
+    print('starting gui')
+
     options = []
     arguments = []
     for item in sys.argv[1:]:
@@ -1775,3 +1786,6 @@ if __name__ == '__main__':
             print('No datasheet found in local project (JSON or text file).')
 
     root.mainloop()
+
+if __name__ == '__main__':
+    gui()
