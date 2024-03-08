@@ -21,8 +21,8 @@ import shutil
 import signal
 import multiprocessing
 
-import cace_simulate
-import cace_measure
+from .cace_simulate import *
+from .cace_measure import *
 
 #---------------------------------------------------------------------------
 # collate_after_simulation
@@ -159,7 +159,7 @@ def simulate_and_measure(param, testbenchlist, pdk, paths, runtime_options):
         signal.signal(signal.SIGUSR1, child_process_exit)
 
     for testbench in testbenchlist:
-        simresult += cace_simulate.cace_simulate(param, testbench, pdk, paths, runtime_options)
+        simresult += cace_simulate(param, testbench, pdk, paths, runtime_options)
 
     debug = runtime_options['debug'] if 'debug' in runtime_options else False
 
@@ -174,7 +174,7 @@ def simulate_and_measure(param, testbenchlist, pdk, paths, runtime_options):
 
     if simresult != 0:
         tbzero = testbenchlist[0]
-        simulations = cace_measure.cace_measure(param, tbzero, paths, debug)
+        simulations = cace_measure(param, tbzero, paths, debug)
     else:
         simulations = 0
 

@@ -23,10 +23,10 @@ import json
 import re
 import subprocess
 
-import cace_calculate
+from .cace_calculate import *
 
-from spiceunits import spice_unit_unconvert
-from spiceunits import spice_unit_convert
+from .spiceunits import spice_unit_unconvert
+from .spiceunits import spice_unit_convert
 
 #---------------------------------------------------------------------------
 # results_to_octave ---
@@ -230,7 +230,7 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
 
     if 'calc' in measure:
         # Measurement is an internal calculation type.
-        cace_calculate.cace_calculate(param, measure, testbench, debug)
+        cace_calculate(param, measure, testbench, debug)
 
     elif 'tool' in measure:
         tool = measure['tool']

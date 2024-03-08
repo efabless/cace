@@ -16,7 +16,7 @@ import shutil
 import re
 import subprocess
 
-from cace_regenerate import get_pdk_root
+from .cace_regenerate import get_pdk_root
 
 #---------------------------------------------------------------------------
 # Main entry point for cace_simulate

@@ -23,9 +23,9 @@ import os
 import sys
 import json
 
-import cace_write
+from .cace_write import *
 
-from cace_regenerate import get_pdk_root
+from .cace_regenerate import get_pdk_root
 
 #---------------------------------------------------------------
 # Modify CACE datasheet dictionary for version 4.0 compatibility
@@ -325,7 +325,7 @@ if __name__ == '__main__':
             print('Diagnostic---dataset is:')
             print(str(new_dataset))
         else:
-            result = cace_write.cace_write(new_dataset, debug)
+            result = cace_write(new_dataset, debug)
 
     else:
         usage()

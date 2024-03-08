@@ -20,15 +20,15 @@ import sys
 import json
 import signal
 
-import cace_read
-import cace_compat
-import cace_write
-import cace_gensim
-import cace_launch
-import cace_collate
-import cace_evaluate
-import cace_regenerate
-import cace_makeplot
+from .common.cace_read import *
+from .common.cace_compat import *
+from .common.cace_write import *
+from .common.cace_gensim import *
+from .common.cace_launch import *
+from .common.cace_collate import *
+from .common.cace_evaluate import *
+from .common.cace_regenerate import *
+from .common.cace_makeplot import *
 
 import multiprocessing.pool
 
@@ -105,18 +105,18 @@ def cace_run_eparam(datasheet, eparam):
 
     eparamname = eparam['name']
     print('Evaluating electrical parameter ' + eparamname)
-    cace_gensim.cace_gensim(datasheet, eparam)
+    cace_gensim(datasheet, eparam)
 
     print('Launching Simulations')
-    cace_launch.cace_launch(datasheet, eparam)
+    cace_launch(datasheet, eparam)
 
     if needplot:
         print('Plotting results')
-        cace_makeplot.cace_makeplot(datasheet, eparam)
+        cace_makeplot(datasheet, eparam)
 
     if needcollate:
         print('Collating results')
-        eparam = cace_collate.cace_collate(datasheet, eparam)
+        eparam = cace_collate(datasheet, eparam)
 
     return eparam
 
@@ -147,7 +147,7 @@ def cace_run_pparam(datasheet, pparam):
 
     pparamname = pparam['name']
     print('Evaluating physical parameter ' + pparamname)
-    return cace_evaluate.cace_evaluate(datasheet, pparam)
+    return cace_evaluate(datasheet, pparam)
 
 #-----------------------------------------------------------------------
 # cace_run_all_eparams
@@ -377,14 +377,14 @@ def cace_run(datasheet, paramname=None):
     # of the netlist, so it has to be done here and cannot be
     # parallelized).
 
-    fullnetlistpath = cace_regenerate.regenerate_netlists(datasheet)
+    fullnetlistpath = regenerate_netlists(datasheet)
     if not fullnetlistpath:
         print('Failed to regenerate project netlist;  stopping.')
         runtime_options['status'] = 'failed'
         return datasheet
 
     # Generate testbench netlists if needed
-    result = cace_regenerate.regenerate_testbenches(datasheet, paramname)
+    result = regenerate_testbenches(datasheet, paramname)
     if result == 1:
         print('Failed to regenerate testbench netlists;  stopping.')
         runtime_options['status'] = 'failed'
@@ -517,7 +517,7 @@ def usage():
 # If called from the command line
 #-----------------------------------------------------------------
 
-if __name__ == '__main__':
+def cli():
     options = []
     arguments = []
     for item in sys.argv[1:]:
@@ -592,9 +592,9 @@ if __name__ == '__main__':
                 if 'data-sheet' in dataset:
                     dataset = dataset['data-sheet']
                     # Attempt to upgrade this to format 4.0
-                    dataset = cace_compat.cace_compat(dataset, debug)
+                    dataset = cace_compat(dataset, debug)
         else:
-            dataset = cace_read.cace_read(filename, debug)
+            dataset = cace_read(filename, debug)
 
         if dataset == {}:
             result = 1
@@ -653,13 +653,13 @@ if __name__ == '__main__':
                     json.dump(charresult, ofile, indent = 4)
             else:
                 # Write the result in CACE ASCII format version 4.0
-                cace_write.cace_write(charresult, outfile, doruntime=False)
+                cace_write(charresult, outfile, doruntime=False)
 
             if dosummary:
                 print('')
                 print('CACE Summary of results:')
                 print('------------------------')
-                cace_write.cace_summary(charresult, paramname)
+                cace_summary(charresult, paramname)
             
     else:
         if debug:
@@ -669,3 +669,6 @@ if __name__ == '__main__':
         sys.exit(1)
 
     sys.exit(result)
+
+if __name__ == '__main__':
+    cli()

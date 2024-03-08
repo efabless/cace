@@ -17,8 +17,8 @@ import subprocess
 import tkinter
 from tkinter import ttk
 
-import tooltip
-import cace_makeplot
+from .tooltip import *
+from ..common.cace_makeplot import *
 
 class FailReport(tkinter.Toplevel):
     """failure report window."""
@@ -95,7 +95,7 @@ class FailReport(tkinter.Toplevel):
         self.bbar.table_button = ttk.Button(self.bbar, text='Table', style = 'normal.TButton')
 
         self.protocol("WM_DELETE_WINDOW", self.close)
-        tooltip.ToolTip(self.bbar.close_button,
+        ToolTip(self.bbar.close_button,
 			text='Close detail view of conditions and results')
 
         self.sortdir = False
@@ -210,7 +210,7 @@ class FailReport(tkinter.Toplevel):
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
         self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+        canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
         param.pop('plot')
 
         if 'display' in param:
@@ -243,7 +243,7 @@ class FailReport(tkinter.Toplevel):
         # Temporarily set a 'plot' record in param
         param['plot'] = plotrec
 
-        canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+        canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
         param.pop('plot')
         if 'display' in param:
             ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
@@ -289,7 +289,7 @@ class FailReport(tkinter.Toplevel):
             for widget in self.plotframe.winfo_children():
                 widget.destroy()
 
-            canvas = cace_makeplot.cace_makeplot(dsheet, param, parent = self.plotframe)
+            canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
             if 'display' in param:
                 ttk.Label(self.plotframe, text=param['display'],
 				style='title.TLabel').grid(row=1, column=0)
@@ -486,12 +486,12 @@ class FailReport(tkinter.Toplevel):
                     header = ttk.Button(body, text=labtext, style = 'title.TButton',
 				command = lambda param=param,
 				dsheet=dsheet: self.changesort(param, dsheet))
-                    tooltip.ToolTip(header, text='Reverse order of results')
+                    ToolTip(header, text='Reverse order of results')
                 else:
                     header = ttk.Button(body, text=labtext, style = 'title.TLabel',
 				command = lambda plottext=plottext, dsheet=dsheet,
 				filename=filename: self.table_to_plot(plottext, dsheet, filename))
-                    tooltip.ToolTip(header, text='Plot results with this condition on the X axis')
+                    ToolTip(header, text='Plot results with this condition on the X axis')
                 header.grid(row = 0, column = j, sticky = 'ewns')
 
                 # Second row is the measurement unit

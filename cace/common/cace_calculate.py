@@ -21,8 +21,8 @@ import json
 import re
 import math
 
-from spiceunits import spice_unit_unconvert
-from spiceunits import spice_unit_convert
+from .spiceunits import spice_unit_unconvert
+from .spiceunits import spice_unit_convert
 
 #---------------------------------------------------------------------------
 # Handling of 2s complement values in calculations (e.g., "1000" is -8, not +8)

@@ -19,12 +19,10 @@ import re
 import math
 import subprocess
 
-from spiceunits import spice_unit_unconvert
-from spiceunits import spice_unit_convert
+from .spiceunits import spice_unit_unconvert
+from .spiceunits import spice_unit_convert
 
-import cace_makeplot
-
-from cace_calculate import twos_complement
+from .cace_calculate import twos_complement
 
 #---------------------------------------------------------------------------
 # find_limits ---

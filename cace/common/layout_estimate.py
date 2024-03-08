@@ -21,7 +21,7 @@ import re
 import sys
 import subprocess
 
-from cace_regenerate import get_magic_rcfile
+from .cace_regenerate import get_magic_rcfile
 
 #-----------------------------------------------------------------------------
 # run_estimate

@@ -22,7 +22,7 @@ import sys
 import json
 import datetime
 
-import cace_compat
+from .cace_compat import *
 
 #---------------------------------------------------------------
 # cace_generate_html
@@ -1091,7 +1091,7 @@ if __name__ == '__main__':
         # If 'data-sheet' is a dictionary in 'dataset' then set that as the top
         if 'data-sheet' in dataset:
             dataset = dataset['data-sheet']
-        new_dataset = cace_compat.cace_compat(dataset, debug)
+        new_dataset = cace_compat(dataset, debug)
         if debug:
             print('Diagnostic (not writing file)---dataset is:')
             print(str(new_dataset))

@@ -1,191 +1,12 @@
-CACE---Circuit Automatic Characterization Engine
---------------------------------------------------------------
-Written by Tim Edwards
-Efabless Corporation
-2016-2023
---------------------------------------------------------------
-CACE is a set of python scripts that take an input file in the
-CACE 4.0 format (see below) and uses the information found
-there in combination with CACE-compatible testbenches and
-analysis scripts to characterize a circuit and to produce a
-datasheet showing the circuit performance.  The CACE python
-code is the part of CACE which is common to all circuit
-designs.  The CACE python code does the following:
+# The CACE version 4.0 format description
 
-	1. Reads the specification input file
-	2. Determines how many simulations will need to be
-	   run for each electrical parameter
-	3. Generates testbench templates from schematics
-	4. Substitutes values for all parameters for each
-	   simulation
-	5. Generates the circuit netlist to be tested
-	   (either pre-layout or post-layout)
-	6. Runs simulations in parallel
-	7. Runs additional scripts to analyze specific
-	   performance metrics, as specified in the input
-	   file
-	8. Collates results and generates pass/fail
-	   results for all electrical parameters
-	9. Generates graphs of results as specified in the
-	   input file 
-	10. Runs additional measurements for DRC, LVS, and
-	   physical dimensions as specified in the input
-	   file
-	11. Collates results and generates pass/fail
-	   results for all physical parameters
+## NOTE
 
-By necessity, every circuit will have its own set of testbench
-schematics, which no common code system can automatically generate,
-as every test bench will be specific to the circuit design.  Certain
-general principles apply, and are covered by a number of example
-circuits available on github;  each of these designs has a "cace/"
-directory containing the specification, testbench schematics, and
-any additional code needed to analyze the results.
-
-The CACE input file describes the specification for the circuit
-in terms of electrical and physical parameters that need to be
-measured and analyzed.  After simulation, a copy of the file is
-produced containing measured results and providing a pass/fail
-result for each parameter.
-
------------------------------------------------------------------
-USAGE
------------------------------------------------------------------
-
-The "cace_gui.py" script is a top-level GUI for the CACE system.
-The CACE system can also be run manually as "cace.py".  For
-interactive usage information for the command line, run "cace.py"
-without any arguments.
-
-CACE GUI syntax:
-
-	/path/to/cace_gui.py [path/to/project.txt]
-
-	where optional file project.txt (normally <name_of_project>.txt
-	where <name_of_project> is the name of the circuit to be
-	characterized) is a circuit characterization description in the
-	file format described below.  If a file is not specified, then
-	the GUI window will come up without content.  Click on the button
-	with text "(no selection)" to find and select a characterization
-	file to load.  The project file may also be in JSON format.
-
-	Normally, cace_gui.py is called from a project top level directory,
-	while the project.txt file is usually in a subdirectory called
-	cace/.  The project.txt file may be the output file from a CACE
-	run, which will add results to all of the parameter entries.
-
-	There may be multiple characterization files in a single project
-	(repository), as a project may contain multiple subcircuits that
-	may need independent characterization or be able to be used as
-	standalone circuits, or a project may simply be a collection of
-	circuits (library) without a specific single top level. 
-
-CACE command line syntax:
-
-	/path/to/cace.py <filename_in> <filename_out> [options]
-
-	where <filename_in> is a format 4.0 ASCII CACE file
-	and <filename_out> is the name of the file to write.
-
-	Options may be one of:
-
-	  -source=schematic|layout|rcx|all|best
-	  -param=<parameter_name>
-	  -force
-	  -json
-	  -keep
-	  -debug
-	  -sequential
-	  -summary
-
-	When run from the top level, this program parses the CACE
-	characterization file, runs simulations, and outputs a
-	modified file annotated with characterization results.
-
-	With option "-source", restrict characterization to the
-	specific netlist source, which is either schematic capture,
-	layout extracted, or full R-C parasitic extracted.  If not
-	specified, then characterization is run on the full R-C
-	parasitic extracted layout netlist if available, and the
-	schematic captured netlist if not (option "best").
-
-	Option "-param=<parameter_name>" runs simulations on only
-	the named electrical or physical parameter.
-
-	Option "-force" forces new regeneration of all netlists.
-
-	Option "-json" generates an output file in JSON format.
-
-	Option "-keep" retains files generated for characterization.
-
-	Option "-noplot" will not generate any graphs.
-
-	Option "-debug" generates additional diagnostic output.
-
-	Option "-sequential" runs simulations sequentially.
-
-	Option "-nosim" does not re-run simulations if the output file exists.
-	   (Warning---does not check if simulations are out of date).
-
-	Option "-summary" prints a summary of results at the end.
-
------------------------------------------------------------------
-INSTALLATION
------------------------------------------------------------------
-
-CACE is currently a work in progress and does not have an
-installer;  it may be run directly from the source repository
-clone.  Future work will allow CACE to be installed with the
-standard python "pip" installer or a Makefile install target,
-and run from the command line simply as "cace".
-
------------------------------------------------------------------
-EXAMPLES
------------------------------------------------------------------
-
-The following repositories contain example circuit designs, each
-having a "cace/" subdirectory with a specification input file in
-the format described below, and a set of testbench schematics
-which are used by CACE to measure all specified electrical and
-physical parameters, generate results, and analyze them to
-determine circuit performance over corners.
-
-(NOTE:  Example repositories, like CACE itself, are currently
-a work in progress.)
-
-All repositories are rooted at:
-	https://github.com/RTimothyEdwards/
-
-Example circuit repositories:
-
-	sky130_ef_ip__instramp		Instrumentation amplifier
-	sky130_ef_ip__rdac3v_8bit	8-bit resistor ladder DAC
-	sky130_ef_ip__samplehold	sample-and-hold circuit
-	sky130_ef_ip__driveramp		Rail-to-rail driver amplifier
-	sky130_ef_ip__ccomp3v		Rail-to-rail continuous comparator
-	sky130_ef_ip__rc_osc_500k	R-C oscillator, 500kHz nominal output
-	sky130_ef_ip__xtal_osc_16M	Crystal oscillator, 4 to 15MHz
-	sky130_ef_ip__xtal_osc_32k	Crystal oscillator, 32kHz
-
-Each of these repositories contains a circuit designed with the
-SkyWater sky130 process open PDK, and contains schematics, layout,
-and CACE characterization.
-
-NOTE:  These repositories are a work in progress, and may not exist yet or
-may not have a characterization setup for CACE.
-
------------------------------------------------------------------
-The CACE version 4.0 format description
------------------------------------------------------------------
-
-NOTE
-------
 CACE files prior to version 4 (November 2023) are in JSON format
 and can be run through the script cace_compat.py to produce a
 version 4.0 text format.
 
-SYNTAX
-------
+## Syntax
 
 Every line is either a key:value pair or a key:dictionary or a key:list,
 or a blank line, or a comment.
@@ -218,8 +39,7 @@ For key:dictionary, the format is
    key:dictionary or key:list.
 2. Each key in the dictionary must be unique.
 
-For key:list, the format depends on whether the list items are dictionaries
-or something else.  For dictionary items, the list format is:
+For key:list, the format is
 
 	<key> {
 		<dictionary>
@@ -240,22 +60,6 @@ or something else.  For dictionary items, the list format is:
 3. Each key within a dictionary must be unique, but different dictionaries
    in the list will contain the same keywords.
 
-For non-dictionary items, the list format is:
-
-	<key> {
-		<item>
-		<item>
-		<item>
-		...
-	}
-
-1. Each <item> is either a single token (word) or multiple, space-separated 
-   tokens.
-2. This format appears only in the testbench output, for lists of testbench
-   conditions and results.
-3. An alternative form of the single-token list is the key: value with the
-   value space-separated.  The key: value form cannot represent nested lists.
-
 All entries in the file are from the ASCII character set.  Non-ASCII characters
 can be handled with known keywords in braces, such as (but not limited to):
 	{degrees}
@@ -270,9 +74,10 @@ flagged.  Therefore comments and other non-critical information can be put
 in otherwise unused dictionary keys.  The key "note" is considered the
 proper way to pass comments about the contents of a specific dictionary;
 these can end up as notes in a formatted datasheet output.
-
-CONTENTS
---------
+.
+4.
+CACE format description:  Characterization file contents
+-----------------------------------------------------------------
 
 The top level file itself is a dictionary of <key>:<value>, <key>:<dictionary>,
 or <key>:<list> entries.  The top-level dictionary does not have a key and is
@@ -308,6 +113,9 @@ The order of entries is not meaningful except that "default_conditions" must be
 declared before "electrical_parameters", since the electrical parameters will
 take default conditions before applying specific conditions.
 
+4.1
+Authorship
+--------------
 "authorship" dictionary:
 
 	designer:	<name>
@@ -328,6 +136,9 @@ take default conditions before applying specific conditions.
 	license:	<string>
 	A known license type, such as "Apache 2.0".
 
+4.2
+Paths
+--------------
 "paths" dictionary:
 
 	documentation:	<path>
@@ -347,10 +158,11 @@ take default conditions before applying specific conditions.
 
 	netlist:	<path>
 	Location of all SPICE netlists.
-	This netlist is usually automatically generated by cace_regenerate.py
-	and is split into multiple subdirectories according to the specified
-	netlist source (see "-source"):  "schematic", "layout" (for LVS),
-	"pex" (C-parasitics only), and "rcx" (R-C parasitics).
+	This netlist is usually automatically generated by cace_regenerate.py,
+	with subdirectories for each netlist type according to the netlist
+	source (see "-source" option):  "schematic", "layout" (for LVS),
+	"pex" (C-parasitic extracted layout), and "rcx" (R-C-parasitic
+	extracted layout).
 
 	verilog:	<path>
 	Location of any verilog netlists (structural verilog).
@@ -371,6 +183,9 @@ take default conditions before applying specific conditions.
 	This is the location of the project and the root of all the other
 	paths in this dictionary.  It is automatically inserted by CACE.
 
+4.3
+Dependencies
+--------------
 "dependencies" list:
 	Each entry in the list is a project on which the design under
 	test is dependent.  Each entry lists a dictionary with the
@@ -393,6 +208,9 @@ take default conditions before applying specific conditions.
 	project.  TBD:  Various values that define actions such as updating
 	the repository.
 
+4.4
+Pins
+--------------
 "pins" dictionary:
 	
 	name:	<string>
@@ -422,6 +240,9 @@ take default conditions before applying specific conditions.
 	another pin;  and may be referenced to another pin with an offset
 	(e.g., "vdd + 0.3").
 
+4.5
+Default conditions
+--------------
 "default_conditions" dictionary:
 
 	name: <string>
@@ -470,6 +291,9 @@ take default conditions before applying specific conditions.
 	enumeration or <value> multiplicative values for logarithmic
 	enumeration.
 
+4.6
+Parameter conditions
+--------------
 "conditions" dictionary:
 
 	The "conditions" dictionary entries are the same as the
@@ -480,6 +304,9 @@ take default conditions before applying specific conditions.
 	condition name exists in the netlist to be simulated or the file
 	to be evaluated (see "simulate" and "measure" entries).
 
+4.7
+Electrical conditions
+--------------
 "electrical_parameters" dictionary:
 
 	name: <string>
@@ -540,6 +367,9 @@ take default conditions before applying specific conditions.
 	This entry is automatically generated by CACE and enumerates all
 	of the testbenches to be simulated and evaluated, and the results.
 
+4.8
+Specification
+--------------
 "spec" dictionary:
 
 	minimum: <value>|any  [fail]	[<calculation>-<limit>]
@@ -570,6 +400,9 @@ take default conditions before applying specific conditions.
 	spec.  If <calculation>-<limit> is specified, then it overrides
 	the default calculation of "maximum-below"
 
+4.9
+Results
+--------------
 "results" dictionary:
 	A set of results that is the measurement counterpart to the
 	"spec" dictionary for an electrical parameter.  The difference
@@ -587,6 +420,9 @@ take default conditions before applying specific conditions.
 	typical: <value> [pass|fail]
 	maximum: <value> [pass|fail]
 
+4.10
+Variables
+--------------
 "variables" list:
 	A variable is any property that affects the electrical parameter
 	result but which is not a condition.  A variable may be used in
@@ -611,6 +447,9 @@ take default conditions before applying specific conditions.
 	This is the unit that will be displayed after the display
 	string.
 
+4.11
+Simulation information
+--------------
 "simulate" dictionary:
 
 	tool: <string>
@@ -652,6 +491,9 @@ take default conditions before applying specific conditions.
 	runs over all the specified conditions before passing the result
 	to the first "measure" handler.
 
+4.12
+Measurement information
+--------------
 "measure" dictionary:
 	Additional entries are tools that operate on the output of
 	the simulator to produce the final results for the datasheet.
@@ -682,7 +524,10 @@ take default conditions before applying specific conditions.
 	the output is passed in stdout, and is a list of "result" values
 	that replaces the existing "result" values in the testbench.
 
-Internal calculation methods:
+4.13
+Internal calculations
+--------------
+Internal calculation (measurement) methods:
 	time:
 	remove:
 	rebase:
@@ -698,6 +543,9 @@ Internal calculation methods:
 	stabletime:
 	inside:
 	
+4.14
+Plots
+--------------
 "plot" dictionary:
 	filename: <string>
 	Name of a graphic format and filename to use for graph output.
@@ -719,6 +567,16 @@ Internal calculation methods:
 	title: <string>
 	A title for the graph.
 
+Plots are made from measured columnar data which may be from a "wrdata"
+command in ngspice, an "echo" statement directed to a file, or a raw file;
+regardless, each column will be either a condition or a result.  Conditions
+produced by plot-generating tools may contain vectors not in the listed
+conditions for the electrical parameter, such as TIME for time or TRACE for
+the result.
+	
+4.15
+Testbenches
+--------------
 "testbenches" dictionary:
 
 	filename: <string>
@@ -726,9 +584,6 @@ Internal calculation methods:
 
 	conditions: <list>
 	The value of all fixed conditions for this simulation.
-	This is a nested list;  each entry consists of the
-	condition name, unit (or null string if there is no unit),
-	and the value.
 
 	results: <list>
 	The results from the simulation.  Each item is a nested list
@@ -747,12 +602,9 @@ Internal calculation methods:
 	the format, and entries must match the order of the entries
 	in the format.
 
-Plots are made from measured columnar data which may be from a "wrdata"
-command in ngspice or a raw file;  regardless, each column will be either
-a condition or a result.  Conditions produced by plot-generating tools
-may contain vectors not in the listed conditions for the electrical
-parameter, such as TIME for time or TRACE for the result.
-	
+4.16
+Physical parameters
+--------------
 "physical_parameters" list:
 
 	The physical parameters list has the same keywords as the
@@ -768,6 +620,9 @@ parameter, such as TIME for time or TRACE for the result.
 	and takes the place of "simulate" and "measure" for electrical
 	parameters (see below).
 
+4.17
+Evaluation information
+--------------
 "evaluate" dictionary:
 	The "evaluate" dictionary is unique to the physical_parameters
 	dictionaries.  It describes how to obtain a specific physical
@@ -788,7 +643,10 @@ parameter, such as TIME for time or TRACE for the result.
 	by "tool", if the tool is not an internal procedure.  The file
 	<name> should exist in the testbench directory.
 
-Internal physical parameter tools:
+4.18
+Internal physical parameter tools
+--------------
+Internal physical parameter (evaluation) tools:
 	cace_drc:	Returns the number of DRC errors found in the design.
 			The result is generally useful only as being zero or
 			non-zero.
@@ -802,85 +660,3 @@ Internal physical parameter tools:
 	cace_width:	Returns the width of the layout.
 
 	cace_length:	Returns the length of the layout.
-
------------------------------------------------------------------
-The CACE version 4.0 schematic description
------------------------------------------------------------------
-
-Schematics are drawn normally but statements can have special syntax
-that is substituted by CACE.  The syntax follows three essential rules:
-
-(1) Condition and variable names in the project specification file
-    are written in the schematic in braces, so "temperature" in the
-    project file is "{temperature}" in the schematic.
-
-(2) Expressions involving equations using condition and variable
-    names are written in the schematic in brackets, so, for example,
-    half of condition vdd would be written "[{vdd} / 2]".  These
-    expressions are evaluated in python, so any python expression
-    that evaluates to a valid result may appear inside the brackets.
-
-(3) There are a handful of reserved variable names that are automatically
-    substituted by CACE if they appear in the schematic:
-
-	{PIN|pin_name|net_name}
-		Used in symbol descriptions.  Indicates a pin of a subcircuit
-		including both the pin name in the subcircuit and the name
-		of the net connecting to the pin.  This allows a subcircuit
-		call to be made without any specific pin order.  CACE will
-		determine the pin order and output the correct syntax.
-
-	{FUNCTIONAL|ip_name}
-		Indicates that the subcircuit ip_name will be replaced with
-		its functional view (xspice or verilog) for simulation.
-
-	{cond=value}
-		For any condition cond, this form indicates that "value" is
-		to be subsituted for the condition if the condition is not
-		declared in the CACE project file.
-	
-	{cond|minimum}
-	{cond|maximum}
-	{cond|stepsize}
-	{cond|steps}
-		Instead of substituting one value for a condition, a value
-		over all conditions is substituted, including the maximum
-		over all conditions, minimum over all conditions, the
-		step size between neighboring condition values, or the
-		number of steps over all values of the condition.
-		This is used most often in cases where a condition is handled
-		entirely inside a testbench netlist (such as in a sweep), and
-		not iterated over multiple netlists.
-
-    	{N}
-		This is substituted with the simulation index.  Most often
-		used as a filename suffix for the output data file.
-
-	{filename}
-		The root name of the schematic file.
-
-	{simpath}
-		The name of the path to simulation files.
-
-	{random}
-		A random integer number.
-
-	{DUT_path}
-		The full path to the DUT subcircuit definition netlist.
-
-	{include_DUT}
-		A shorthand that inserts a ".include" statement with the
-		DUT path, or else in the case of a functional block,
-		in-lines the functional definition of the block. 
-
-	{DUT_call}
-		The pin list from the DUT schematic
-
-	{DUT_name}
-		The name of the DUT subcircuit
-
-	{PDK_ROOT}
-		The path to the directory containing the PDK
-
-	{PDK}
-		The name of the PDK

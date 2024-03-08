@@ -18,7 +18,7 @@ import os
 import sys
 import json
 
-import cace_compat
+from .cace_compat import *
 
 # Replace special character specifications with unicode characters
 
@@ -282,7 +282,7 @@ if __name__ == '__main__':
                 if 'data-sheet' in dataset:
                     dataset = dataset['data-sheet']
                     # Attempt to upgrade this to format 4.0
-                    dataset = cace_compat.cace_compat(dataset, debug)
+                    dataset = cace_compat(dataset, debug)
         else:
             dataset = cace_read(filename, debug)
 
