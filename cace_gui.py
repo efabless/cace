@@ -224,7 +224,7 @@ class CACECharacterize(ttk.Frame):
         self.textreport = TextReport(self, fontsize = fontsize)
 
         # Create the settings window
-        self.settings = Settings(self, fontsize = fontsize, callback = self.callback)
+        self.settings = Settings(self, fontsize = fontsize)
 
         # Create the simulation hints window
         self.simhints = SimHints(self, fontsize = fontsize)
@@ -350,10 +350,10 @@ class CACECharacterize(ttk.Frame):
         self.bbar = ttk.Frame(self.botpane)
         self.bbar.pack(side = 'top', fill = 'x')
         # Progress bar expands with the window, buttons don't
-        self.bbar.columnconfigure(6, weight = 1)
+        self.bbar.columnconfigure(7, weight = 1)
 
         # Define the "quit" button and action
-        self.bbar.quit_button = ttk.Button(self.bbar, text='Close', command=self.on_quit,
+        self.bbar.quit_button = ttk.Button(self.bbar, text='Quit', command=self.on_quit,
 		style = 'normal.TButton')
         self.bbar.quit_button.grid(column=0, row=0, padx = 5)
 
@@ -365,25 +365,33 @@ class CACECharacterize(ttk.Frame):
         # Define the save-as button
         self.bbar.saveas_button = ttk.Button(self.bbar, text='Save As', command=self.save_manual,
 		style = 'normal.TButton')
+        self.bbar.saveas_button.grid(column=2, row=0, padx = 5)
 
 	# Also a load button
         self.bbar.load_button = ttk.Button(self.bbar, text='Load', command=self.load_manual,
 		style = 'normal.TButton')
+        self.bbar.load_button.grid(column=3, row=0, padx = 5)
+
+        # Define the HTML generate button
+        self.bbar.html_button = ttk.Button(self.bbar, text='HTML', command=self.generate_html,
+		style = 'normal.TButton')
+        self.bbar.html_button.grid(column=4, row=0, padx = 5)
 
         # Define help button
         self.bbar.help_button = ttk.Button(self.bbar, text='Help', command=self.help.open,
 		style = 'normal.TButton')
-        self.bbar.help_button.grid(column = 4, row = 0, padx = 5)
+        self.bbar.help_button.grid(column=5, row=0, padx = 5)
 
         # Define settings button
         self.bbar.settings_button = ttk.Button(self.bbar, text='Settings',
 		command=self.settings.open, style = 'normal.TButton')
-        self.bbar.settings_button.grid(column = 5, row = 0, padx = 5)
+        self.bbar.settings_button.grid(column=6, row=0, padx = 5)
 
         tooltip.ToolTip(self.bbar.quit_button, text = "Exit characterization tool")
         tooltip.ToolTip(self.bbar.save_button, text = "Save current characterization state")
         tooltip.ToolTip(self.bbar.saveas_button, text = "Save current characterization state")
         tooltip.ToolTip(self.bbar.load_button, text = "Load characterization state from file")
+        tooltip.ToolTip(self.bbar.html_button, text = "Generate HTML output")
         tooltip.ToolTip(self.bbar.help_button, text = "Start help tool")
         tooltip.ToolTip(self.bbar.settings_button, text = "Manage characterization tool settings")
 
@@ -1034,29 +1042,23 @@ class CACECharacterize(ttk.Frame):
             print("no datasheet_anno, so there are no results to save.")
             return True
 
-    def callback(self):
-        # Check for manual load/save-as status from settings window (callback
-        # when the settings window is closed).
-        if self.settings.get_loadsave() == True:
-            self.bbar.saveas_button.grid(column=2, row=0, padx = 5)
-            self.bbar.load_button.grid(column=3, row=0, padx = 5)
-        else:
-            self.bbar.saveas_button.grid_forget()
-            self.bbar.load_button.grid_forget()
-
     def save_manual(self, value={}):
-        dspath = self.datasheet
+        dspath = self.filename
         # Set initialdir to the project where datasheet is located
         dsparent = os.path.split(dspath)[0]
 
-        datasheet = filedialog.asksaveasfilename(multiple = False,
-			initialdir = dsparent,
+        datasheet = filedialog.asksaveasfilename(initialdir = dsparent,
 			confirmoverwrite = True,
-			defaultextension = ".json",
-			filetypes = (("JSON File", "*.json"),("All Files","*.*")),
+			defaultextension = ".txt",
+			filetypes = (("Text file", "*.txt"),("JSON File", "*.json"),("All Files","*.*")),
 			title = "Select filename for saved datasheet.")
-        with open(datasheet, 'w') as ofile:
-            json.dump(self.datasheet, ofile, indent = 4)
+
+        if isinstance(datasheet, str):
+            if os.path.splitext(datasheet)[1] == '.json':
+                with open(datasheet, 'w') as ofile:
+                    json.dump(self.datasheet, ofile, indent = 4)
+            else:
+                cace_write.cace_write(self.datasheet, datasheet)
 
     def load_manual(self, value={}):
         dspath = self.filename
@@ -1065,22 +1067,32 @@ class CACECharacterize(ttk.Frame):
 
         datasheet = filedialog.askopenfilename(multiple = False,
 			initialdir = dsparent,
-			filetypes = (("JSON File", "*.json"),("All Files","*.*")),
+			filetypes = (("Text file", "*.txt"),("JSON File", "*.json"),("All Files","*.*")),
 			title = "Find a datasheet.")
         if datasheet != '':
-            try:
+            print('Reading file ' + datasheet)
+            if os.path.splitext(datasheet)[1] == '.json':
                 with open(datasheet, 'r') as file:
-                    if os.path.splitext(file)[1] == '.json':
+                    try:
                         self.datasheet = json.load(file)
+                    except:
+                        print('Error in file, no update to results.', file=sys.stderr)
                     else:
-                        debug = self.settings.get_debug()
-                        self.datasheet = cace_read.cace_read(file, debug)
-            except:
-                print('Error in file, no update to results.', file=sys.stderr)
-
+                        # Regenerate datasheet view
+                        self.create_datasheet_view()
             else:
-                # Regenerate datasheet view
-                self.create_datasheet_view()
+                debug = self.settings.get_debug()
+                try:
+                    self.datasheet = cace_read.cace_read(datasheet, debug)
+                except:
+                    print('Error in file, no update to results.', file=sys.stderr)
+                else:
+                    # Regenerate datasheet view
+                    self.create_datasheet_view()
+
+    def generate_html(self, value={}):
+        debug = self.settings.get_debug()
+        cace_write.cace_generate_html(self.datasheet, None, debug)
 
     def swap_results(self, value={}):
         # This routine just calls self.create_datasheet_view(), but the
@@ -1201,12 +1213,14 @@ class CACECharacterize(ttk.Frame):
         dframe.cframe.pname = ttk.Label(dframe.cframe, text = dsheet['name'],
 			style = 'normal.TLabel')
         dframe.cframe.pname.grid(column = 1, row = n, sticky='ewns', ipadx = 5)
-        dframe.cframe.fname = ttk.Label(dframe.cframe, text = dsheet['foundry'],
+        if 'foundry' in dsheet:
+            dframe.cframe.fname = ttk.Label(dframe.cframe, text = dsheet['foundry'],
 			style = 'normal.TLabel')
-        dframe.cframe.fname.grid(column = 2, row = n, sticky='ewns', ipadx = 5)
-        dframe.cframe.fname = ttk.Label(dframe.cframe, text = dsheet['PDK'],
+            dframe.cframe.fname.grid(column = 2, row = n, sticky='ewns', ipadx = 5)
+        if 'PDK' in dsheet:
+            dframe.cframe.fname = ttk.Label(dframe.cframe, text = dsheet['PDK'],
 			style = 'normal.TLabel')
-        dframe.cframe.fname.grid(column = 3, row = n, sticky='ewns', ipadx = 5)
+            dframe.cframe.fname.grid(column = 3, row = n, sticky='ewns', ipadx = 5)
         if 'description' in dsheet:
             dframe.cframe.pdesc = ttk.Label(dframe.cframe, text = dsheet['description'],
 			style = 'normal.TLabel')
