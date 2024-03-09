@@ -20,7 +20,7 @@ You'll need the following:
 
 CACE can be installed directly from PyPI:
 
-	$ python3 -m pip install --upgrade openlane
+	$ python3 -m pip install --upgrade cace
 Prerequisite design tools:
 
 - xschem:  [https://github.com/stefanschippers/xschem](https://github.com/stefanschippers/xschem)
