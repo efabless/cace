@@ -1,19 +1,59 @@
+.PHONY: init
 init:
 	pip3 install -r requirements.txt
+	pip3 install -r requirements_dev.txt
+	pip3 install -r requirements_docs.txt
 
+.PHONY: test
 test:
 	py.test tests
 
+.PHONY: lint
 lint:
 	black --check cace/
 
+.PHONY: format
 format:
 	black cace/
 
+.PHONY: build
 build:
 	python3 -m build
 
+.PHONY: install
 install:
+	pip3 install .
+
+.PHONY: editable
+editable:
 	pip3 install -e .
 
-.PHONY: init test
+.PHONY: upload
+upload:
+	python3 -m twine upload --repository pypi dist/*
+
+venv: venv/manifest.txt
+venv/manifest.txt: ./requirements_dev.txt ./requirements.txt
+	rm -rf venv
+	python3 -m venv ./venv
+	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade pip
+	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade wheel
+	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r ./requirements_docs.txt
+	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r ./requirements_dev.txt
+	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r ./requirements.txt
+	PYTHONPATH= ./venv/bin/python3 -m pip freeze > $@
+	@echo ">> Venv prepared."
+
+.PHONY: docs
+docs: venv
+	$(MAKE) -C docs html
+
+.PHONY: host-docs
+host-docs: venv
+	python3 -m http.server --directory ./docs/build/html
+
+.PHONY: clean
+clean:
+	rm -rf build/
+	rm -rf dist/
+	rm -rf *.egg-info

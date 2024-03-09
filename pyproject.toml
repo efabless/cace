@@ -1,8 +1,11 @@
 [project]
 name = "cace"
-version = "2.1.0"
+dynamic = ["version"]
 requires-python = ">=3.8"
 dependencies = [
+    "tk",
+    "matplotlib",
+    "numpy"
 ]
 authors = [
   { name="Tim Edwards", email="tim@efabless.com" },
@@ -14,6 +17,9 @@ classifiers = [
     "License :: OSI Approved :: Apache Software License",
     "Operating System :: OS Independent",
 ]
+
+[tool.setuptools.dynamic]
+version = {attr = "cace.__version__"}
 
 [project.urls]
 Homepage = "https://github.com/efabless/cace"

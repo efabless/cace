@@ -14,6 +14,35 @@ CACE 4.0 format and uses the information found there in combination with CACE-co
 
 ## Installation
 
+You'll need the following:
+
+- Python 3.8 or higher with PIP and Tkinter
+
+CACE can be installed directly from PyPI:
+
+	$ python3 -m pip install --upgrade openlane
+Prerequisite design tools:
+
+- xschem:  [https://github.com/stefanschippers/xschem](https://github.com/stefanschippers/xschem)
+- ngspice: git://git.code.sf.net/p/ngspice/ngspice
+- magic:	 [https://github.com/RTimothyEdwards/magic](https://github.com/RTimothyEdwards/magic)
+
+## Usage
+
+If installed as Python package, CACE can be started from the command line using:
+
+```
+$ cace
+```
+
+Or to start the GUI:
+
+```
+$ cace-gui
+```
+
+## Development
+
 ### Dependencies
 
 To install the dependencies for CACE, run:
@@ -30,9 +59,7 @@ To install the dependencies to build the documentation for CACE, run:
 
 ### CACE
 
-For now, CACE can be manually installed using pip.
-
-First the Python package needs to be build:
+To build the Python package, run:
 
 ```
 $ make build
@@ -44,21 +71,14 @@ To install the package, run:
 $ make install
 ```
 
-## Usage
-
-If installed properly as Python package, CACE can be started from the command line using:
+To install the package in editable mode, run:
 
 ```
-$ cace
+$ make editable
 ```
 
-Or to start the GUI:
 
-```
-$ cace-gui
-```
-
-CACE GUI syntax:
+## CACE GUI syntax
 
 	/path/to/cace_gui.py [path/to/project.txt]
 
@@ -81,7 +101,7 @@ CACE GUI syntax:
 	standalone circuits, or a project may simply be a collection of
 	circuits (library) without a specific single top level. 
 
-CACE command line syntax:
+## CACE command line syntax
 
 	/path/to/cace.py <filename_in> <filename_out> [options]
 
@@ -155,8 +175,12 @@ NOTE:  These repositories are a work in progress, and may not exist yet or may n
 
 ## Documentation
 
-To build the documentation, change your directory to docs and run:
+To build the documentation, run:
 
-	$ make html
+	$ make docs
 
-Note: The documentation is not yet hosted anywhere.
+Th host the docs, run:
+
+	$ make host-docs
+
+Note: The documentation is not yet hosted online anywhere.
