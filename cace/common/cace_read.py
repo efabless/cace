@@ -46,7 +46,7 @@ def specchar_sub(string):
 def cace_read(filename, debug=False):
     if not os.path.isfile(filename):
         print('Error:  No such file ' + filename)
-        return 1
+        return {}
 
     with open(filename, 'r') as ifile:
         clines = ifile.read()
@@ -277,12 +277,16 @@ if __name__ == '__main__':
 
         # If the file is a JSON file, read it with json.load
         if os.path.splitext(filename)[1] == '.json':
-            with open(filename, 'r') as ifile:
-                dataset = json.load(ifile)
-                if 'data-sheet' in dataset:
-                    dataset = dataset['data-sheet']
-                    # Attempt to upgrade this to format 4.0
-                    dataset = cace_compat(dataset, debug)
+            if not os.path.isfile(filename):
+                print('Error:  No such file ' + filename)
+                result = 1
+            else:
+                with open(filename, 'r') as ifile:
+                    dataset = json.load(ifile)
+                    if dataset and 'data-sheet' in dataset:
+                        dataset = dataset['data-sheet']
+                        # Attempt to upgrade this to format 4.0
+                        dataset = cace_compat(dataset, debug)
         else:
             dataset = cace_read(filename, debug)
 
