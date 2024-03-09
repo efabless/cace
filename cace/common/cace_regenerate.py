@@ -715,15 +715,22 @@ def check_dependencies(dsheet, debug=False):
 #-----------------------------------------------------------------------
 # set_xschem_paths ---
 #
-#       Put together a set of Tcl commands that sets the search
-#       path for xschem.
+#	Put together a set of Tcl commands that sets the search
+#	path for xschem.
 #
-#       If tclstr is not None, then it is assumed to be a valid
-#       Tcl command, and the rest of the Tcl command string is
-#       appended to it, with independent commands separated by
-#       semicolons.
+#	If tclstr is not None, then it is assumed to be a valid
+#	Tcl command, and the rest of the Tcl command string is
+#	appended to it, with independent commands separated by
+#	semicolons.
 #
-#       Return the final Tcl command string.
+#	Return the final Tcl command string.
+#
+#	Note that this is used only when regenerating the schematic
+#	netlist.  The testbenches are assumed to call the symbol as
+#	a primitive, and rely on an include file to pull in the
+#	netlist (either schematic or layout) from the appropriate
+#	netlist directory.
+#
 #-----------------------------------------------------------------------
 
 def set_xschem_paths(dsheet, tclstr = None):
@@ -1001,8 +1008,7 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    tclstr = set_xschem_paths(dsheet)
-    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
+    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q']
 
     # Use the PDK xschemrc file for xschem startup
     xschemrcfile = os.path.join(pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc')
@@ -1077,6 +1083,48 @@ def regenerate_netlists(dsheet):
     return result
 
 #-----------------------------------------------------------------------
+# Copy the schematic symbol to the testbench directory and remark its
+# type from 'schematic' to 'primitive', so that testbench netlists will
+# write an instance call but not the schematic itself.  That way, the
+# schematic can be brought in from an include file that can be set to
+# any one of schematic-captured or layout-extracted netlists.
+#-----------------------------------------------------------------------
+
+def make_symbol_primitive(dsheet):
+
+    dname = dsheet['name']
+    xschemname = dname + '.sym'
+
+    paths = dsheet['paths']
+
+    # Xschem schematic symbol
+    if 'schematic' in paths:
+        schempath = paths['schematic']
+        symbolfilename = os.path.join(schempath, xschemname)
+    else:
+        schempath = None
+        symbolfilename = None
+
+    if not symbolfilename or not os.path.isfile(symbolfilename):
+        print('Error:  symbol for project ' + dname + ' was not found!')
+        return
+
+    # Testbench primitive symbol
+    if 'testbench' in paths:
+        testbenchpath = paths['testbench']
+    else:
+        testbenchpath = 'testbench'
+
+    primfilename = os.path.join(testbenchpath, xschemname)
+
+    with open(symbolfilename, 'r') as ifile:
+        symboldata = ifile.read()
+        primdata = symboldata.replace('type=subcircuit', 'type=primitive')
+ 
+    with open(primfilename, 'w') as ofile:
+        ofile.write(primdata)
+
+#-----------------------------------------------------------------------
 # Regenerate all testbenches.
 #
 # If paramname is passed to regenerate_testbenches and is not None, then
@@ -1090,6 +1138,10 @@ def regenerate_testbenches(dsheet, paramname=None):
         testbenchpath = paths['testbench']
     else:
         testbenchpath = 'testbench'
+
+    # Copy the circuit symbol from schematic directory to testbench
+    # directory and make it a primitive.
+    make_symbol_primitive(dsheet)
 
     # Enumerate testbenches used in electrical parameters
     testbenchlist = []
