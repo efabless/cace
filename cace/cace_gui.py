@@ -1471,7 +1471,11 @@ class CACECharacterize(ttk.Frame):
                             status_style = redlabel
                             status_value = 'fail'
                     if value:
-                        if 'unit' in param and not binrex.match(param['unit']):
+                        if value == 'failure' or value == 'fail':
+                            status_value = '(not checked)'
+                            status_style = redlabel
+                            valuetext = value
+                        elif 'unit' in param and not binrex.match(param['unit']):
                             valuetext = value + ' ' + param['unit']
                         else:
                             valuetext = value
@@ -1523,7 +1527,11 @@ class CACECharacterize(ttk.Frame):
                             status_style = redlabel
                             status_value = 'fail'
                     if value:
-                        if 'unit' in param and not binrex.match(param['unit']):
+                        if value == 'failure' or value == 'fail':
+                            status_value = '(not checked)'
+                            status_style = redlabel
+                            valuetext = value
+                        elif 'unit' in param and not binrex.match(param['unit']):
                             valuetext = value + ' ' + param['unit']
                         else:
                             valuetext = value
@@ -1572,7 +1580,11 @@ class CACECharacterize(ttk.Frame):
                             status_style = redlabel
                             status_value = 'fail'
                     if value:
-                        if 'unit' in param and not binrex.match(param['unit']):
+                        if value == 'failure' or value == 'fail':
+                            status_value = '(not checked)'
+                            status_style = redlabel
+                            valuetext = value
+                        elif 'unit' in param and not binrex.match(param['unit']):
                             valuetext = value + ' ' + param['unit']
                         else:
                             valuetext = value
@@ -1633,7 +1645,7 @@ class CACECharacterize(ttk.Frame):
                 bstyle=normbutton
                 stat_label = ttk.Label(dframe, text=status_value, style=bstyle)
             else:
-                if status_value == 'fail':
+                if status_value == 'fail' or status_value == 'failure':
                     bstyle=redbutton
                 else:
                     bstyle=greenbutton
