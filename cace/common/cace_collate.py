@@ -214,7 +214,8 @@ def find_limits(spectype, spec, results, units, debug=False):
             # value in the display.
             if value < targval - 0.0005:
                 score = 'fail'
-                print('fail: target = ' + str(score) + '\n')
+                if debug:
+                    print('fail: target = ' + str(score) + '\n')
             elif math.isnan(value):
                 score = 'fail'
 
@@ -230,7 +231,8 @@ def find_limits(spectype, spec, results, units, debug=False):
             # value in the display.
             if value > targval + 0.0005:
                 score = 'fail'
-                print('fail: target = ' + str(score))
+                if debug:
+                    print('fail: target = ' + str(score))
             elif math.isnan(value):
                 score = 'fail'
 
@@ -241,7 +243,8 @@ def find_limits(spectype, spec, results, units, debug=False):
 
             if value != targval:
                 score = 'fail'
-                print('off-target failure')
+                if debug:
+                    print('off-target failure')
             elif math.isnan(value):
                 score = 'fail'
 
@@ -307,6 +310,7 @@ def incompleteresult(param, noplotmode=False):
 #-------------------------------------------------------------
 
 def addnewresult(param, resultdict):
+    replaced = False
     if 'results' in param:
         newresultlist = []
         paramresults = param['results']
@@ -315,8 +319,11 @@ def addnewresult(param, resultdict):
         for result in paramresults:
             if result['name'] == resultdict['name']:
                 newresultlist.append(resultdict)
+                replaced = True
             else:
                 newresultlist.append(result)
+        if replaced == False:
+            newresultlist.append(resultdict)
         param['results'] = newresultlist
     else:
         param['results'] = resultdict
@@ -603,6 +610,8 @@ def cace_collate(dsheet, param):
     # depends on where the source netlists came from.
 
     resultdict['name'] = runtime_options['netlist_source']
+    if debug:
+        print('Adding new result set ' + resultdict['name'] + ' for ' + param['name'])
     addnewresult(param, resultdict)
 
     # Return the annotated electrical parameter

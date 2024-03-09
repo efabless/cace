@@ -445,6 +445,17 @@ def regenerate_rcx_netlist(dsheet):
 
         rcfile = get_magic_rcfile(dsheet, magicfilename)
         newenv = os.environ.copy()
+
+        if 'PDK_ROOT' in dsheet:
+            pdk_root = dsheet['PDK_ROOT']
+        else:
+            pdk_root = get_pdk_root()
+
+        if 'PDK' in dsheet:
+            pdk = dsheet['PDK']
+        else:
+            pdk = get_pdk(magicfilename)
+
         if pdk_root and 'PDK_ROOT' not in newenv:
             newenv['PDK_ROOT'] = pdk_root
         if pdk and 'PDK' not in newenv:
@@ -555,9 +566,14 @@ def regenerate_lvs_netlist(dsheet, pex=False):
         gdspath = None
         gdsfilename = None
 
+    if pex == True:
+        nettype = 'pex'
+    else:
+        nettype = 'layout'
+
     # Layout-extracted netlist for LVS
     if 'netlist' in paths:
-        lvs_netlist_path = os.path.join(paths['netlist'], 'layout')
+        lvs_netlist_path = os.path.join(paths['netlist'], nettype)
         lvs_netlist = os.path.join(lvs_netlist_path, netlistname)
     else:
         lvs_netlist_path = None
@@ -568,7 +584,7 @@ def regenerate_lvs_netlist(dsheet, pex=False):
     if force_regenerate:
         need_lvs_extract = True
     else:
-        print("Checking for out-of-date LVS netlists.")
+        print('Checking for out-of-date ' + nettype + ' netlists.')
         valid_layoutpath = magicfilename if magicpath else gdsfilename
         need_lvs_extract = check_layout_out_of_date(lvs_netlist, valid_layoutpath, debug)
 

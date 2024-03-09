@@ -308,7 +308,7 @@ class CACECharacterize(ttk.Frame):
 
         self.origin.set('Schematic Capture')
         self.toppane.title2_frame.origin_select = ttk.OptionMenu(self.toppane.title2_frame,
-		self.origin, 'Schematic Capture', 'Schematic Capture', 'Layout Extracted', 'R-C Extracted',
+		self.origin, 'Schematic Capture', 'Schematic Capture', 'Layout Extracted', 'C Extracted', 'R-C Extracted',
 		style='blue.TMenubutton', command=self.swap_results)
         self.toppane.title2_frame.origin_select.grid(column=5, row=0, ipadx = 5)
 
@@ -738,8 +738,16 @@ class CACECharacterize(ttk.Frame):
 
         if self.origin.get() == 'Schematic Capture':
             runtime_options['netlist_source'] = 'schematic'
-        else:
+        elif self.origin.get() == 'Layout Extracted':
             runtime_options['netlist_source'] = 'layout'
+        elif self.origin.get() == 'C Extracted':
+            runtime_options['netlist_source'] = 'pex'
+        elif self.origin.get() == 'R-C Extracted':
+            runtime_options['netlist_source'] = 'rcx'
+        else:
+            print('Unhandled netlist source ' + self.origin.get())
+            print('Reverting to schematic.')
+            runtime_options['netlist_source'] = 'schematic'
 
         runtime_options['force'] = self.settings.get_force()
         runtime_options['keep'] = self.settings.get_keep()
@@ -1137,6 +1145,8 @@ class CACECharacterize(ttk.Frame):
                 print('Error:  Cannot find directory spice/ in path ' + dspath)
 
         if self.origin.get() == 'Layout Extracted':
+            spifile = dsdir + '/layout/' + dsroot + '.spice'
+        if self.origin.get() == 'C Extracted':
             spifile = dsdir + '/pex/' + dsroot + '.spice'
         elif self.origin.get() == 'R-C Extracted':
             spifile = dsdir + '/rcx/' + dsroot + '.spice'
@@ -1397,14 +1407,19 @@ class CACECharacterize(ttk.Frame):
                     if not isinstance(resultlist, list):
                         resultlist = [resultlist]
 
-                    if self.origin.get() == 'Layout Extracted':
-                        for resultdict in resultlist:
-                            if resultdict['name'] == 'layout':
-                                valid = True
-                                break
-                    elif self.origin.get() == 'R-C Extracted':
+                    if self.origin.get() == 'R-C Extracted':
                         for resultdict in resultlist:
                             if resultdict['name'] == 'rcx':
+                                valid = True
+                                break
+                    elif self.origin.get() == 'C Extracted':
+                        for resultdict in resultlist:
+                            if resultdict['name'] == 'pex':
+                                valid = True
+                                break
+                    elif self.origin.get() == 'Layout Extracted':
+                        for resultdict in resultlist:
+                            if resultdict['name'] == 'layout':
                                 valid = True
                                 break
                     else:	# Schematic capture
