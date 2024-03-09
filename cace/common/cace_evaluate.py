@@ -172,7 +172,7 @@ def cace_area(datasheet, param, cond, toolargs=None):
         netlist_path = os.path.join(paths['netlist'], 'schematic')
         netlist_filename = os.path.join(netlist_path, projname + '.spice')
         namespace = get_magic_namespace(datasheet)
-        layoutest = layout_estimate.layout_estimate(netlist_filename, namespace, rcfile, debug, keep)
+        layoutest = layout_estimate(netlist_filename, namespace, rcfile, debug, keep)
         try:
             areaest = float(layoutest)
         except:
@@ -381,7 +381,7 @@ def run_invalid_device_check(datasheet):
     if not schem_netlist:
         return -1
     else:
-        faillines = netlist_precheck.netlist_precheck(schem_netlist, pdk_path, namespace, debug, keep)
+        faillines = netlist_precheck(schem_netlist, pdk_path, namespace, debug, keep)
         return len(faillines)
 
 #---------------------------------------------------------------------------
