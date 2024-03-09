@@ -19,6 +19,8 @@ from tkinter import ttk
 
 from .tooltip import *
 from ..common.cace_makeplot import *
+from ..common.spiceunits import spice_unit_unconvert
+
 
 class FailReport(tkinter.Toplevel):
     """failure report window."""
@@ -521,20 +523,30 @@ class FailReport(tkinter.Toplevel):
                 condition = result[0]
                 lstyle = 'normal.TLabel'
                 value = float(condition)
+
+                # scaled_value is 'value' scaled to the units used by param.
+                if 'unit' in param:
+                    scaled_value = spice_unit_unconvert([param['unit'], value])
+                else:
+                    scaled_value = value
+
                 if 'minimum' in spec:
                     minrec = spec['minimum']
                     calc = minrec[2] if len(minrec) > 2 else 'minimum'
-                    if self.check_failure(minrec, calc, value):
+                    if self.check_failure(minrec, calc, scaled_value):
                         lstyle = 'red.TLabel'
                 if 'maximum' in spec:
                     maxrec = spec['maximum']
                     calc = maxrec[2] if len(maxrec) > 2 else 'maximum'
-                    if self.check_failure(maxrec, calc, value):
+                    if self.check_failure(maxrec, calc, scaled_value):
                         lstyle = 'red.TLabel'
 
                 for condition, drange in zip(result, ranges):
                     if len(drange) > 1:
-                        pname = ttk.Label(body, text=condition, style = lstyle)
+                        if j == 0:
+                            pname = ttk.Label(body, text=str(scaled_value), style = lstyle)
+                        else:
+                            pname = ttk.Label(body, text=condition, style = lstyle)
                         pname.grid(row = m, column = j, sticky = 'ewns')
                         j += 1
 
