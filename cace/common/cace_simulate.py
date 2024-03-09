@@ -136,13 +136,18 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
         print('Current working directory is: ' + os.getcwd())
 
         with subprocess.Popen([simulator, *simargs, filename],
-			stdout=subprocess.PIPE, bufsize=1,
+			stdout=subprocess.PIPE,
+			stderr=subprocess.STDOUT,
+			bufsize=1,
 			start_new_session=True,
 			universal_newlines=True) as spiceproc:
             pgroup = os.getpgid(spiceproc.pid)
             for line in spiceproc.stdout:
                 print(line, end='')
                 sys.stdout.flush()
+                if 'Simulation interrupted' in line:
+                    print('ngspice encountered an error. . . ending.')
+                    spiceproc.kill()
 
         spiceproc.stdout.close()
         return_code = spiceproc.wait()
