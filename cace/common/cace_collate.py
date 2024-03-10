@@ -112,7 +112,7 @@ def find_limits(spectype, spec, results, units, debug=False):
     # using the units nomenclature of 'b or 'h, etc.
     # (to be done:  signed conversion, see cace_makeplot.py)
 
-    if type(results[0]) == type('str'):
+    if isinstance(results[0], str):
         bmatch = binrex.match(units)
         if (bmatch):
             digits = bmatch.group(1)
@@ -130,7 +130,7 @@ def find_limits(spectype, spec, results, units, debug=False):
             else:
                 a = list(int(x, 16) for x in results)
             results = list(twos_complement(x, digits) for x in a)
-        else:
+        elif results[0] != 'failure':
             print("Warning: result data do not correspond to specified units.")
             print("Data = " + str(results))
             return ['failure', 'fail']
