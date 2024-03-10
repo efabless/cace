@@ -7,6 +7,7 @@ dynamic = [
 requires-python = ">=3.8"
 authors = [
   { name="Tim Edwards", email="tim@efabless.com" },
+  { name="Leo Moser", email="leo.moser@efabless.com" },
 ]
 description = "Circuit Automatic Characterization Engine"
 readme = "README.md"
