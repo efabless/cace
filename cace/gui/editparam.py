@@ -14,6 +14,8 @@ import re
 import tkinter
 from tkinter import ttk
 
+from ..common.cace_gensim import get_condition_names_used
+
 class Condition(object):
     def __init__(self, parent = None):
         self.min = tkinter.StringVar(parent)
@@ -54,8 +56,10 @@ class EditParam(tkinter.Toplevel):
         #-------------------------------------------------------------
         # Add the entries that are common to all electrical parameters
 
-        self.selmethod = tkinter.StringVar(self)
+        self.name = tkinter.StringVar(self)
         self.display = tkinter.StringVar(self)
+        self.description = tkinter.StringVar(self)
+        self.template = tkinter.StringVar(self)
         self.unit = tkinter.StringVar(self)
         self.minrec = Limit(self)
         self.typrec = Limit(self)
@@ -153,7 +157,7 @@ class EditParam(tkinter.Toplevel):
         methods = []
         for spicefile in tbfiles:
             if os.path.splitext(spicefile)[1] == '.spice':
-                methods.append(os.path.splitext(spicefile)[0])
+                methods.append(os.path.splitext(spicefile))
 
         # Get list of pins from parent datasheet
         pins = dsheet['pins']
@@ -163,7 +167,11 @@ class EditParam(tkinter.Toplevel):
         pinlist.append('(none)')
 
         # Add common elements
-        frame1.ldisplay = ttk.Label(frame1, text='Description:',
+        frame1.lname = ttk.Label(frame1, text='Name:',
+			style= 'blue.TLabel', anchor = 'e')
+        frame1.ldescription = ttk.Label(frame1, text='Description:',
+			style= 'blue.TLabel', anchor = 'e')
+        frame1.ldisplay = ttk.Label(frame1, text='Display:',
 			style= 'blue.TLabel', anchor = 'e')
         frame1.lmethod = ttk.Label(frame1, text='Testbench:',
 			style= 'blue.TLabel', anchor = 'e')
@@ -171,25 +179,40 @@ class EditParam(tkinter.Toplevel):
 			style= 'blue.TLabel', anchor = 'e')
 
         # Find method and apply to OptionMenu
-        if 'method' in param:
-            self.selmethod.set(param['method'])
+        if 'simulate' in param:
+            simrec = param['simulate']
+
+        # XXX WIP TO DO: Handle other records
+        if 'template' in simrec:
+            self.template.set(simrec['template'])
         else:
-            self.selmethod.set('(none)')
+            self.template.set('(none)')
 
-
+        frame1.name = ttk.Entry(frame1, textvariable = self.name)
         frame1.display = ttk.Entry(frame1, textvariable = self.display)
-        frame1.method = ttk.OptionMenu(frame1, self.selmethod, self.selmethod.get(), *methods)
+        frame1.description = ttk.Entry(frame1, textvariable = self.description)
+        frame1.method = ttk.OptionMenu(frame1, self.template, self.template.get(), *methods)
         frame1.unit = ttk.Entry(frame1, textvariable = self.unit)
 
-        frame1.ldisplay.grid(column = 0, row = 0, sticky = 'news', padx=5, pady=5)
-        frame1.display.grid(column = 1, row = 0, sticky = 'news', padx=5, pady=3)
-        frame1.lmethod.grid(column = 0, row = 1, sticky = 'news', padx=5, pady=5)
-        frame1.method.grid(column = 1, row = 1, sticky = 'news', padx=5, pady=3)
-        frame1.lunit.grid(column = 0, row = 2, sticky = 'news', padx=5, pady=5)
-        frame1.unit.grid(column = 1, row = 2, sticky = 'news', padx=5, pady=3)
+        frame1.lname.grid(column = 0, row = 0, sticky = 'news', padx=5, pady=5)
+        frame1.name.grid(column = 1, row = 0, sticky = 'news', padx=5, pady=5)
+        frame1.ldescription.grid(column = 0, row = 1, sticky = 'news', padx=5, pady=5)
+        frame1.description.grid(column = 1, row = 1, sticky = 'news', padx=5, pady=3)
+        frame1.ldisplay.grid(column = 0, row = 2, sticky = 'news', padx=5, pady=5)
+        frame1.display.grid(column = 1, row = 2, sticky = 'news', padx=5, pady=3)
+        frame1.lmethod.grid(column = 0, row = 3, sticky = 'news', padx=5, pady=5)
+        frame1.method.grid(column = 1, row = 3, sticky = 'news', padx=5, pady=3)
+        frame1.lunit.grid(column = 0, row = 4, sticky = 'news', padx=5, pady=5)
+        frame1.unit.grid(column = 1, row = 4, sticky = 'news', padx=5, pady=3)
 
         frame1.columnconfigure(0, weight = 0)
         frame1.columnconfigure(1, weight = 1)
+
+        frame1.name.delete(0, 'end')
+        if 'name' in param:
+            frame1.name.insert(0, param['name'])
+        else:
+            frame1.name.insert(0, '(none)')
 
         frame1.display.delete(0, 'end')
         if 'display' in param:
@@ -197,17 +220,28 @@ class EditParam(tkinter.Toplevel):
         else:
             frame1.display.insert(0, '(none)')
 
+        frame1.description.delete(0, 'end')
+        if 'description' in param:
+            frame1.description.insert(0, param['description'])
+        else:
+            frame1.description.insert(0, '(none)')
+
         frame1.unit.delete(0, 'end')
         if 'unit' in param:
             frame1.unit.insert(0, param['unit'])
         else:
             frame1.unit.insert(0, '(none)')
 
-        ttk.Separator(frame1, orient='horizontal').grid(row = 4, column = 0,
+        ttk.Separator(frame1, orient='horizontal').grid(row = 5, column = 0,
 			columnspan = 2, sticky = 'nsew')
 
+        if 'spec' in param:
+            spec = param['spec']
+        else:
+            spec = {}
+
         # Calculation types
-        calctypes = ["min", "max", "avg", "diffmin", "diffmax", "(none)"]
+        calctypes = ["minimum", "maximum", "average", "diffmin", "diffmax", "(none)"]
         limittypes = ["above", "below", "exact", "legacy", "(none)"]
 
         # Add min/typ/max (To-do:  Add plot)
@@ -217,37 +251,40 @@ class EditParam(tkinter.Toplevel):
         ttk.Label(frame2min, text="Minimum:", style = 'blue.TLabel',
 			anchor = 'w').grid(row = 0, column = 0, padx = 5,
 			sticky = 'news')
-        if 'min' in param:
-            minrec = param['min']
+           
+        if 'minimum' in spec:
+            minrec = spec['minimum']
         else:
-            minrec = {}
-        ttk.Label(frame2min, text="Target:", anchor = 'e',
+            minrec = []
+        if isinstance(minrec, str):
+            minrec = [minrec]
+        ttk.Label(frame2min, text="Limit:", anchor = 'e',
 			style = 'normal.TLabel').grid(row = 1, column = 0, padx = 5,
 			sticky = 'news')
         frame2min.tmin = ttk.Entry(frame2min, textvariable = self.minrec.target)
         frame2min.tmin.grid(row = 1, column = 1, padx = 5, sticky = 'news')
         frame2min.tmin.delete(0, 'end')
-        if 'target' in minrec:
-            frame2min.tmin.insert(0, minrec['target'])
+        if minrec:
+            frame2min.tmin.insert(0, minrec[0])
         ttk.Label(frame2min, text="Penalty:", anchor = 'e',
 			style = 'normal.TLabel').grid(row = 2, column = 0, padx = 5,
 			sticky = 'news')
         frame2min.pmin = ttk.Entry(frame2min, textvariable = self.minrec.penalty)
         frame2min.pmin.grid(row = 2, column = 1, padx = 5, sticky = 'news')
         frame2min.pmin.delete(0, 'end')
-        if 'penalty' in minrec:
-            frame2min.pmin.insert(0, minrec['penalty'])
-        if 'calc' in minrec:
-            calcrec = minrec['calc']
+        if len(minrec) > 1:
+            frame2min.pmin.insert(0, minrec[1])
+        if len(minrec) > 2:
+            calcrec = minrec[2]
             try:
                 calctype, limittype = calcrec.split('-')
             except ValueError:
                 calctype = calcrec
-                if calctype == 'min':
+                if calctype == 'minimum':
                     limittype = 'above'
-                elif calctype == 'max':
+                elif calctype == 'maximum':
                     limittype = 'below'
-                elif calctype == 'avg':
+                elif calctype == 'average':
                     limittype = 'exact'
                 elif calctype == 'diffmin':
                     limittype = 'above'
@@ -256,7 +293,7 @@ class EditParam(tkinter.Toplevel):
                 else:
                     limittype = '(none)'
         else:
-            calctype = 'min'
+            calctype = 'minimum'
             limittype = 'above'
 
         ttk.Label(frame2min, text="Calculation:", anchor = 'e',
@@ -279,37 +316,39 @@ class EditParam(tkinter.Toplevel):
         ttk.Label(frame2typ, text="Typical:", style = 'blue.TLabel',
 			anchor = 'w').grid(row = 0, column = 0, padx = 5,
 			sticky = 'news')
-        if 'typ' in param:
-            typrec = param['typ']
+        if 'typical' in spec:
+            typrec = spec['typical']
         else:
-            typrec = {}
+            typrec = []
+        if isinstance(typrec, str):
+            typrec = [typrec]
         ttk.Label(frame2typ, text="Target:", anchor = 'e',
 			style = 'normal.TLabel').grid(row = 1, column = 0, padx = 5,
 			sticky = 'news')
         frame2typ.ttyp = ttk.Entry(frame2typ, textvariable = self.typrec.target)
         frame2typ.ttyp.grid(row = 1, column = 1, padx = 5, sticky = 'news')
         frame2typ.ttyp.delete(0, 'end')
-        if 'target' in typrec:
-            frame2typ.ttyp.insert(0, typrec['target'])
+        if typrec:
+            frame2typ.ttyp.insert(0, typrec[0])
         ttk.Label(frame2typ, text="Penalty:", anchor = 'e',
 			style = 'normal.TLabel').grid(row = 2, column = 0, padx = 5,
 			sticky = 'news')
         frame2typ.ptyp = ttk.Entry(frame2typ, textvariable = self.typrec.penalty)
         frame2typ.ptyp.grid(row = 2, column = 1, padx = 5, sticky = 'news')
         frame2typ.ptyp.delete(0, 'end')
-        if 'penalty' in typrec:
-            frame2typ.ptyp.insert(0, typrec['penalty'])
-        if 'calc' in typrec:
-            calcrec = typrec['calc']
+        if len(typrec) > 1:
+            frame2typ.ptyp.insert(0, typrec[1])
+        if len(typrec) > 2:
+            calcrec = typrec[2]
             try:
                 calctype, limittype = calcrec.split('-')
             except ValueError:
                 calctype = calcrec
-                if calctype == 'min':
+                if calctype == 'minimum':
                     limittype = 'above'
-                elif calctype == 'max':
+                elif calctype == 'maximum':
                     limittype = 'below'
-                elif calctype == 'avg':
+                elif calctype == 'average':
                     limittype = 'exact'
                 elif calctype == 'diffmin':
                     limittype = 'above'
@@ -318,7 +357,7 @@ class EditParam(tkinter.Toplevel):
                 else:
                     limittype = '(none)'
         else:
-            calctype = 'avg'
+            calctype = 'average'
             limittype = 'exact'
 
         ttk.Label(frame2typ, text="Calculation:", anchor = 'e',
@@ -341,37 +380,39 @@ class EditParam(tkinter.Toplevel):
         ttk.Label(frame2max, text="Maximum:", style = 'blue.TLabel',
 			anchor = 'w').grid(row = 0, column = 0, padx = 5,
 			sticky = 'news')
-        if 'max' in param:
-            maxrec = param['max']
+        if 'maximum' in spec:
+            maxrec = spec['maximum']
         else:
-            maxrec = {}
-        ttk.Label(frame2max, text="Target:", anchor = 'e',
+            maxrec = []
+        if isinstance(maxrec, str):
+            maxrec = [maxrec]
+        ttk.Label(frame2max, text="Limit:", anchor = 'e',
 			style = 'normal.TLabel').grid(row = 1, column = 0, padx = 5,
 			sticky = 'news')
         frame2max.tmax = ttk.Entry(frame2max, textvariable = self.maxrec.target)
         frame2max.tmax.grid(row = 1, column = 1, padx = 5, sticky = 'news')
         frame2max.tmax.delete(0, 'end')
-        if 'target' in maxrec:
-            frame2max.tmax.insert(0, maxrec['target'])
+        if maxrec != []:
+            frame2max.tmax.insert(0, maxrec[0])
         ttk.Label(frame2max, text="Penalty:", anchor = 'e',
 			style = 'normal.TLabel').grid(row = 2, column = 0, padx = 5,
 			sticky = 'news')
         frame2max.pmax = ttk.Entry(frame2max, textvariable = self.maxrec.penalty)
         frame2max.pmax.grid(row = 2, column = 1, padx = 5, sticky = 'news')
         frame2max.pmax.delete(0, 'end')
-        if 'penalty' in maxrec:
-            frame2max.pmax.insert(0, maxrec['penalty'])
-        if 'calc' in maxrec:
-            calcrec = maxrec['calc']
+        if len(maxrec) > 1:
+            frame2max.pmax.insert(0, maxrec[1])
+        if len(maxrec) > 2:
+            calcrec = maxrec[2]
             try:
                 calctype, limittype = calcrec.split('-')
             except ValueError:
                 calctype = calcrec
-                if calctype == 'min':
+                if calctype == 'minimum':
                     limittype = 'above'
-                elif calctype == 'max':
+                elif calctype == 'maximum':
                     limittype = 'below'
-                elif calctype == 'avg':
+                elif calctype == 'average':
                     limittype = 'exact'
                 elif calctype == 'diffmin':
                     limittype = 'above'
@@ -380,7 +421,7 @@ class EditParam(tkinter.Toplevel):
                 else:
                     limittype = '(none)'
         else:
-            calctype = 'max'
+            calctype = 'maximum'
             limittype = 'below'
 
         ttk.Label(frame2max, text="Calculation:", anchor = 'e',
@@ -403,13 +444,22 @@ class EditParam(tkinter.Toplevel):
         ttk.Label(dframe, text="Conditions:", style = 'blue.TLabel',
 			anchor='w').grid(row = 0, column = 0, padx = 5, sticky = 'news', columnspan = 5)
 
-        # Add conditions
+        # Reserved variables
+        reserved = ['filename', 'simpath', 'DUT_name', 'N', 'DUT_path',
+		'PDK_ROOT', 'PDK', 'include_DUT', 'DUT_call', 'steptime',
+		'random', '+', '-', '*', '/', 'MIN', 'NEG', 'INT',
+		'FUNCTIONAL']
 
-        condtypes = ["VOLTAGE", "DIGITAL", "CURRENT", "RISETIME", "FALLTIME",
-		"RESISTANCE", "CAPACITANCE", "TEMPERATURE", "FREQUENCY",
-		"CORNER", "SIGMA", "ITERATIONS", "(none)"]
 
-        steptypes = ['linear', 'log', '(none)']
+        # Add conditions from the template's testbench
+        # TO DO: Refresh this list if the testbench changes.
+        conddict = get_condition_names_used(tbpath, simrec['template'])
+        condtypes = []
+        for type in conddict.keys():
+            if type not in reserved:
+                condtypes.append(type)
+
+        steptypes = ['linear', 'logarithmic', '(none)']
 
         n = 0
         r = 1
@@ -426,7 +476,7 @@ class EditParam(tkinter.Toplevel):
 
             crec = Condition(self)
             # Condition description
-            ttk.Label(frame3c, text='Description:', style='normal.TLabel',
+            ttk.Label(frame3c, text='Display:', style='normal.TLabel',
 			anchor='e').grid(row = 0, column = 0, padx = 5, sticky = 'news')
             c1 = ttk.Entry(frame3c, textvariable = crec.display)
             c1.grid(row = 0, column = 1, padx = 5, sticky = 'news')
@@ -436,11 +486,11 @@ class EditParam(tkinter.Toplevel):
             else:
                 c1.insert(0, '(none)')
             # Condition type (pulldown menu)
-            if 'condition' in cond:
-                crec.condition.set(cond['condition'])
+            if 'name' in cond:
+                crec.condition.set(cond['name'])
             else:
                 crec.condition.set('(none)')
-            ttk.Label(frame3c, text='Condition:', style='normal.TLabel',
+            ttk.Label(frame3c, text='Name:', style='normal.TLabel',
 			anchor='e').grid(row = 1, column = 0, padx = 5, sticky = 'news')
             c2 = ttk.OptionMenu(frame3c, crec.condition, crec.condition.get(), *condtypes)
             c2.grid(row = 1, column = 1, padx = 5, sticky = 'news')
@@ -460,8 +510,8 @@ class EditParam(tkinter.Toplevel):
             c5 = ttk.Entry(frame3c, textvariable = crec.min)
             c5.grid(row = 4, column = 1, padx = 5, sticky = 'news')
             c5.delete(0, 'end')
-            if 'min' in cond:
-                c5.insert(0, cond['min'])
+            if 'minimum' in cond:
+                c5.insert(0, cond['minimum'])
             else:
                 c5.insert(0, '(none)')
             # Condition typ
@@ -470,8 +520,8 @@ class EditParam(tkinter.Toplevel):
             c6 = ttk.Entry(frame3c, textvariable = crec.typ)
             c6.grid(row = 5, column = 1, padx = 5, sticky = 'news')
             c6.delete(0, 'end')
-            if 'typ' in cond:
-                c6.insert(0, cond['typ'])
+            if 'typical' in cond:
+                c6.insert(0, cond['typical'])
             else:
                 c6.insert(0, '(none)')
             # Condition max
@@ -480,8 +530,8 @@ class EditParam(tkinter.Toplevel):
             c7 = ttk.Entry(frame3c, textvariable = crec.max)
             c7.grid(row = 6, column = 1, padx = 5, sticky = 'news')
             c7.delete(0, 'end')
-            if 'max' in cond:
-                c7.insert(0, cond['max'])
+            if 'maximum' in cond:
+                c7.insert(0, cond['maximum'])
             else:
                 c7.insert(0, '(none)')
             # Condition steptype
@@ -492,7 +542,7 @@ class EditParam(tkinter.Toplevel):
             if 'linstep' in cond:
                 crec.steptype.set('linear')
             elif 'logstep' in cond:
-                crec.steptype.set('log')
+                crec.steptype.set('logarithmic')
             else:
                 crec.steptype.set('(none)')
             # Condition step
@@ -539,7 +589,7 @@ class EditParam(tkinter.Toplevel):
     def add_condition(self):
         # Add a new condition
         newcond = {}
-        newcond['condition'] = '(none)'
+        newcond['name'] = '(none)'
         self.param['conditions'].append(newcond)
         self.populate(self.param)
 
@@ -552,52 +602,70 @@ class EditParam(tkinter.Toplevel):
 
     def apply(self):
         # Apply the values back to the parameter record
-        self.param['method'] = self.selmethod.get()
+
+        simrec = self.param['simulate']
+
+        simrec['template'] = self.template.get()
         unit = self.unit.get()
         if not (unit == '(none)' or unit == ''):
             self.param['unit'] = unit
+        name = self.name.get()
+        if not (name == '(none)' or name == ''):
+            self.param['name'] = name
         display = self.display.get()
         if not (display == '(none)' or display == ''):
             self.param['display'] = display
+        description = self.description.get()
+        if not (description == '(none)' or description == ''):
+            self.param['description'] = description
+
+        spec = self.param['spec']
+
         targmin = self.minrec.target.get()
         if not (targmin == '(none)' or targmin == ''):
-            pmin = {}
-            pmin['target'] = targmin
-            pmin['penalty'] = self.minrec.penalty.get()
+            pmin = []
+            pmin.append(targmin)
+            pen = self.minrec.penalty.get()
+            if not (pen == '(none)' or pen == ''):
+                pmin.append(pen)
             cmin = self.minrec.calc.get()
             if not (cmin == '(none)' or cmin == ''):
                 lmin = self.minrec.limit.get()
                 if not (lmin == '(none)' or lmin == ''):
-                    pmin['calc'] = cmin + '-' + lmin
+                    pmin.append(cmin + '-' + lmin)
                 else:
-                    pmin['calc'] = cmin
-            self.param['min'] = pmin
+                    pmin.append(cmin)
+            self.param['minimum'] = pmin
         targtyp = self.typrec.target.get()
         if not (targtyp == '(none)' or targtyp == ''):
-            ptyp= {}
-            ptyp['target'] = targtyp
-            ptyp['penalty'] = self.typrec.penalty.get()
+            ptyp= []
+            ptyp.append(targtyp)
+            pen = self.typrec.penalty.get()
+            if not (pen == '(none)' or pen == ''):
+                ptyp.append(pen)
             ctyp = self.typrec.calc.get()
             if not (ctyp == '(none)' or ctyp == ''):
                 ltyp = self.typrec.limit.get()
                 if not (ltyp == '(none)' or ltyp == ''):
-                    ptyp['calc'] = ctyp + '-' + ltyp
+                    ptyp.append(ctyp + '-' + ltyp)
                 else:
-                    ptyp['calc'] = ctyp
-            self.param['typ'] = ptyp
+                    ptyp.append(ctyp)
+            self.param['typical'] = ptyp
         targmax = self.maxrec.target.get()
         if not (targmax == '(none)' or targmax == ''):
-            pmax= {}
-            pmax['target'] = targmax
-            pmax['penalty'] = self.maxrec.penalty.get()
+            pmax= []
+            pmax.append(targmax)
+            pen = self.maxrec.penalty.get()
+            if not (pen == '(none)' or pen == ''):
+                pmax.append(pen)
             cmax = self.maxrec.calc.get()
             if not (cmax == '(none)' or cmax == ''):
                 lmax = self.maxrec.limit.get()
                 if not (lmax == '(none)' or lmax == ''):
-                    pmax['calc'] = cmax + '-' + lmax
+                    pmax.append(cmax + '-' + lmax)
                 else:
-                    pmax['calc'] = cmax 
-            self.param['max'] = pmax
+                    pmax.append(cmax)
+            self.param['maximum'] = pmax
 
         condlist = []
         for crec in self.cond:
@@ -605,19 +673,19 @@ class EditParam(tkinter.Toplevel):
             cname = crec.condition.get()
             if cname == '(none)' or cname == '':
                 continue
-            cond['condition'] = cname
+            cond['name'] = cname
             display = crec.display.get()
             if not (display == '(none)' or display == ''):
                 cond['display'] = display
             min = crec.min.get()
             if not (min == '(none)' or min == ''):
-                cond['min'] = min
+                cond['minimum'] = min
             typ = crec.typ.get()
             if not (typ == '(none)' or typ == ''):
-                cond['typ'] = typ
+                cond['typical'] = typ
             max = crec.max.get()
             if not (max == '(none)' or max == ''):
-                cond['max'] = max
+                cond['maximum'] = max
             unit = crec.unit.get()
             if not (unit == '(none)' or unit == ''):
                 cond['unit'] = unit
@@ -626,7 +694,7 @@ class EditParam(tkinter.Toplevel):
             if not (step == '(none)' or step == ''):
                 if steptype == 'linear':
                     cond['linstep'] = step
-                elif steptype == 'log':
+                elif steptype == 'logarithmic':
                     cond['logstep'] = step
             condlist.append(cond)
         self.param['conditions'] = condlist
