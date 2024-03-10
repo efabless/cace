@@ -1,12 +1,10 @@
 [project]
 name = "cace"
-dynamic = ["version"]
-requires-python = ">=3.8"
-dependencies = [
-    "tk",
-    "matplotlib",
-    "numpy"
+dynamic = [
+    "version",
+    "dependencies"
 ]
+requires-python = ">=3.8"
 authors = [
   { name="Tim Edwards", email="tim@efabless.com" },
 ]
@@ -20,6 +18,7 @@ classifiers = [
 
 [tool.setuptools.dynamic]
 version = {attr = "cace.__version__"}
+dependencies = {file = ["requirements.txt"]}
 
 [project.urls]
 Homepage = "https://github.com/efabless/cace"
