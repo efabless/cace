@@ -8,3 +8,5 @@ __pycache__
 cace.egg-info/
 dist/
 docs/build/
+venv/
+build/
