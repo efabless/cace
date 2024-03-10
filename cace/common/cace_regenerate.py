@@ -1085,16 +1085,32 @@ def regenerate_netlists(dsheet):
 
     # PEX (parasitic capacitance-only) netlists are generated only by request.
     if source == 'pex':
-        return regenerate_lvs_netlist(dsheet, pex=True)
+        result = regenerate_lvs_netlist(dsheet, pex=True)
+        # Also make sure LVS netlist is generated, in case LVS is run
+        regenerate_lvs_netlist(dsheet)
+        regenerate_schematic_netlist(dsheet)
+        return result
 
     if source == 'all' or source == 'rcx' or source == 'best':
         result = regenerate_rcx_netlist(dsheet)
 
+    made_lvs_netlist = False
     if source == 'all' or source == 'layout' or (source == 'best' and result == False):
+        made_lvs_netlist = True
         result = regenerate_lvs_netlist(dsheet)
 
+    made_schem_nelist = False
     if source == 'all' or source == 'schematic' or (source == 'best' and result == False):
+        made_schem_nelist = True
         result = regenerate_schematic_netlist(dsheet)
+
+    # If LVS is run while netlist source is RCX, then the LVS netlist should
+    # also be generated.
+    if source == 'rcx':
+        if not made_lvs_netlist:
+            regenerate_lvs_netlist(dsheet)
+        if not made_schem_netlist:
+            regenerate_schematic_netlist(dsheet)
 
     return result
 
