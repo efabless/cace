@@ -873,8 +873,11 @@ def regenerate_schematic_netlist(dsheet):
                 return verilog_netlist
             else:
                 print('Error:  No netlist or schematic for project ' + dname + '.')
-                print('(schematic master file ' + schem_netlist + ' not found.)\n')
-                print('Error:  No structural verilog netlist, either.')
+                if schemfilename:
+                    print('(schematic master file ' + schemfilename + ' not found.)\n')
+                else:
+                    print('Project does not have a master schematic.\n')
+                print('No structural verilog netlist, either.')
                 return False
 
         print("Generating simulation netlist from schematic. . .")
