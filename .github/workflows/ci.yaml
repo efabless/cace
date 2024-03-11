@@ -51,6 +51,6 @@ jobs:
       - name: Install Package
         run: |
           PATH=$PWD/venv/bin:$PATH make install
-        - name: Run CACE
+      - name: Run CACE
         run: |
           PATH=$PWD/venv/bin:$PATH cace --help
