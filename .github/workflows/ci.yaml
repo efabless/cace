@@ -55,7 +55,7 @@ jobs:
           PATH=$PWD/venv/bin:$PATH make install
       - name: Run CACE
         run: |
-          PATH=$PWD/venv/bin:$PATH cace --help
+          PATH=$PWD/venv/bin:$PATH cace -help
 
   docs:
     runs-on: ubuntu-22.04
