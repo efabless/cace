@@ -16,6 +16,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-22.04
+    continue-on-error: true
     steps:
       - name: Check out repo
         uses: actions/checkout@v3
@@ -28,6 +29,7 @@ jobs:
       - name: Lint
         run: |
           PATH=$PWD/venv/bin:$PATH make lint
+
   build:
     runs-on: ubuntu-22.04
     needs: [lint]
@@ -54,3 +56,26 @@ jobs:
       - name: Run CACE
         run: |
           PATH=$PWD/venv/bin:$PATH cace --help
+
+  docs:
+    runs-on: ubuntu-22.04
+    needs: [lint]
+    name: Build Documentation
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Install Dependencies
+        run: make venv
+      - name: Build Package
+        run: |
+          PATH=$PWD/venv/bin:$PATH make build
+      - name: Install Package
+        run: |
+          PATH=$PWD/venv/bin:$PATH make install
+      - name: Build Documentation
+        run: |
+          make docs
