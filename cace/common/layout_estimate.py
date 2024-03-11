@@ -18,6 +18,7 @@
 
 import os
 import re
+import ast
 import sys
 import subprocess
 
@@ -242,7 +243,7 @@ def layout_estimate(inputfile, library, rcfile, debug, logfile=''):
                             try:
                                 mult = int(parmval)
                             except ValueError:
-                                mult = eval(parmval)
+                                mult = ast.literal_eval(parmval)
                     else:
                         # Last one that isn't a parameter will be kept
                         devtype = token
