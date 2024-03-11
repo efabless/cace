@@ -37,7 +37,6 @@ venv/manifest.txt: ./requirements_docs.txt ./requirements_dev.txt ./requirements
 	rm -rf venv
 	python3 -m venv ./venv
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade pip
-	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade wheel
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r ./requirements_docs.txt
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r ./requirements_dev.txt
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade -r ./requirements.txt
