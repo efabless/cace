@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-'''Michael Lange <klappnase (at) freakmail (dot) de>
+"""Michael Lange <klappnase (at) freakmail (dot) de>
 The ToolTip class provides a flexible tooltip widget for tkinter; it is based on IDLE's ToolTip
 module which unfortunately seems to be broken (at least the version I saw).
 INITIALIZATION OPTIONS:
@@ -35,59 +35,74 @@ motion() :          is called when the mouse pointer moves inside the parent wid
                     tooltip has shown up to continually update the coordinates of the tooltip window
 coords() :          calculates the screen coordinates of the tooltip window
 create_contents() : creates the contents of the tooltip window (by default a tkinter.Label)
-'''
+"""
 # Ideas gleaned from PySol
 
 import tkinter
 
+
 class ToolTip:
-    def __init__(self, master, text='Your text here', delay=1500, **opts):
+    def __init__(self, master, text="Your text here", delay=1500, **opts):
         self.master = master
-        self._opts = {'anchor':'center', 'bd':1, 'bg':'lightyellow', 'delay':delay, 'fg':'black',\
-                      'follow_mouse':0, 'font':None, 'justify':'left', 'padx':4, 'pady':2,\
-                      'relief':'solid', 'state':'normal', 'text':text, 'textvariable':None,\
-                      'width':0, 'wraplength':150}
+        self._opts = {
+            "anchor": "center",
+            "bd": 1,
+            "bg": "lightyellow",
+            "delay": delay,
+            "fg": "black",
+            "follow_mouse": 0,
+            "font": None,
+            "justify": "left",
+            "padx": 4,
+            "pady": 2,
+            "relief": "solid",
+            "state": "normal",
+            "text": text,
+            "textvariable": None,
+            "width": 0,
+            "wraplength": 150,
+        }
         self.configure(**opts)
         self._tipwindow = None
         self._id = None
-        self._id1 = self.master.bind("<Enter>", self.enter, '+')
-        self._id2 = self.master.bind("<Leave>", self.leave, '+')
-        self._id3 = self.master.bind("<ButtonPress>", self.leave, '+')
+        self._id1 = self.master.bind("<Enter>", self.enter, "+")
+        self._id2 = self.master.bind("<Leave>", self.leave, "+")
+        self._id3 = self.master.bind("<ButtonPress>", self.leave, "+")
         self._follow_mouse = 0
-        if self._opts['follow_mouse']:
-            self._id4 = self.master.bind("<Motion>", self.motion, '+')
+        if self._opts["follow_mouse"]:
+            self._id4 = self.master.bind("<Motion>", self.motion, "+")
             self._follow_mouse = 1
-    
+
     def configure(self, **opts):
         for key in opts:
             if key in self._opts:
                 self._opts[key] = opts[key]
             else:
-                KeyError = 'KeyError: Unknown option: "%s"' %key
+                KeyError = 'KeyError: Unknown option: "%s"' % key
                 raise KeyError
-    
+
     ##----these methods handle the callbacks on "<Enter>", "<Leave>" and "<Motion>"---------------##
     ##----events on the parent widget; override them if you want to change the widget's behavior--##
-    
+
     def enter(self, event=None):
         self._schedule()
-        
+
     def leave(self, event=None):
         self._unschedule()
         self._hide()
-    
+
     def motion(self, event=None):
         if self._tipwindow and self._follow_mouse:
             x, y = self.coords()
             self._tipwindow.wm_geometry("+%d+%d" % (x, y))
-    
+
     ##------the methods that do the work:---------------------------------------------------------##
-    
+
     def _schedule(self):
         self._unschedule()
-        if self._opts['state'] == 'disabled':
+        if self._opts["state"] == "disabled":
             return
-        self._id = self.master.after(self._opts['delay'], self._show)
+        self._id = self.master.after(self._opts["delay"], self._show)
 
     def _unschedule(self):
         id = self._id
@@ -96,7 +111,7 @@ class ToolTip:
             self.master.after_cancel(id)
 
     def _show(self):
-        if self._opts['state'] == 'disabled':
+        if self._opts["state"] == "disabled":
             self._unschedule()
             return
         if not self._tipwindow:
@@ -105,8 +120,10 @@ class ToolTip:
             tw.withdraw()
             tw.wm_overrideredirect(1)
 
-            if tw.tk.call("tk", "windowingsystem") == 'aqua':
-                tw.tk.call("::tk::unsupported::MacWindowStyle", "style", tw._w, "help", "none")
+            if tw.tk.call("tk", "windowingsystem") == "aqua":
+                tw.tk.call(
+                    "::tk::unsupported::MacWindowStyle", "style", tw._w, "help", "none"
+                )
 
             self.create_contents()
             tw.update_idletasks()
@@ -114,15 +131,15 @@ class ToolTip:
             tw.wm_geometry("+%d+%d" % (x, y))
             tw.deiconify()
             tw.lift()
-    
+
     def _hide(self):
         tw = self._tipwindow
         self._tipwindow = None
         if tw:
             tw.destroy()
-                
+
     ##----these methods might be overridden in derived classes:----------------------------------##
-    
+
     def coords(self):
         # The tip window must be completely outside the master widget;
         # otherwise when the mouse enters the tip window we get
@@ -152,7 +169,7 @@ class ToolTip:
 
     def create_contents(self):
         opts = self._opts.copy()
-        for opt in ('delay', 'follow_mouse', 'state'):
+        for opt in ("delay", "follow_mouse", "state"):
             del opts[opt]
         label = tkinter.Label(self._tipwindow, **opts)
         label.pack()

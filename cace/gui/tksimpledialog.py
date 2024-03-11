@@ -6,9 +6,12 @@ import os
 import tkinter
 from tkinter import ttk
 
+
 class Dialog(tkinter.Toplevel):
 
-    def __init__(self, parent, message = None, title = None, seed = None, border = 'blue', **kwargs):
+    def __init__(
+        self, parent, message=None, title=None, seed=None, border="blue", **kwargs
+    ):
 
         tkinter.Toplevel.__init__(self, parent)
         self.transient(parent)
@@ -18,13 +21,13 @@ class Dialog(tkinter.Toplevel):
 
         self.configure(background=border, padx=2, pady=2)
         self.obox = ttk.Frame(self)
-        self.obox.pack(side = 'left', fill = 'both', expand = 'true')
+        self.obox.pack(side="left", fill="both", expand="true")
 
         self.parent = parent
         self.result = None
         body = ttk.Frame(self.obox)
         self.initial_focus = self.body(body, message, seed, **kwargs)
-        body.pack(padx = 5, pady = 5)
+        body.pack(padx=5, pady=5)
         self.buttonbox()
         self.grab_set()
 
@@ -32,8 +35,7 @@ class Dialog(tkinter.Toplevel):
             self.initial_focus = self
 
         self.protocol("WM_DELETE_WINDOW", self.cancel)
-        self.geometry("+%d+%d" % (parent.winfo_rootx() + 50,
-                                  parent.winfo_rooty() + 50))
+        self.geometry("+%d+%d" % (parent.winfo_rootx() + 50, parent.winfo_rooty() + 50))
 
         self.initial_focus.focus_set()
         self.wait_window(self)
@@ -51,21 +53,23 @@ class Dialog(tkinter.Toplevel):
 
         box = ttk.Frame(self.obox)
 
-        self.okb = ttk.Button(box, text="OK", width=10, command=self.ok, default='active')
-        self.okb.pack(side='left', padx=5, pady=5)
+        self.okb = ttk.Button(
+            box, text="OK", width=10, command=self.ok, default="active"
+        )
+        self.okb.pack(side="left", padx=5, pady=5)
         w = ttk.Button(box, text="Cancel", width=10, command=self.cancel)
-        w.pack(side='left', padx=5, pady=5)
+        w.pack(side="left", padx=5, pady=5)
 
         self.bind("<Return>", self.ok)
         self.bind("<Escape>", self.cancel)
-        box.pack(fill='x', expand='true')
+        box.pack(fill="x", expand="true")
 
     # Standard button semantics
 
     def ok(self, event=None):
 
         if not self.validate():
-            self.initial_focus.focus_set() # put focus back
+            self.initial_focus.focus_set()  # put focus back
             return
 
         self.withdraw()
@@ -80,7 +84,7 @@ class Dialog(tkinter.Toplevel):
         self.destroy()
 
     def validate(self):
-        return 1 # Override this
+        return 1  # Override this
 
     def apply(self):
-        return None # Override this
+        return None  # Override this

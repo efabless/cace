@@ -1,97 +1,111 @@
 #!/usr/bin/env python3
 #
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 # Settings window for the characterization tool
 #
-#-----------------------------------------------------------
+# -----------------------------------------------------------
 # Written by Tim Edwards
 # efabless, inc.
 # March 17, 2017
 # Version 0.1
-#--------------------------------------------------------
+# --------------------------------------------------------
 
 import re
 import tkinter
 from tkinter import ttk
 
+
 class Settings(tkinter.Toplevel):
     """characterization tool settings management."""
 
-    def __init__(self, parent=None, fontsize = 11, callback = None, *args, **kwargs):
-        '''See the __init__ for Tkinter.Toplevel.'''
+    def __init__(self, parent=None, fontsize=11, callback=None, *args, **kwargs):
+        """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
         s = ttk.Style()
-        s.configure('normal.TButton', font=('Helvetica', fontsize), border = 3, relief = 'raised')
+        s.configure(
+            "normal.TButton", font=("Helvetica", fontsize), border=3, relief="raised"
+        )
         self.protocol("WM_DELETE_WINDOW", self.close)
         self.parent = parent
         self.withdraw()
-        self.title('Characterization Tool Settings')
+        self.title("Characterization Tool Settings")
         self.sframe = tkinter.Frame(self)
-        self.sframe.grid(column = 0, row = 0, sticky = "news")
+        self.sframe.grid(column=0, row=0, sticky="news")
 
-        self.sframe.stitle = ttk.Label(self.sframe,
-		style='title.TLabel', text = 'Settings')
-        self.sframe.stitle.pack(side = 'top', fill = 'x', expand = 'true')
-        self.sframe.sbar = ttk.Separator(self.sframe, orient='horizontal')
-        self.sframe.sbar.pack(side = 'top', fill = 'x', expand = 'true')
+        self.sframe.stitle = ttk.Label(
+            self.sframe, style="title.TLabel", text="Settings"
+        )
+        self.sframe.stitle.pack(side="top", fill="x", expand="true")
+        self.sframe.sbar = ttk.Separator(self.sframe, orient="horizontal")
+        self.sframe.sbar.pack(side="top", fill="x", expand="true")
 
         self.dodebug = tkinter.IntVar(self.sframe)
         self.dodebug.set(0)
-        self.sframe.debug = ttk.Checkbutton(self.sframe, text='Print debug output',
-		variable = self.dodebug)
-        self.sframe.debug.pack(side = 'top', anchor = 'w')
+        self.sframe.debug = ttk.Checkbutton(
+            self.sframe, text="Print debug output", variable=self.dodebug
+        )
+        self.sframe.debug.pack(side="top", anchor="w")
 
         self.doforce = tkinter.IntVar(self.sframe)
         self.doforce.set(0)
-        self.sframe.force = ttk.Checkbutton(self.sframe, text='Force netlist regeneration',
-		variable = self.doforce)
+        self.sframe.force = ttk.Checkbutton(
+            self.sframe, text="Force netlist regeneration", variable=self.doforce
+        )
         # self.sframe.force.pack(side = 'top', anchor = 'w')
 
         self.doedit = tkinter.IntVar(self.sframe)
         self.doedit.set(0)
-        self.sframe.edit = ttk.Checkbutton(self.sframe, text='Allow edit of all parameters',
-		variable = self.doedit)
-        self.sframe.edit.pack(side = 'top', anchor = 'w')
+        self.sframe.edit = ttk.Checkbutton(
+            self.sframe, text="Allow edit of all parameters", variable=self.doedit
+        )
+        self.sframe.edit.pack(side="top", anchor="w")
 
         self.dosequential = tkinter.IntVar(self.sframe)
         self.dosequential.set(0)
-        self.sframe.seq = ttk.Checkbutton(self.sframe, text='Simulate single-threaded',
-		variable = self.dosequential)
-        self.sframe.seq.pack(side = 'top', anchor = 'w')
+        self.sframe.seq = ttk.Checkbutton(
+            self.sframe, text="Simulate single-threaded", variable=self.dosequential
+        )
+        self.sframe.seq.pack(side="top", anchor="w")
 
         self.dokeep = tkinter.IntVar(self.sframe)
         self.dokeep.set(0)
-        self.sframe.keep = ttk.Checkbutton(self.sframe, text='Keep simulation files',
-		variable = self.dokeep)
-        self.sframe.keep.pack(side = 'top', anchor = 'w')
+        self.sframe.keep = ttk.Checkbutton(
+            self.sframe, text="Keep simulation files", variable=self.dokeep
+        )
+        self.sframe.keep.pack(side="top", anchor="w")
 
         self.noplot = tkinter.IntVar(self.sframe)
         self.noplot.set(0)
-        self.sframe.plot = ttk.Checkbutton(self.sframe, text='Do not create plot files',
-		variable = self.noplot)
-        self.sframe.plot.pack(side = 'top', anchor = 'w')
+        self.sframe.plot = ttk.Checkbutton(
+            self.sframe, text="Do not create plot files", variable=self.noplot
+        )
+        self.sframe.plot.pack(side="top", anchor="w")
 
         self.doschem = tkinter.IntVar(self.sframe)
         self.doschem.set(0)
-        self.sframe.schem = ttk.Checkbutton(self.sframe,
-		text='Force characterization as schematic only',
-		variable = self.doschem)
-        self.sframe.schem.pack(side = 'top', anchor = 'w')
+        self.sframe.schem = ttk.Checkbutton(
+            self.sframe,
+            text="Force characterization as schematic only",
+            variable=self.doschem,
+        )
+        self.sframe.schem.pack(side="top", anchor="w")
 
         self.dolog = tkinter.IntVar(self.sframe)
         self.dolog.set(0)
-        self.sframe.log = ttk.Checkbutton(self.sframe, text='Log simulation output',
-		variable = self.dolog)
-        self.sframe.log.pack(side = 'top', anchor = 'w')
+        self.sframe.log = ttk.Checkbutton(
+            self.sframe, text="Log simulation output", variable=self.dolog
+        )
+        self.sframe.log.pack(side="top", anchor="w")
 
         # self.sframe.sdisplay.sopts(side = 'top', fill = 'x', expand = 'true')
 
         self.bbar = ttk.Frame(self)
-        self.bbar.grid(column = 0, row = 1, sticky = "news")
-        self.bbar.close_button = ttk.Button(self.bbar, text='Close',
-		command=self.close, style = 'normal.TButton')
-        self.bbar.close_button.grid(column=0, row=0, padx = 5)
+        self.bbar.grid(column=0, row=1, sticky="news")
+        self.bbar.close_button = ttk.Button(
+            self.bbar, text="Close", command=self.close, style="normal.TButton"
+        )
+        self.bbar.close_button.grid(column=0, row=0, padx=5)
 
         # Callback-on-close
         self.callback = callback

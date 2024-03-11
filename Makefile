@@ -10,11 +10,11 @@ test:
 
 .PHONY: lint
 lint:
-	black --check cace/
+	black --check .
 
 .PHONY: format
 format:
-	black cace/
+	black .
 
 .PHONY: build
 build:
@@ -33,7 +33,7 @@ upload:
 	python3 -m twine upload --repository pypi dist/*
 
 venv: venv/manifest.txt
-venv/manifest.txt: ./requirements_dev.txt ./requirements.txt
+venv/manifest.txt: ./requirements_docs.txt ./requirements_dev.txt ./requirements.txt
 	rm -rf venv
 	python3 -m venv ./venv
 	PYTHONPATH= ./venv/bin/python3 -m pip install --upgrade pip
