@@ -17,7 +17,6 @@
 
 import os
 import re
-import ast
 import sys
 import subprocess
 
@@ -214,7 +213,7 @@ def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfi
                             try:
                                 mult = int(parmval)
                             except ValueError:
-                                mult = ast.literal_eval(parmval)
+                                mult = eval(parmval)
                     else:
                         # Last one that isn't a parameter will be kept
                         # (only applies to subcircuit instances)

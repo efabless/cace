@@ -16,7 +16,6 @@
 # 
 
 import os
-import ast
 import sys
 import json
 import re
@@ -163,8 +162,8 @@ def twos_comp(val, bits):
 
 def bcount(condition, unit, start, stop, step):
     blen = len(start)
-    a = ast.literal_eval('0b' + start)
-    e = ast.literal_eval('0b' + stop)
+    a = eval('0b' + start)
+    e = eval('0b' + stop)
     if a > e:
         a = twos_comp(a, blen)
         e = twos_comp(e, blen)
@@ -183,8 +182,8 @@ def bcount(condition, unit, start, stop, step):
 #-----------------------------------------------------------------------
 
 def bshift(condition, unit, start, stop, step):
-    a = ast.literal_eval('0b' + start)
-    e = ast.literal_eval('0b' + stop)
+    a = eval('0b' + start)
+    e = eval('0b' + stop)
     if a > e:
         a = twos_comp(a, blen)
         e = twos_comp(e, blen)
@@ -962,7 +961,7 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                         btest = int(bexpr)
                     except:
                         try:
-                            brackval = str(ast.literal_eval(bexpr))
+                            brackval = str(eval(bexpr))
                         except:
                             pass
                         else:
