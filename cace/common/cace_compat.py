@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # CACE backwards-compatibility handler
 #
 # This script takes a dictionary from an older JSON-
@@ -11,11 +11,11 @@
 # Input:  datasheet dictionary in any CACE format
 # Output: datasheet dictionary in CACE 4.0 format
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Written by Tim Edwards
 # Efabless corporation
 # November 22, 2023
-#--------------------------------------------------------
+# --------------------------------------------------------
 
 import io
 import re
@@ -27,9 +27,10 @@ from .cace_write import *
 
 from .cace_regenerate import get_pdk_root
 
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
 # Modify CACE datasheet dictionary for version 4.0 compatibility
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_compat(datasheet, debug=False):
 
@@ -68,7 +69,9 @@ def cace_compat(datasheet, debug=False):
         # Pick up foundry name using PDK_ROOT
         pdk_root = get_pdk_root()
         if pdk_root:
-            pdk_config_file = pdk_root + '/' + datasheet['PDK'] + '/.config/nodeinfo.json'
+            pdk_config_file = (
+                pdk_root + '/' + datasheet['PDK'] + '/.config/nodeinfo.json'
+            )
             if os.path.isfile(pdk_config_file):
                 with open(pdk_config_file, 'r') as ifile:
                     nodeinfo = json.load(ifile)
@@ -78,7 +81,7 @@ def cace_compat(datasheet, debug=False):
                         datasheet['foundry'] = nodeinfo['foundry']
             else:
                 datasheet['foundry'] = 'Unknown'
-            
+
         else:
             datasheet['foundry'] = 'Unknown'
 
@@ -250,7 +253,6 @@ def cace_compat(datasheet, debug=False):
                     plotdict.pop('xlabel')
                 elif key == 'ylabel':
                     plotdict.pop('ylabel')
-                    
 
     for pin in datasheet['pins']:
         if 'dir' in pin:
@@ -276,7 +278,9 @@ def cace_compat(datasheet, debug=False):
 
     return datasheet
 
+
 # Print usage statement
+
 
 def usage():
     print('Usage:')
@@ -287,9 +291,10 @@ def usage():
     print('When run from the top level, this program parses the CACE')
     print('format file and outputs a CACE format 4.0 file.')
 
-#------------------------------------------------------
+
+# ------------------------------------------------------
 # If called from the command line. . .
-#------------------------------------------------------
+# ------------------------------------------------------
 
 if __name__ == '__main__':
     options = []
@@ -316,7 +321,9 @@ if __name__ == '__main__':
             try:
                 dataset = json.load(ifile)
             except json.decoder.JSONDecodeError as e:
-                print("Error:  Parse error reading JSON file " + datasheet + ':')
+                print(
+                    'Error:  Parse error reading JSON file ' + datasheet + ':'
+                )
                 print(str(e))
                 sys.exit(1)
 
@@ -332,4 +339,3 @@ if __name__ == '__main__':
         sys.exit(1)
 
     sys.exit(result)
-

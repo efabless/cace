@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Circuit Automatic Characterization Engine (CACE) system
 # cace_read.py ---
 # Read a text file in CACE (ASCII) format 4.0
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Written by Tim Edwards
 # Efabless Corporation
 # November 21, 2023
 # Version 4.0
-#--------------------------------------------------------
+# --------------------------------------------------------
 
 import io
 import re
@@ -22,11 +22,26 @@ from .cace_compat import *
 
 # Replace special character specifications with unicode characters
 
+
 def specchar_sub(string):
-    ucode_list = ['\u00b5', '\u00b0', '\u03c3', '\u03a9',
-		'\u00b2', '\u221a', '\u03c1']
-    text_list = ['{micro}', '{degrees}', '{sigma}', '{ohms}',
-		'{squared}', '{sqrt}', '{rho}']
+    ucode_list = [
+        '\u00b5',
+        '\u00b0',
+        '\u03c3',
+        '\u03a9',
+        '\u00b2',
+        '\u221a',
+        '\u03c1',
+    ]
+    text_list = [
+        '{micro}',
+        '{degrees}',
+        '{sigma}',
+        '{ohms}',
+        '{squared}',
+        '{sqrt}',
+        '{rho}',
+    ]
 
     if '{' not in string:
         return string
@@ -39,9 +54,11 @@ def specchar_sub(string):
 
     return string
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # Read a CACE format file
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
+
 
 def cace_read(filename, debug=False):
     if not os.path.isfile(filename):
@@ -53,13 +70,29 @@ def cace_read(filename, debug=False):
 
     # These keys correspond to lists of dictionaries.  All other keys
     # must have a single value which is a string or a dictionary.
-    listkeys = ['conditions', 'default_conditions', 'variables', 'pins',
-		'measure', 'electrical_parameters', 'physical_parameters',
-		'testbenches', 'results']
+    listkeys = [
+        'conditions',
+        'default_conditions',
+        'variables',
+        'pins',
+        'measure',
+        'electrical_parameters',
+        'physical_parameters',
+        'testbenches',
+        'results',
+    ]
 
     # These keys have text string values with optional whitespace to end-of-line
-    stringkeys = ['description', 'display', 'designer', 'company',
-		'creation_date', 'license', 'note', 'comment']
+    stringkeys = [
+        'description',
+        'display',
+        'designer',
+        'company',
+        'creation_date',
+        'license',
+        'note',
+        'comment',
+    ]
 
     # All other keys are either single words or lists
 
@@ -147,7 +180,7 @@ def cace_read(filename, debug=False):
                     newlist = None
                     curdict[key] = newdict
 
-                # Push the current dictionary or list 
+                # Push the current dictionary or list
                 if curlist:
                     stack.append(curlist)
                 else:
@@ -178,8 +211,12 @@ def cace_read(filename, debug=False):
                     lmatch = listrex.match(line)
                     if lmatch:
                         if curlist == None:
-                            print('Error:  Attempt to create list in non-list record' +
-					' in "' + line + '"')
+                            print(
+                                'Error:  Attempt to create list in non-list record'
+                                + ' in "'
+                                + line
+                                + '"'
+                            )
                         else:
                             newdict = {}
                             curlist.append(newdict)
@@ -215,7 +252,11 @@ def cace_read(filename, debug=False):
                 paramname = eparam['name']
                 pmatch = namerex.match(paramname)
                 if not pmatch:
-                    print('Error:  Parameter ' + paramname + ' has an illegal name syntax!')
+                    print(
+                        'Error:  Parameter '
+                        + paramname
+                        + ' has an illegal name syntax!'
+                    )
 
     if 'physical_parameters' in curdict:
         pparams = curdict['physical_parameters']
@@ -226,7 +267,11 @@ def cace_read(filename, debug=False):
                 paramname = pparam['name']
                 pmatch = namerex.match(paramname)
                 if not pmatch:
-                    print('Error:  Parameter ' + paramname + ' has an illegal name syntax!')
+                    print(
+                        'Error:  Parameter '
+                        + paramname
+                        + ' has an illegal name syntax!'
+                    )
 
     # Set up runtime options in the dictionary before returning.
 
@@ -241,7 +286,9 @@ def cace_read(filename, debug=False):
 
     return curdict
 
+
 # Print usage statement
+
 
 def usage():
     print('Usage:')
@@ -253,6 +300,7 @@ def usage():
     print('file and reports any syntax errors.  Otherwise it is meant')
     print('to be called internally by the CACE system to read a file')
     print('and return a dictionary of the contents.')
+
 
 # Top level call to cace_read.py
 # If called from the command line
@@ -298,7 +346,7 @@ if __name__ == '__main__':
                 print(str(dataset))
             else:
                 print('CACE file has no syntax issues.')
-            
+
     else:
         usage()
         sys.exit(1)

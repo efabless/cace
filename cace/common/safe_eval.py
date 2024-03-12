@@ -8,11 +8,11 @@
 
 import ast, operator, math
 
-def safe_eval(s):
 
+def safe_eval(s):
     def checkmath(x, *args):
-        if x not in [x for x in dir(math) if not "__" in x]:
-            raise SyntaxError(f"Unknown func {x}()")
+        if x not in [x for x in dir(math) if not '__' in x]:
+            raise SyntaxError(f'Unknown func {x}()')
         fun = getattr(math, x)
         return fun(*args)
 
@@ -67,7 +67,6 @@ def safe_eval(s):
             r = checkmath(node.func.id, *args)
             return r
         else:
-            raise SyntaxError(f"Bad syntax, {type(node)}")
+            raise SyntaxError(f'Bad syntax, {type(node)}')
 
     return _eval(tree)
-

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 # cace_calculate.py
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 #
 # This file contains various routines that can be used from a "measure"
 # block in a testbench to modify simulation results.  This can also be
@@ -12,7 +12,7 @@
 # dictionary with modified results and potentially modified (reduced)
 # conditions.
 #
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 import os
 import sys
@@ -24,26 +24,31 @@ import math
 from .spiceunits import spice_unit_unconvert
 from .spiceunits import spice_unit_convert
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Handling of 2s complement values in calculations (e.g., "1000" is -8, not +8)
 # If a value should be unsigned, then the units for the value should be one bit
 # larger than represented.  e.g., if unit = "4'b" and value = "1000" then value
 # is -8, but if unit = "5'b" and value = "1000" then value is +8.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def twos_complement(val, bits):
     """compute the 2's compliment of int value val"""
-    if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+    if (
+        val & (1 << (bits - 1))
+    ) != 0:   # if sign bit is set e.g., 8bit: 128-255
         val = val - (1 << bits)        # compute negative value
     return val                         # return positive value as is
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Apply a measurement (record "measure") using vectors found in
 # "varresult" and produce new vectors which overwrite the original
 # ones.  Operations may reduce "varresult" vectors to a single value.
 #
 # NOTE:  This is all deprecated code and needs to be updated.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def cace_calculate(varresult, measure, variables):
 
@@ -52,23 +57,35 @@ def cace_calculate(varresult, measure, variables):
         condition = measure['condition']
         if condition == 'result':
             # 'result' can either be a specified name (not recommended), or else it is
-            # taken to be the variable set as the result variable. 
+            # taken to be the variable set as the result variable.
             try:
-                activevar = next(item for item in variables if item['condition'] == condition)
+                activevar = next(
+                    item
+                    for item in variables
+                    if item['condition'] == condition
+                )
             except StopIteration:
                 try:
-                    activevar = next(item for item in variables if 'result' in item)
+                    activevar = next(
+                        item for item in variables if 'result' in item
+                    )
                 except StopIteration:
-                    print('Error: measurement condition ' + condition + ' does not exist!')
+                    print(
+                        'Error: measurement condition '
+                        + condition
+                        + ' does not exist!'
+                    )
                     return 0
                 else:
                     condition = activevar['condition']
-                
+
     else:
         condition = 'time'
 
     try:
-        activevar = next(item for item in variables if item['condition'] == condition)
+        activevar = next(
+            item for item in variables if item['condition'] == condition
+        )
     except:
         activeunit = ''
     else:
@@ -80,16 +97,22 @@ def cace_calculate(varresult, measure, variables):
     try:
         activetrace = varresult[condition]
     except KeyError:
-        print("Measurement error:  Condition " + condition + " does not exist in results.")
+        print(
+            'Measurement error:  Condition '
+            + condition
+            + ' does not exist in results.'
+        )
         # No active trace;  cannot continue.
         return
 
     rsize = len(activetrace)
- 
+
     if 'time' in varresult:
         timevector = varresult['time']
         try:
-            timevar = next(item for item in variables if item['condition'] == 'time')
+            timevar = next(
+                item for item in variables if item['condition'] == 'time'
+            )
         except:
             timeunit = 's'
         else:
@@ -125,50 +148,62 @@ def cace_calculate(varresult, measure, variables):
     elif calctype == 'abs':
         # Take absolute value of activetrace.
         varresult[condition] = [abs(i) for i in activetrace]
-        
+
     elif calctype == 'negate':
         # Negate the specified vector
         varresult[condition] = [-i for i in activetrace]
-        
+
     elif calctype == 'add':
         if 'value' in measure:
             v = float(measure['value'])
             varresult[condition] = [i + v for i in activetrace]
-        else: 
+        else:
             # Add the specified vector to the result and replace the result
-            varresult[condition] = [i + j for i, j in zip(activetrace, paramresult)]
-        
+            varresult[condition] = [
+                i + j for i, j in zip(activetrace, paramresult)
+            ]
+
     elif calctype == 'subtract':
         if 'value' in measure:
             v = float(measure['value'])
             varresult[condition] = [i - v for i in activetrace]
-        else: 
+        else:
             # Subtract the specified vector from the result
-            varresult[condition] = [j - i for i, j in zip(activetrace, paramresult)]
+            varresult[condition] = [
+                j - i for i, j in zip(activetrace, paramresult)
+            ]
 
     elif calctype == 'multiply':
         if 'value' in measure:
             v = float(measure['value'])
             varresult[condition] = [i * v for i in activetrace]
-        else: 
+        else:
             # Multiply the specified vector by the result (e.g., to get power)
-            varresult[condition] = [j * i for i, j in zip(activetrace, paramresult)]
-        
+            varresult[condition] = [
+                j * i for i, j in zip(activetrace, paramresult)
+            ]
+
     elif calctype == 'clip':
         if timevector == []:
             return
         # Clip specified vector to the indicated times
         if 'from' in measure:
-            fromtime = float(spice_unit_convert([timeunit, measure['from'], 'time']))
+            fromtime = float(
+                spice_unit_convert([timeunit, measure['from'], 'time'])
+            )
         else:
-            fromtime = timevector[0] 
+            fromtime = timevector[0]
         if 'to' in measure:
-            totime = float(spice_unit_convert([timeunit, measure['to'], 'time']))
+            totime = float(
+                spice_unit_convert([timeunit, measure['to'], 'time'])
+            )
         else:
             totime = timevector[-1]
 
         try:
-            fromidx = next(i for i, j in enumerate(timevector) if j >= fromtime)
+            fromidx = next(
+                i for i, j in enumerate(timevector) if j >= fromtime
+            )
         except StopIteration:
             fromidx = len(timevector) - 1
         try:
@@ -187,19 +222,25 @@ def cace_calculate(varresult, measure, variables):
         if timevector == []:
             return
 
-        # Get the mean value of all traces in the indicated range.  Results are 
-	# collapsed to the single mean value.
+        # Get the mean value of all traces in the indicated range.  Results are
+        # collapsed to the single mean value.
         if 'from' in measure:
-            fromtime = float(spice_unit_convert([timeunit, measure['from'], 'time']))
+            fromtime = float(
+                spice_unit_convert([timeunit, measure['from'], 'time'])
+            )
         else:
-            fromtime = timevector[0] 
+            fromtime = timevector[0]
         if 'to' in measure:
-            totime = float(spice_unit_convert([timeunit, measure['to'], 'time']))
+            totime = float(
+                spice_unit_convert([timeunit, measure['to'], 'time'])
+            )
         else:
             totime = timevector[-1]
 
         try:
-            fromidx = next(i for i, j in enumerate(timevector) if j >= fromtime)
+            fromidx = next(
+                i for i, j in enumerate(timevector) if j >= fromtime
+            )
         except StopIteration:
             fromidx = len(timevector) - 1
         try:
@@ -225,11 +266,13 @@ def cace_calculate(varresult, measure, variables):
                 vtot = 0.0
                 for i in range(fromidx + 1, toidx):
                     # Note:  This expression can and should be optimized!
-                    vtot += ((vector[i] + vector[i - 1]) / 2) * (timevector[i] - timevector[i - 1])
+                    vtot += ((vector[i] + vector[i - 1]) / 2) * (
+                        timevector[i] - timevector[i - 1]
+                    )
                 varresult[key] = [vtot / tsum]
 
         rsize = 1
-        
+
     elif calctype == 'risingedge':
         if timevector == []:
             return
@@ -242,19 +285,25 @@ def cace_calculate(varresult, measure, variables):
         # 'cross':  measure time when signal crosses this value
         # 'keep':  determines what part of the vectors to keep
         if 'from' in measure:
-            fromtime = float(spice_unit_convert([timeunit, measure['from'], 'time']))
+            fromtime = float(
+                spice_unit_convert([timeunit, measure['from'], 'time'])
+            )
         else:
-            fromtime = timevector[0] 
+            fromtime = timevector[0]
         if 'to' in measure:
-            totime = float(spice_unit_convert([timeunit, measure['to'], 'time']))
+            totime = float(
+                spice_unit_convert([timeunit, measure['to'], 'time'])
+            )
         else:
             totime = timevector[-1]
         if 'cross' in measure:
             crossval = float(measure['cross'])
         else:
-            crossval = (max(activetrace) + min(activetrace)) / 2;
+            crossval = (max(activetrace) + min(activetrace)) / 2
         try:
-            fromidx = next(i for i, j in enumerate(timevector) if j >= fromtime)
+            fromidx = next(
+                i for i, j in enumerate(timevector) if j >= fromtime
+            )
         except StopIteration:
             fromidx = len(timevector) - 1
         try:
@@ -263,12 +312,20 @@ def cace_calculate(varresult, measure, variables):
         except StopIteration:
             toidx = len(timevector)
         try:
-            startidx = next(i for i, j in enumerate(activetrace[fromidx:toidx]) if j < crossval)
+            startidx = next(
+                i
+                for i, j in enumerate(activetrace[fromidx:toidx])
+                if j < crossval
+            )
         except StopIteration:
             startidx = 0
         startidx += fromidx
         try:
-            riseidx = next(i for i, j in enumerate(activetrace[startidx:toidx]) if j >= crossval)
+            riseidx = next(
+                i
+                for i, j in enumerate(activetrace[startidx:toidx])
+                if j >= crossval
+            )
         except StopIteration:
             riseidx = toidx - startidx - 1
         riseidx += startidx
@@ -294,7 +351,7 @@ def cace_calculate(varresult, measure, variables):
             varresult[key] = vector[istart:istop]
 
         rsize = istop - istart
-        
+
     elif calctype == 'fallingedge':
         if timevector == []:
             return
@@ -307,19 +364,25 @@ def cace_calculate(varresult, measure, variables):
         # 'cross':  measure time when signal crosses this value
         # 'keep':  determines what part of the vectors to keep
         if 'from' in measure:
-            fromtime = float(spice_unit_convert([timeunit, measure['from'], 'time']))
+            fromtime = float(
+                spice_unit_convert([timeunit, measure['from'], 'time'])
+            )
         else:
-            fromtime = timevector[0] 
+            fromtime = timevector[0]
         if 'to' in measure:
-            totime = float(spice_unit_convert([timeunit, measure['to'], 'time']))
+            totime = float(
+                spice_unit_convert([timeunit, measure['to'], 'time'])
+            )
         else:
             totime = timevector[-1]
         if 'cross' in measure:
             crossval = measure['cross']
         else:
-            crossval = (max(activetrace) + min(activetrace)) / 2;
+            crossval = (max(activetrace) + min(activetrace)) / 2
         try:
-            fromidx = next(i for i, j in enumerate(timevector) if j >= fromtime)
+            fromidx = next(
+                i for i, j in enumerate(timevector) if j >= fromtime
+            )
         except StopIteration:
             fromidx = len(timevector) - 1
         try:
@@ -328,12 +391,20 @@ def cace_calculate(varresult, measure, variables):
         except StopIteration:
             toidx = len(timevector)
         try:
-            startidx = next(i for i, j in enumerate(activetrace[fromidx:toidx]) if j > crossval)
+            startidx = next(
+                i
+                for i, j in enumerate(activetrace[fromidx:toidx])
+                if j > crossval
+            )
         except StopIteration:
             startidx = 0
         startidx += fromidx
         try:
-            fallidx = next(i for i, j in enumerate(activetrace[startidx:toidx]) if j <= crossval)
+            fallidx = next(
+                i
+                for i, j in enumerate(activetrace[startidx:toidx])
+                if j <= crossval
+            )
         except StopIteration:
             fallidx = toidx - startidx - 1
         fallidx += startidx
@@ -371,11 +442,15 @@ def cace_calculate(varresult, measure, variables):
         # 'slope': measure time when signal rate of change equals this slope
         # 'keep':  determines what part of the vectors to keep
         if 'from' in measure:
-            fromtime = float(spice_unit_convert([timeunit, measure['from'], 'time']))
+            fromtime = float(
+                spice_unit_convert([timeunit, measure['from'], 'time'])
+            )
         else:
-            fromtime = timevector[0] 
+            fromtime = timevector[0]
         if 'to' in measure:
-            totime = float(spice_unit_convert([timeunit, measure['to'], 'time']))
+            totime = float(
+                spice_unit_convert([timeunit, measure['to'], 'time'])
+            )
         else:
             totime = timevector[-1]
         if 'limit' in measure:
@@ -384,7 +459,9 @@ def cace_calculate(varresult, measure, variables):
             # Default is 5% higher or lower than final value
             limit = 0.05
         try:
-            fromidx = next(i for i, j in enumerate(timevector) if j >= fromtime)
+            fromidx = next(
+                i for i, j in enumerate(timevector) if j >= fromtime
+            )
         except StopIteration:
             fromidx = len(timevector) - 1
         try:
@@ -396,7 +473,13 @@ def cace_calculate(varresult, measure, variables):
         highval = finalval * (1.0 + limit)
         lowval = finalval * (1.0 - limit)
         try:
-            breakidx = next(i for i, j in reversed(list(enumerate(activetrace[fromidx:toidx]))) if j >= highval or j <= lowval)
+            breakidx = next(
+                i
+                for i, j in reversed(
+                    list(enumerate(activetrace[fromidx:toidx]))
+                )
+                if j >= highval or j <= lowval
+            )
         except StopIteration:
             breakidx = 0
         breakidx += fromidx
@@ -431,24 +514,34 @@ def cace_calculate(varresult, measure, variables):
         # 'minimum':  minimum value limit to keep results
         # 'maximum':  maximum value limit to keep results
         if 'from' in measure:
-            fromtime = float(spice_unit_convert([timeunit, measure['from'], 'time']))
+            fromtime = float(
+                spice_unit_convert([timeunit, measure['from'], 'time'])
+            )
         else:
-            fromtime = timevector[0] 
+            fromtime = timevector[0]
         if 'to' in measure:
-            totime = float(spice_unit_convert([timeunit, measure['to'], 'time']))
+            totime = float(
+                spice_unit_convert([timeunit, measure['to'], 'time'])
+            )
         else:
             totime = timevector[-1]
         if 'minimum' in measure:
-            minval = float(spice_unit_convert([activeunit, measure['minimum']]))
+            minval = float(
+                spice_unit_convert([activeunit, measure['minimum']])
+            )
         else:
             minval = min(activetrace)
         if 'maximum' in measure:
-            maxval = float(spice_unit_convert([activeunit, measure['maximum']]))
+            maxval = float(
+                spice_unit_convert([activeunit, measure['maximum']])
+            )
         else:
             maxval = max(activetrace)
 
         try:
-            fromidx = next(i for i, j in enumerate(timevector) if j >= fromtime)
+            fromidx = next(
+                i for i, j in enumerate(timevector) if j >= fromtime
+            )
         except StopIteration:
             fromidx = len(timevector) - 1
         try:
@@ -456,10 +549,19 @@ def cace_calculate(varresult, measure, variables):
             toidx += 1
         except StopIteration:
             toidx = len(timevector)
-        goodidx = list(i for i, j in enumerate(activetrace[fromidx:toidx]) if j >= minval and j <= maxval)
+        goodidx = list(
+            i
+            for i, j in enumerate(activetrace[fromidx:toidx])
+            if j >= minval and j <= maxval
+        )
         # Diagnostic
         if goodidx == []:
-            print('All vector components failed bounds test.  maximum = ' + str(max(activetrace[fromidx:toidx])) + '; minimum = ' + str(min(activetrace[fromidx:toidx])))
+            print(
+                'All vector components failed bounds test.  maximum = '
+                + str(max(activetrace[fromidx:toidx]))
+                + '; minimum = '
+                + str(min(activetrace[fromidx:toidx]))
+            )
 
         goodidx = [i + fromidx for i in goodidx]
         for key in varresult:
@@ -470,4 +572,5 @@ def cace_calculate(varresult, measure, variables):
 
     return rsize
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------

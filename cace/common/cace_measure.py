@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 # cace_measure.py
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 #
 # This script runs a measurement or sequence of measurements as specified
 # in the "measure" section of an electrical parameter, processing the
@@ -14,7 +14,7 @@
 # directory, or uses one of the CACE built-in measurements, defined in
 # cace_calculate.py.
 #
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 import os
 import sys
@@ -28,13 +28,14 @@ from .cace_calculate import *
 from .spiceunits import spice_unit_unconvert
 from .spiceunits import spice_unit_convert
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # results_to_octave ---
-# 
+#
 #    Generate an output file named <testbench_name>.dat which contains the
 #    matrix of results for the testbench, in a format for input to an
 #    octave script.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def results_to_octave(testbench, units):
 
@@ -66,7 +67,9 @@ def results_to_octave(testbench, units):
         outunits.append(condition[1] if len(condition) == 3 else '')
 
     for varname in varnames:
-        varrec = next(item for item in testbench['variables'] if item['name'] == varname)
+        varrec = next(
+            item for item in testbench['variables'] if item['name'] == varname
+        )
         if 'unit' in varrec:
             outunits.append(varrec['unit'])
         else:
@@ -185,13 +188,15 @@ def results_to_octave(testbench, units):
 
     return datfilename
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # results_to_json:
 #
 #    Generate an output file named <testbench_name>.json which contains the
 #    matrix of results for the testbench, in JSON format for input to any
 #    script that can read JSON format.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def results_to_json(testbench):
 
@@ -204,9 +209,11 @@ def results_to_json(testbench):
 
     return datfilename
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Execute one measurement on the simulation data
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def cace_run_measurement(param, measure, testbench, paths, debug=False):
 
@@ -249,9 +256,9 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
         # exit status.
 
         print('Measuring with: ' + tool + ' ' + scriptname + ' ' + filename)
-        postproc = subprocess.Popen([tool, scriptname, filename],
-			stdout = subprocess.PIPE,
-			cwd=root_path)
+        postproc = subprocess.Popen(
+            [tool, scriptname, filename], stdout=subprocess.PIPE, cwd=root_path
+        )
         rvalues = postproc.communicate()[0].decode('ascii').splitlines()
 
         # Replace testbench result with the numeric result
@@ -259,22 +266,26 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
         return 1
 
     else:
-        print('Error: Measurement record does not contain either "tool" or "calc".')
+        print(
+            'Error: Measurement record does not contain either "tool" or "calc".'
+        )
         return 0
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Main entry point for cace_measure
 #
 #    "param" is the dictionary from the datasheet for a single electrical
-#	parameter.
+# 	parameter.
 #    "testbench" is the dictionary for a single testbench of the parameter.
 #    "paths" is the dictionary from the datasheet defining a number of
-#	locations of files in the workspace.
-#---------------------------------------------------------------------------
+# 	locations of files in the workspace.
+# ---------------------------------------------------------------------------
+
 
 def cace_measure(param, testbench, paths, debug=False):
     measurements = 1
- 
+
     testbench_path = paths['testbench']
 
     if 'measure' in param:
@@ -297,7 +308,9 @@ def cace_measure(param, testbench, paths, debug=False):
         simdict = param['simulate']
         if 'collate' in simdict:
             collnames = simdict['collate']
-            tbformat = list(item for item in testbench['format'] if item not in collnames)
+            tbformat = list(
+                item for item in testbench['format'] if item not in collnames
+            )
             testbench['format'] = tbformat
 
         # If the parameter defines a "spec", then check that the testbench
@@ -305,10 +318,13 @@ def cace_measure(param, testbench, paths, debug=False):
         if 'spec' in param:
             if len(testbench['format']) != 1:
                 print('Error:  Testbench result contains variables!')
-                varlist = list(item for item in testbench['format'] if item != 'result')
+                varlist = list(
+                    item for item in testbench['format'] if item != 'result'
+                )
                 print('Variables found: ' + ' '.join(varlist))
                 # However, don't terminate but pass this to collation anyway.
-        
+
     return measurements
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------

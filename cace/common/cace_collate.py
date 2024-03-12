@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 # cace_collate.py
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 #
 # This script follows cace_measure by taking the collection of output
 # results generated for each set of conditions by the simulation and
@@ -9,7 +9,7 @@
 # for the set, and using the results to annotate the original
 # characterization dataset.
 #
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 import os
 import sys
@@ -24,7 +24,7 @@ from .spiceunits import spice_unit_convert
 
 from .cace_calculate import twos_complement
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # find_limits ---
 #
 # Calculation of results from collected data for an output record, given
@@ -38,11 +38,11 @@ from .cace_calculate import twos_complement
 #
 #    "spectype" is one of "minimum", "maximum", or "typical".
 #    "spec" is the list value of spectype in a parameter's "spec" dictionary.
-#	This is a numerical value that is the spec target, optionally followed
-#	by "pass" or "fail", where "fail" implies that exceeding the value is
-#	a failure to meet spec; and optionally followed by "calctype"-"limittype":
-#	"calctype" is one of:  average, minimum, maximum
-#	"limittype" is one of: above, below, exact
+# 	This is a numerical value that is the spec target, optionally followed
+# 	by "pass" or "fail", where "fail" implies that exceeding the value is
+# 	a failure to meet spec; and optionally followed by "calctype"-"limittype":
+# 	"calctype" is one of:  average, minimum, maximum
+# 	"limittype" is one of: above, below, exact
 #    "results" is a list of rsult values
 #    "units" is the units type (string) of the result value.
 #
@@ -50,7 +50,8 @@ from .cace_calculate import twos_complement
 # first entry is the measured result, the second entry is the score
 # ("pass" or "fail"), and there is no third entry.
 #
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def find_limits(spectype, spec, results, units, debug=False):
 
@@ -107,14 +108,14 @@ def find_limits(spectype, spec, results, units, debug=False):
             # Diagnostic:
             print('Failure:  Unknown calculation type ' + calctype)
             return ['failure', 'fail']
-    
+
     # Quick format sanity check---may need binary or hex conversion
     # using the units nomenclature of 'b or 'h, etc.
     # (to be done:  signed conversion, see cace_makeplot.py)
 
     if isinstance(results[0], str):
         bmatch = binrex.match(units)
-        if (bmatch):
+        if bmatch:
             digits = bmatch.group(1)
             if digits == '':
                 digits = len(results[0])
@@ -131,8 +132,8 @@ def find_limits(spectype, spec, results, units, debug=False):
                 a = list(int(x, 16) for x in results)
             results = list(twos_complement(x, digits) for x in a)
         elif results[0] != 'failure':
-            print("Warning: result data do not correspond to specified units.")
-            print("Data = " + str(results))
+            print('Warning: result data do not correspond to specified units.')
+            print('Data = ' + str(results))
             return ['failure', 'fail']
 
     # The target and result should both match the specified units, so convert
@@ -140,7 +141,7 @@ def find_limits(spectype, spec, results, units, debug=False):
     if target != 'any':
         targval = target
         bmatch = binrex.match(units)
-        if (bmatch):
+        if bmatch:
             digits = bmatch.group(1)
             base = bmatch.group(2)
             if digits == '':
@@ -158,7 +159,9 @@ def find_limits(spectype, spec, results, units, debug=False):
                     a = int(targval, 16)
                 targval = twos_complement(a, digits)
             except:
-                print("Warning: target data do not correspond to units; assuming integer.")
+                print(
+                    'Warning: target data do not correspond to units; assuming integer.'
+                )
 
     # First run the calculation to get the single result value
 
@@ -174,7 +177,10 @@ def find_limits(spectype, spec, results, units, debug=False):
     elif calctype[0:3] == 'std':
         # Result is the standard deviation of the data
         mean = sum(results) / len(results)
-        value = pow(sum([((i - mean) * (i - mean)) for i in results]) / len(results), 0.5)
+        value = pow(
+            sum([((i - mean) * (i - mean)) for i in results]) / len(results),
+            0.5,
+        )
         # For "stdX", where "X" is an integer, multiply the standard deviation by X
         if len(calctype) > 3:
             value *= int(calctype[3])
@@ -196,7 +202,10 @@ def find_limits(spectype, spec, results, units, debug=False):
     try:
         specresult.append('{0:.4g}'.format(value))
     except ValueError:
-        print('Warning: Min/Typ/Max value is not not numeric; value is ' + str(value))
+        print(
+            'Warning: Min/Typ/Max value is not not numeric; value is '
+            + str(value)
+        )
         return ['failure', 'fail']
 
     # Next calculate the score based on the limit type
@@ -254,7 +263,8 @@ def find_limits(spectype, spec, results, units, debug=False):
     specresult.append(score)
     return specresult
 
-#----------------------------------------------------------------------
+
+# ----------------------------------------------------------------------
 # incompleteresult --
 #
 # Handle errors where simulation generated no output.
@@ -263,7 +273,8 @@ def find_limits(spectype, spec, results, units, debug=False):
 # and "typical" that exists in the electrical parameters record
 # and which specifies a target value.  "value" is set to "failure"
 # for display.
-#----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+
 
 def incompleteresult(param, noplotmode=False):
 
@@ -301,13 +312,15 @@ def incompleteresult(param, noplotmode=False):
 
     return resultdict
 
-#-------------------------------------------------------------
+
+# -------------------------------------------------------------
 # addnewresult --
 #
 # If the result dictionary has the same name as one in the
 # datasheet, then it replaces it.  Otherwise it is appended
 # to the list.
-#-------------------------------------------------------------
+# -------------------------------------------------------------
+
 
 def addnewresult(param, resultdict):
     replaced = False
@@ -328,7 +341,8 @@ def addnewresult(param, resultdict):
     else:
         param['results'] = resultdict
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Main entry point of cace_collate
 #
 # "param" is an electrical parameter dictionary to be evaluated.
@@ -339,7 +353,8 @@ def addnewresult(param, resultdict):
 # "testbench" records for the parameter, each containing a unique set of
 # conditions, and a "results" section which is normally a single value
 # (see code comments about dealing with multiple values).
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def cace_collate(dsheet, param):
 
@@ -386,7 +401,11 @@ def cace_collate(dsheet, param):
 
     elif 'testbenches' not in param:
         if debug:
-            print('Error:  Parameter ' + paramname + ' specified to be evaluated, but no testbench record exists.')
+            print(
+                'Error:  Parameter '
+                + paramname
+                + ' specified to be evaluated, but no testbench record exists.'
+            )
         return param
     elif debug:
         print('Collating results for parameter ' + paramname)
@@ -429,7 +448,11 @@ def cace_collate(dsheet, param):
         else:
             results = testbench['results']
             if len(results) == 0:
-                print('Error: testbench ' + filename + ' has zero-length results!')
+                print(
+                    'Error: testbench '
+                    + filename
+                    + ' has zero-length results!'
+                )
                 score = 'incomplete'
                 break
 
@@ -445,10 +468,18 @@ def cace_collate(dsheet, param):
                 # exist in either the electrical parameter conditions list
                 # or the default conditions list).
                 try:
-                    condrec = next(item for item in param['conditions'] if item['name'] == condition[0])
+                    condrec = next(
+                        item
+                        for item in param['conditions']
+                        if item['name'] == condition[0]
+                    )
                 except StopIteration:
-                    condrec = next(item for item in default_conditions if item['name'] == condition[0])
-                        
+                    condrec = next(
+                        item
+                        for item in default_conditions
+                        if item['name'] == condition[0]
+                    )
+
                 if 'typical' in condrec:
                     typvalue = condrec['typical']
                     if typvalue != condition[-1]:
@@ -457,7 +488,7 @@ def cace_collate(dsheet, param):
             if istypical == True:
                 if 'results' in testbench:
                     typresults.extend(testbench['results'])
-                    
+
     allresults = []
     for testbench in testbenches:
         if 'results' in testbench:
@@ -478,12 +509,18 @@ def cace_collate(dsheet, param):
             for result in allresults:
                 if len(result) > 1:
                     if not isplotdata:
-                        print('Error:  There are multiple results per testbench!')
+                        print(
+                            'Error:  There are multiple results per testbench!'
+                        )
                 try:
                     rvalue = float(result[0])
                 except:
                     try:
-                        print('Error:  Result ' + str(result[0]) + ' is not numeric!')
+                        print(
+                            'Error:  Result '
+                            + str(result[0])
+                            + ' is not numeric!'
+                        )
                     except:
                         print('Error:  No result!')
                     rvalue = 0.0
@@ -499,7 +536,9 @@ def cace_collate(dsheet, param):
 
         # scaled_results is 'results' scaled to the units used by param.
         if 'unit' in param:
-            scaled_results = spice_unit_unconvert([param['unit'], reduced_results])
+            scaled_results = spice_unit_unconvert(
+                [param['unit'], reduced_results]
+            )
         else:
             scaled_results = reduced_results
 
@@ -513,12 +552,18 @@ def cace_collate(dsheet, param):
             for result in typresults:
                 if len(result) > 1:
                     if not isplotdata:
-                        print('Error:  There are multiple results per testbench!')
+                        print(
+                            'Error:  There are multiple results per testbench!'
+                        )
                 try:
                     rvalue = float(result[0])
                 except:
                     try:
-                        print('Error:  Result ' + str(result[0]) + ' is not numeric!')
+                        print(
+                            'Error:  Result '
+                            + str(result[0])
+                            + ' is not numeric!'
+                        )
                     except:
                         print('Error:  No result!')
                     rvalue = 0.0
@@ -534,7 +579,9 @@ def cace_collate(dsheet, param):
 
         # scaled_results is 'results' scaled to the units used by param.
         if 'unit' in param:
-            scaled_typresults = spice_unit_unconvert([param['unit'], reduced_results])
+            scaled_typresults = spice_unit_unconvert(
+                [param['unit'], reduced_results]
+            )
         else:
             scaled_typresults = reduced_results
 
@@ -575,7 +622,9 @@ def cace_collate(dsheet, param):
         if 'minimum' in spec:
             spectype = 'minimum'
             minrec = spec['minimum']
-            minresult = find_limits(spectype, minrec, scaled_results, units, debug)
+            minresult = find_limits(
+                spectype, minrec, scaled_results, units, debug
+            )
             if score == 'incomplete' and minresult[1] == 'fail':
                 score = 'fail'
             elif score != 'fail':
@@ -585,7 +634,9 @@ def cace_collate(dsheet, param):
         if 'maximum' in spec:
             spectype = 'maximum'
             maxrec = spec['maximum']
-            maxresult = find_limits(spectype, maxrec, scaled_results, units, debug)
+            maxresult = find_limits(
+                spectype, maxrec, scaled_results, units, debug
+            )
             if score == 'incomplete' and maxresult[1] == 'fail':
                 score = 'fail'
             elif score != 'fail':
@@ -599,7 +650,9 @@ def cace_collate(dsheet, param):
         if 'typical' in spec:
             spectype = 'typical'
             typrec = spec['typical']
-            typresult = find_limits(spectype, typrec, scaled_typresults, units, debug)
+            typresult = find_limits(
+                spectype, typrec, scaled_typresults, units, debug
+            )
             if score == 'incomplete' and typresult == 'fail':
                 score = 'fail'
             elif score != 'fail':
@@ -611,10 +664,16 @@ def cace_collate(dsheet, param):
 
     resultdict['name'] = runtime_options['netlist_source']
     if debug:
-        print('Adding new result set ' + resultdict['name'] + ' for ' + param['name'])
+        print(
+            'Adding new result set '
+            + resultdict['name']
+            + ' for '
+            + param['name']
+        )
     addnewresult(param, resultdict)
 
     # Return the annotated electrical parameter
     return param
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------

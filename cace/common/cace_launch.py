@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 # cace_launch.py
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 #
 # This script takes a dictionary in the CACE characterization format that
 # has been read by either cace.py (command-line) or cace_gui.py (GUI) and
@@ -12,7 +12,7 @@
 # the list of measurements specified in the parameter's "measure"
 # dictionary to produce a final set of results per simulation.
 #
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 import os
 import re
@@ -24,7 +24,7 @@ import multiprocessing
 from .cace_simulate import *
 from .cace_measure import *
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # collate_after_simulation
 #
 # If an electrical parameter's 'simulate' dictionary has a 'collate'
@@ -46,7 +46,8 @@ from .cace_measure import *
 # a DC sweep), all values will already be in a single testbench.  But in
 # some cases (such as the DAC gain error) it is simpler/quicker to run
 # an operating point in ngspice instead of a sweep or transient.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def collate_after_simulation(param, collnames, testbenchlist, debug):
     # Sanity check:  If there is only one testbench, then there is
@@ -66,9 +67,15 @@ def collate_after_simulation(param, collnames, testbenchlist, debug):
         for testbench in testbenchlist:
             conditions = testbench['conditions']
             try:
-                condition = next(item for item in conditions if item[0] == name)
+                condition = next(
+                    item for item in conditions if item[0] == name
+                )
             except:
-                print('Error:  Attempt to collate over condition ' + name + ' which is not in the testbench condition list!')
+                print(
+                    'Error:  Attempt to collate over condition '
+                    + name
+                    + ' which is not in the testbench condition list!'
+                )
             else:
                 value = condition[-1]
                 for result in testbench['results']:
@@ -125,9 +132,11 @@ def collate_after_simulation(param, collnames, testbenchlist, debug):
     if 'group_size' in simdict:
         simdict.pop('group_size')
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # Exit the child process when SIGUSR1 is given to the process
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
+
 
 def child_process_exit(signum, frame):
     print('CACE launch:  Received forced stop.')
@@ -137,7 +146,8 @@ def child_process_exit(signum, frame):
         print('Terminate failed; Child PID is ' + str(os.getpid()))
         print('Waiting on process to finish.')
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # simulate_and_measure:
 #
 # Run simulations and measurements on a single testbench or multiple
@@ -148,7 +158,8 @@ def child_process_exit(signum, frame):
 # successful.
 #
 # To do:  Further parallelize the collated testbenches.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def simulate_and_measure(param, testbenchlist, pdk, paths, runtime_options):
     paramname = param['name']
@@ -159,7 +170,9 @@ def simulate_and_measure(param, testbenchlist, pdk, paths, runtime_options):
         signal.signal(signal.SIGUSR1, child_process_exit)
 
     for testbench in testbenchlist:
-        simresult += cace_simulate(param, testbench, pdk, paths, runtime_options)
+        simresult += cace_simulate(
+            param, testbench, pdk, paths, runtime_options
+        )
 
     debug = runtime_options['debug'] if 'debug' in runtime_options else False
 
@@ -196,14 +209,16 @@ def simulate_and_measure(param, testbenchlist, pdk, paths, runtime_options):
 
     return tbzero if simulations > 0 else None
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Main entrypoint of cace_launch
 #
 # "dsheet" is a dictionary in the CACE characterization file format.
-# "param" is the dictionary entry of a single electrical parameter. 
+# "param" is the dictionary entry of a single electrical parameter.
 #
 # Return value is the modified parameter dictionary.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def cace_launch(dsheet, param):
 
@@ -258,7 +273,9 @@ def cace_launch(dsheet, param):
 
     if not sequential:
         alltestbenches = []
-        with multiprocessing.Pool(processes=max(multiprocessing.cpu_count()-1,1)) as pool:
+        with multiprocessing.Pool(
+            processes=max(multiprocessing.cpu_count() - 1, 1)
+        ) as pool:
             # "nice" this process to avoid throttling the OS
             os.nice(19)
 
@@ -272,17 +289,27 @@ def cace_launch(dsheet, param):
 
             testbenches = param['testbenches']
             paramname = param['name']
-            print('Files to simulate method ' + paramname + ': ' + str(len(testbenches)))
+            print(
+                'Files to simulate method '
+                + paramname
+                + ': '
+                + str(len(testbenches))
+            )
 
             # Now run each simulation and read each simulation output file and
             # put together a composite 'results' record of result vs. condition
             # values.
 
             for i in range(0, len(testbenches), group_size):
-                testbenchlist = testbenches[i:i+group_size]
+                testbenchlist = testbenches[i : i + group_size]
                 for testbench in testbenchlist:
                     testbench['sequence'] = idx
-                results.append(pool.apply_async(simulate_and_measure, (param, testbenchlist, pdk, paths, runtime_options),))
+                results.append(
+                    pool.apply_async(
+                        simulate_and_measure,
+                        (param, testbenchlist, pdk, paths, runtime_options),
+                    )
+                )
                 idx += 1
             # Replace the testbench list in the parameter with the number of
             # testbenches.
@@ -320,20 +347,29 @@ def cace_launch(dsheet, param):
 
         for testbench in alltestbenches:
             testbench.pop('sequence')
-            
+
     else:
         # Run simulations sequentially, not in multiprocessing mode
         paramname = param['name']
         testbenches = param['testbenches']
-        print('Files to simulate method ' + paramname + ': ' + str(len(testbenches)))
+        print(
+            'Files to simulate method '
+            + paramname
+            + ': '
+            + str(len(testbenches))
+        )
         for i in range(0, len(testbenches), group_size):
-            testbenchlist = testbenches[i: i + group_size]
-            if simulate_and_measure(param, testbenchlist, pdk, paths, runtime_options):
+            testbenchlist = testbenches[i : i + group_size]
+            if simulate_and_measure(
+                param, testbenchlist, pdk, paths, runtime_options
+            ):
                 simulations += group_size
 
         # For grouped testbenches, remove all the testbenches that have no results
         if group_size > 1:
-            newtestbenches = list(item for item in param['testbenches'] if 'results' in item)
+            newtestbenches = list(
+                item for item in param['testbenches'] if 'results' in item
+            )
             param['testbenches'] = newtestbenches
 
     # For all testbenches, remove the format
@@ -341,9 +377,16 @@ def cace_launch(dsheet, param):
         if 'format' in testbench:
             testbench.pop('format')
 
-    print('Completed ' + str(simulations) + ' of ' + str(totalsims) + ' simulations');
+    print(
+        'Completed '
+        + str(simulations)
+        + ' of '
+        + str(totalsims)
+        + ' simulations'
+    )
 
     # Return the annotated electrical parameter
     return param
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
