@@ -22,6 +22,7 @@ import sys
 import subprocess
 
 from .cace_regenerate import get_magic_rcfile
+from .safe_eval import safe_eval
 
 #-----------------------------------------------------------------------------
 # run_estimate
@@ -242,7 +243,7 @@ def layout_estimate(inputfile, library, rcfile, debug, logfile=''):
                             try:
                                 mult = int(parmval)
                             except ValueError:
-                                mult = eval(parmval)
+                                mult = safe_eval(parmval)
                     else:
                         # Last one that isn't a parameter will be kept
                         devtype = token
