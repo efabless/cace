@@ -24,10 +24,10 @@ jobs:
         with:
           python-version: "3.8"
       - name: Install Dependencies
-        run: make venv
+        run: make dependencies
       - name: Lint
         run: |
-          PATH=$PWD/venv/bin:$PATH make lint
+          make lint
 
   build:
     runs-on: ubuntu-22.04
@@ -45,16 +45,16 @@ jobs:
         with:
           python-version: ${{ matrix.python-version }}
       - name: Install Dependencies
-        run: make venv
+        run: make dependencies
       - name: Build Package
         run: |
-          PATH=$PWD/venv/bin:$PATH make build
+          make build
       - name: Install Package
         run: |
-          PATH=$PWD/venv/bin:$PATH make install
+          make install
       - name: Run CACE
         run: |
-          PATH=$PWD/venv/bin:$PATH cace -help
+          cace -help
 
   docs:
     runs-on: ubuntu-22.04
@@ -68,13 +68,7 @@ jobs:
         with:
           python-version: 3.8
       - name: Install Dependencies
-        run: make venv
-      - name: Build Package
-        run: |
-          PATH=$PWD/venv/bin:$PATH make build
-      - name: Install Package
-        run: |
-          PATH=$PWD/venv/bin:$PATH make install
+        run: make dependencies
       - name: Build Documentation
         run: |
           make docs
