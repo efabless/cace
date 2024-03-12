@@ -21,8 +21,82 @@ import os
 import sys
 import json
 import datetime
+import subprocess
 
 from .cace_compat import *
+from .cace_regenerate import printwarn
+
+#---------------------------------------------------------------
+# generate_svg
+#
+# Generate an SVG drawing of the schematic symbol using xschem
+#
+# Return the name of the SVG file if the drawing was generated,
+# None if not.
+#---------------------------------------------------------------
+
+def generate_svg(datasheet):
+
+    paths = datasheet['paths']
+    if 'root' in paths:
+        rootdir = paths['root']
+    else:
+        rootdir = '.'
+
+    if 'documentation' in paths:
+        docdir = paths['documentation']
+    else:
+        docdir = rootdir
+
+    if 'schematic' in paths:
+        schempath = paths['schematic']
+        symname = datasheet['name'] + '.sym'
+        sympath = os.path.join(schempath, symname)
+        svgname = datasheet['name'] + '_sym.svg'
+        svgpath = os.path.join(docdir, svgname)
+        if os.path.isfile(sympath):
+
+            if 'PDK_ROOT' in datasheet:
+                pdk_root = datasheet['PDK_ROOT']
+            else:
+                pdk_root = get_pdk_root()
+
+            if 'PDK' in datasheet:
+                pdk = datasheet['PDK']
+            else:
+                pdk = get_pdk(magicfilename)
+
+            newenv = os.environ.copy()
+            if pdk_root and 'PDK_ROOT' not in newenv:
+                newenv['PDK_ROOT'] = pdk_root
+            if pdk and 'PDK' not in newenv:
+                newenv['PDK'] = pdk
+
+            xschemargs = ['xschem', '-b', '-x', '-q', '--svg', '--plotfile',
+			svgpath] 
+
+            # Use the PDK xschemrc file for xschem startup
+            xschemrcfile = os.path.join(pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc')
+            if os.path.isfile(xschemrcfile):
+                xschemargs.extend(['--rcfile', xschemrcfile])
+
+            xschemargs.append(sympath)
+
+            xproc = subprocess.Popen(xschemargs,
+			stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+			cwd=rootdir)
+
+            xout = xproc.communicate()[0]
+            if xproc.returncode != 0:
+                for line in xout.splitlines():
+                    print(line.decode('utf-8'))
+
+                print('Xschem process returned error code ' + str(xproc.returncode) + '\n')
+            else:
+                printwarn(xout)
+                return svgname
+
+    return None
 
 #---------------------------------------------------------------
 # cace_generate_html
@@ -62,6 +136,8 @@ def cace_generate_html(datasheet, filename=None, debug=False):
             ofilename += '.html'
     else:
         ofilename = os.path.join(docdir, docname)
+
+    svgname = generate_svg(datasheet)
 
     with open(ofilename, 'w') as ofile:
         ofile.write('<HTML>\n') 
@@ -158,20 +234,36 @@ def cace_generate_html(datasheet, filename=None, debug=False):
             ofile.write('</TABLE>\n')
 
         if 'dependencies' in datasheet:
-            ofile.write('<H2> Project dependencies </H2>\n\n<UL>\n')
+            ofile.write('<H2> Project dependencies </H2>\n')
             dictlist = datasheet['dependencies']
             if isinstance(dictlist, dict):
                 dictlist = [datasheet['dependencies']]
-            for depend in dictlist:
-                if 'repository' in depend:
-                    ofile.write('   <LI> <A HREF=' + depend['repository'] + '> ' + depend['name'] + '</A>\n')
-                elif 'name' in depend:
-                    ofile.write('   <LI> ' + depend['name'] + '\n')
 
-            ofile.write('</UL>\n\n')
+            if len(dictlist) == 0 or len(dictlist) == 1 and dictlist[0] == {}:
+                ofile.write('<BLOCKQUOTE>\n')
+                ofile.write('   (<B>' + datasheet['name'] + '</B> has no external dependencies.)\n')
+                ofile.write('</BLOCKQUOTE>\n')
+            else:
+                ofile.write('\n<UL>\n')
+                for depend in dictlist:
+                    if 'repository' in depend:
+                        ofile.write('   <LI> <A HREF=' + depend['repository'] + '> ' + depend['name'] + '</A>\n')
+                        numdepend += 1
+                    elif 'name' in depend:
+                        ofile.write('   <LI> ' + depend['name'] + '\n')
+                        numdepend += 1
+
+                ofile.write('</UL>\n\n')
 
         if 'pins' in datasheet:
             ofile.write('<H2> Pin names and descriptions </H2>\n')
+            if svgname:
+                ofile.write('\n<BLOCKQUOTE>\n   <CENTER>\n')
+                ofile.write('      <IMG SRC=' + svgname + ' WIDTH=30%>\n')
+                ofile.write('      <BR>\n      <I>Project schematic symbol</I>\n')
+                ofile.write('      <BR>\n')
+                ofile.write('   </CENTER>\n</BLOCKQUOTE>\n\n')
+
             ofile.write('<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n')
             ofile.write('\tcellpadding="2" bgcolor="#eeeeff">\n')
             ofile.write('<TBODY>\n<TR>\n')
