@@ -46,11 +46,11 @@ venv/manifest.txt: ./requirements_dev.txt ./requirements.txt
 
 .PHONY: docs
 docs: venv
-	$(MAKE) -C docs html
+	. venv/bin/activate; $(MAKE) -C docs html
 
 .PHONY: host-docs
 host-docs: venv
-	python3 -m http.server --directory ./docs/build/html
+	. venv/bin/activate; python3 -m http.server --directory ./docs/build/html
 
 .PHONY: clean
 clean:
