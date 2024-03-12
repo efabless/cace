@@ -20,6 +20,8 @@ import re
 import sys
 import subprocess
 
+from .safe_eval import safe_eval
+
 #---------------------------------------------------------------
 # run_precheck
 #
@@ -213,7 +215,7 @@ def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfi
                             try:
                                 mult = int(parmval)
                             except ValueError:
-                                mult = eval(parmval)
+                                mult = safe_eval(parmval)
                     else:
                         # Last one that isn't a parameter will be kept
                         # (only applies to subcircuit instances)

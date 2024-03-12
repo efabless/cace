@@ -29,6 +29,7 @@ from .spiceunits import numeric
 
 from .cace_write import *
 from .cace_regenerate import get_pdk_root
+from .safe_eval import safe_eval
 
 #-----------------------------------------------------------------------
 # Read the indicated file, find the .subckt line, and copy out the
@@ -162,8 +163,8 @@ def twos_comp(val, bits):
 
 def bcount(condition, unit, start, stop, step):
     blen = len(start)
-    a = eval('0b' + start)
-    e = eval('0b' + stop)
+    a = safe_eval('0b' + start)
+    e = safe_eval('0b' + stop)
     if a > e:
         a = twos_comp(a, blen)
         e = twos_comp(e, blen)
@@ -182,8 +183,8 @@ def bcount(condition, unit, start, stop, step):
 #-----------------------------------------------------------------------
 
 def bshift(condition, unit, start, stop, step):
-    a = eval('0b' + start)
-    e = eval('0b' + stop)
+    a = safe_eval('0b' + start)
+    e = safe_eval('0b' + stop)
     if a > e:
         a = twos_comp(a, blen)
         e = twos_comp(e, blen)
@@ -957,11 +958,11 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                     try:
                         # Avoid catching simple array indexes like "v[0]".
                         # Other non-expressions will just throw exceptions
-                        # when passed to eval().
+                        # when passed to safe_eval().
                         btest = int(bexpr)
                     except:
                         try:
-                            brackval = str(eval(bexpr))
+                            brackval = str(safe_eval(bexpr))
                         except:
                             pass
                         else:
