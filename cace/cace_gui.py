@@ -255,62 +255,42 @@ class CACECharacterize(ttk.Frame):
         self.toppane = ttk.Frame(pane)
         self.botpane = ttk.Frame(pane)
 
-        # Get username
-        if 'username' in self.prefs:
-            username = self.prefs['username']
-        else:
-            username = os.environ['USER']
-
-        # Label with the user
         self.toppane.title_frame = ttk.Frame(self.toppane)
-        self.toppane.title_frame.grid(column = 0, row=0, sticky = 'nswe')
-
-        self.toppane.title_frame.title = ttk.Label(self.toppane.title_frame, text='User:', style = 'red.TLabel')
-        self.toppane.title_frame.user = ttk.Label(self.toppane.title_frame, text=username, style = 'blue.TLabel')
-
-        self.toppane.title_frame.title.grid(column=0, row=0, ipadx = 5)
-        self.toppane.title_frame.user.grid(column=1, row=0, ipadx = 5)
-
-        #---------------------------------------------
-        ttk.Separator(self.toppane, orient='horizontal').grid(column = 0, row = 1, sticky = 'nswe')
-        #---------------------------------------------
-
-        self.toppane.title2_frame = ttk.Frame(self.toppane)
-        self.toppane.title2_frame.grid(column = 0, row = 2, sticky = 'nswe')
-        self.toppane.title2_frame.datasheet_label = ttk.Label(self.toppane.title2_frame, text="Datasheet:",
+        self.toppane.title_frame.grid(column = 0, row = 2, sticky = 'nswe')
+        self.toppane.title_frame.datasheet_label = ttk.Label(self.toppane.title_frame, text="CACE Datasheet:",
 		style = 'normal.TLabel')
-        self.toppane.title2_frame.datasheet_label.grid(column=0, row=0, ipadx = 5)
+        self.toppane.title_frame.datasheet_label.grid(column=0, row=0, ipadx = 5)
 
         # New datasheet select button
-        self.toppane.title2_frame.datasheet_select = ttk.Button(self.toppane.title2_frame,
+        self.toppane.title_frame.datasheet_select = ttk.Button(self.toppane.title_frame,
 		text=self.filename, style='normal.TButton', command=self.choose_datasheet)
-        self.toppane.title2_frame.datasheet_select.grid(column=1, row=0, ipadx = 5)
+        self.toppane.title_frame.datasheet_select.grid(column=1, row=0, ipadx = 5)
 
-        ToolTip(self.toppane.title2_frame.datasheet_select,
+        ToolTip(self.toppane.title_frame.datasheet_select,
 			text = "Select new datasheet file")
 
         # Show path to datasheet
-        self.toppane.title2_frame.path_label = ttk.Label(self.toppane.title2_frame, text=self.filename,
+        self.toppane.title_frame.path_label = ttk.Label(self.toppane.title_frame, text=self.filename,
 		style = 'normal.TLabel')
-        self.toppane.title2_frame.path_label.grid(column=2, row=0, ipadx = 5, padx = 10)
+        self.toppane.title_frame.path_label.grid(column=2, row=0, ipadx = 5, padx = 10)
 
         # Spacer in middle moves selection button to right
-        self.toppane.title2_frame.sep_label = ttk.Label(self.toppane.title2_frame, text=' ',
+        self.toppane.title_frame.sep_label = ttk.Label(self.toppane.title_frame, text=' ',
 		style = 'normal.TLabel')
-        self.toppane.title2_frame.sep_label.grid(column=3, row=0, ipadx = 5, padx = 10)
-        self.toppane.title2_frame.columnconfigure(3, weight = 1)
-        self.toppane.title2_frame.rowconfigure(0, weight=0)
+        self.toppane.title_frame.sep_label.grid(column=3, row=0, ipadx = 5, padx = 10)
+        self.toppane.title_frame.columnconfigure(3, weight = 1)
+        self.toppane.title_frame.rowconfigure(0, weight=0)
 
         # Selection for origin of netlist
-        self.toppane.title2_frame.origin_label = ttk.Label(self.toppane.title2_frame,
+        self.toppane.title_frame.origin_label = ttk.Label(self.toppane.title_frame,
 		text='Netlist from:', style = 'normal.TLabel')
-        self.toppane.title2_frame.origin_label.grid(column=4, row=0, ipadx = 5, padx = 10)
+        self.toppane.title_frame.origin_label.grid(column=4, row=0, ipadx = 5, padx = 10)
 
         self.origin.set('Schematic Capture')
-        self.toppane.title2_frame.origin_select = ttk.OptionMenu(self.toppane.title2_frame,
+        self.toppane.title_frame.origin_select = ttk.OptionMenu(self.toppane.title_frame,
 		self.origin, 'Schematic Capture', 'Schematic Capture', 'Layout Extracted', 'C Extracted', 'R-C Extracted',
 		style='blue.TMenubutton', command=self.swap_results)
-        self.toppane.title2_frame.origin_select.grid(column=5, row=0, ipadx = 5)
+        self.toppane.title_frame.origin_select.grid(column=5, row=0, ipadx = 5)
 
         #---------------------------------------------
         ttk.Separator(self.toppane, orient='horizontal').grid(column = 0, row = 3, sticky = 'news')
@@ -515,8 +495,8 @@ class CACECharacterize(ttk.Frame):
         self.filename = datasheet
         self.datasheet = dsheet
         self.create_datasheet_view()
-        self.toppane.title2_frame.datasheet_select.configure(text=dsname)
-        self.toppane.title2_frame.path_label.configure(text=datasheet)
+        self.toppane.title_frame.datasheet_select.configure(text=dsname)
+        self.toppane.title_frame.path_label.configure(text=datasheet)
 
         # Attempt to set the datasheet viewer width to the interior width
         # but do not set it larger than the available desktop.
