@@ -2,29 +2,22 @@
 
 ## Installation
 
-For now, CACE can be manually installed using pip.
+You'll need the following:
 
-First the Python package needs to be build:
+- Python 3.8 or higher with PIP and Tkinter
 
-```
-$ make build
-```
+CACE can be installed directly from PyPI:
 
-To install the package, run:
+	$ python3 -m pip install --upgrade cace
+Prerequisite design tools:
 
-```
-$ make install
-```
-
-CACE is currently a work in progress and does not have an
-installer;  it may be run directly from the source repository
-clone.  Future work will allow CACE to be installed with the
-standard python "pip" installer or a Makefile install target,
-and run from the command line simply as "cace".
+- xschem:  [https://github.com/stefanschippers/xschem](https://github.com/stefanschippers/xschem)
+- ngspice: git://git.code.sf.net/p/ngspice/ngspice
+- magic:	 [https://github.com/RTimothyEdwards/magic](https://github.com/RTimothyEdwards/magic)
 
 ## Usage
 
-If installed properly as Python package, CACE can be started from the command line using:
+If installed as Python package, CACE can be started from the command line using:
 
 ```
 $ cace
@@ -36,13 +29,59 @@ Or to start the GUI:
 $ cace-gui
 ```
 
+Information on how to use CACE can be found in the documentation at [cace.readthedocs.io](https://cace.readthedocs.io/). 
 
-The `cace_gui.py` script is a top-level GUI for the CACE system. The CACE system can also be run manually as `cace_cli.py`. For
-interactive usage information for the command line, run `cace-cli.py` without any arguments.
+## Development
 
-CACE GUI syntax:
+### Dependencies
 
-	/path/to/cace_gui.py [path/to/project.txt]
+> [!IMPORTANT]
+> You may need to set up a Python [virtual environment](https://docs.python.org/3/library/venv.html).
+
+To install the dependencies for CACE, run:
+
+	$ make dependencies
+
+### Python Package
+
+To build the Python package, run:
+
+```
+$ make build
+```
+
+To install the package, run:
+
+```
+$ make install
+```
+
+To install the package in editable mode, run:
+
+```
+$ make editable
+```
+
+### Documentation
+
+To build the documentation, run:
+
+```
+$ make docs
+```
+
+To host the docs, run:
+
+```
+make host-docs
+```
+
+> [!NOTE]  
+> The documentation can be viewed online at [cace.readthedocs.io](https://cace.readthedocs.io/). 
+
+## CACE GUI syntax
+
+    $ cace-gui [path/to/project.txt]
 
 	where optional file project.txt (normally <name_of_project>.txt
 	where <name_of_project> is the name of the circuit to be
@@ -63,9 +102,9 @@ CACE GUI syntax:
 	standalone circuits, or a project may simply be a collection of
 	circuits (library) without a specific single top level. 
 
-CACE command line syntax:
+## CACE command line syntax
 
-	/path/to/cace.py <filename_in> <filename_out> [options]
+	$ cace <filename_in> <filename_out> [options]
 
 	where <filename_in> is a format 4.0 ASCII CACE file
 	and <filename_out> is the name of the file to write.
@@ -111,3 +150,26 @@ CACE command line syntax:
 	   (Warning---does not check if simulations are out of date).
 
 	Option "-summary" prints a summary of results at the end.
+
+## Examples
+
+The following repositories contain example circuit designs, each having a "cace/" subdirectory with a specification input file in the format described below, and a set of testbench schematics which are used by CACE to measure all specified electrical and physical parameters, generate results, and analyze them to determine circuit performance over corners.
+
+(NOTE:  Example repositories, like CACE itself, are currently a work in progress.)
+
+All repositories are rooted at: [https://github.com/RTimothyEdwards/](https://github.com/RTimothyEdwards/).
+
+Example circuit repositories:
+
+- [sky130_ef_ip__instramp](https://github.com/RTimothyEdwards/sky130_ef_ip__instramp)		Instrumentation amplifier
+- [sky130_ef_ip__rdac3v_8bit](https://github.com/RTimothyEdwards/sky130_ef_ip__rdac3v_8bit)	8-bit resistor ladder DAC
+- sky130_ef_ip__samplehold	sample-and-hold circuit
+- sky130_ef_ip__driveramp		Rail-to-rail driver amplifier
+- sky130_ef_ip__ccomp3v		Rail-to-rail continuous comparator
+- sky130_ef_ip__rc_osc_500k	R-C oscillator, 500kHz nominal output
+- sky130_ef_ip__xtal_osc_16M	Crystal oscillator, 4 to 15MHz
+- sky130_ef_ip__xtal_osc_32k	Crystal oscillator, 32kHz
+
+Each of these repositories contains a circuit designed with the SkyWater sky130 process open PDK, and contains schematics, layout, and CACE characterization.
+
+NOTE: These repositories are a work in progress, and may not exist yet or may not have a characterization setup for CACE.
