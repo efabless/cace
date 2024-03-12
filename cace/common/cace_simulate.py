@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # cace_simulate.py
 #
 #    Run a simulation (or co-simulation) according to the "simulate"
@@ -8,7 +8,7 @@
 #    dictionary "testbench".
 #
 #    Return 1 on a successful simulation or 0 if there was an error.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 
 import os
 import sys
@@ -18,24 +18,27 @@ import subprocess
 
 from .cace_regenerate import get_pdk_root
 
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Main entry point for cace_simulate
 #
 #    "param" is the dictionary for a single electrical parameter from
-#	the project characterization datasheet.
+# 	the project characterization datasheet.
 #    "testbench" is the dictionary for a single testbench from the
-#	electrical parameter described by "param".
+# 	electrical parameter described by "param".
 #    "pdk" is the (string) name of the PDK
 #    "paths" is a dictionary defining a number of locations of files
-#	in the workspace.
-#---------------------------------------------------------------------------
+# 	in the workspace.
+# ---------------------------------------------------------------------------
+
 
 def cace_simulate(param, testbench, pdk, paths, runtime_options):
     result = 0
     filename = testbench['filename']
     fileprefix = param['name']
 
-    nosimmode = runtime_options['nosim'] if 'nosim' in runtime_options else False
+    nosimmode = (
+        runtime_options['nosim'] if 'nosim' in runtime_options else False
+    )
     debug = runtime_options['debug'] if 'debug' in runtime_options else False
 
     # Prepare the list of simulation results
@@ -68,7 +71,12 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
     for varname in formatvars:
         if varname != 'null' and varname != 'result':
             if 'variables' not in param or varname not in varnamelist:
-                print('Error:  Variable ' + varname + ' is not in the variables list for parameter ' + param['name'])
+                print(
+                    'Error:  Variable '
+                    + varname
+                    + ' is not in the variables list for parameter '
+                    + param['name']
+                )
                 if debug:
                     print('Variables list is: ' + str(param['variables']))
                 vardict = {}
@@ -123,7 +131,9 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
             # one needed?
             if not os.path.exists('.spiceinit'):
                 pdk_root = get_pdk_root()
-                spinitfile = os.path.join(pdk_root, pdk, 'libs.tech', 'ngspice', 'spinit')
+                spinitfile = os.path.join(
+                    pdk_root, pdk, 'libs.tech', 'ngspice', 'spinit'
+                )
                 if os.path.exists(spinitfile):
                     print('Copying ngspice configuration file from PDK.')
                     shutil.copy(spinitfile, '.spiceinit')
@@ -132,15 +142,19 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
         # real-time, and flush the output buffer.  All output is ignored.
         # Note:  bufsize = 1 and universal_newlines = True sets line-buffered output
 
-        print('Running: ' + simulator + ' ' + ' '.join(simargs) + ' ' + filename)
+        print(
+            'Running: ' + simulator + ' ' + ' '.join(simargs) + ' ' + filename
+        )
         print('Current working directory is: ' + os.getcwd())
 
-        with subprocess.Popen([simulator, *simargs, filename],
-			stdout=subprocess.PIPE,
-			stderr=subprocess.STDOUT,
-			bufsize=1,
-			start_new_session=True,
-			universal_newlines=True) as spiceproc:
+        with subprocess.Popen(
+            [simulator, *simargs, filename],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            bufsize=1,
+            start_new_session=True,
+            universal_newlines=True,
+        ) as spiceproc:
             pgroup = os.getpgid(spiceproc.pid)
             for line in spiceproc.stdout:
                 print(line, end='')
@@ -179,7 +193,9 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
                             newresult.append(token)
                         idx += 1
                     except:
-                        print('CACE Simulation error:  format is missing entries')
+                        print(
+                            'CACE Simulation error:  format is missing entries'
+                        )
                         print('simline is: ' + simline)
                         print('formatvars are: ' + ' '.join(formatvars))
                         break
@@ -208,5 +224,6 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
         print('Error:  No output file ' + simoutputfile + ' from simulation!')
 
     return result
-               
-#---------------------------------------------------------------------------
+
+
+# ---------------------------------------------------------------------------

@@ -1,77 +1,110 @@
 #!/usr/bin/env python3
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Help Window for the Project manager
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Written by Tim Edwards
 # efabless, inc.
 # September 12, 2016
 # Version 0.1
-#--------------------------------------------------------
+# --------------------------------------------------------
 
 import re
 import tkinter
 from tkinter import ttk
 
+
 class HelpWindow(tkinter.Toplevel):
     """help window"""
 
-    def __init__(self, parent=None, fontsize = 11, *args, **kwargs):
-        '''See the __init__ for Tkinter.Toplevel.'''
+    def __init__(self, parent=None, fontsize=11, *args, **kwargs):
+        """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
         s = ttk.Style()
-        s.configure('normal.TButton', font=('Helvetica', fontsize), border = 3, relief = 'raised')
-        self.protocol("WM_DELETE_WINDOW", self.close)
+        s.configure(
+            'normal.TButton',
+            font=('Helvetica', fontsize),
+            border=3,
+            relief='raised',
+        )
+        self.protocol('WM_DELETE_WINDOW', self.close)
 
         self.withdraw()
         self.title('Help')
 
-        self.helptitle = ttk.Label(self, style='title.TLabel', text = '(no text)')
-        self.helptitle.grid(column = 0, row = 0, sticky = "news")
+        self.helptitle = ttk.Label(
+            self, style='title.TLabel', text='(no text)'
+        )
+        self.helptitle.grid(column=0, row=0, sticky='news')
         self.helpbar = ttk.Separator(self, orient='horizontal')
-        self.helpbar.grid(column = 0, row = 1, sticky = "news")
+        self.helpbar.grid(column=0, row=1, sticky='news')
 
         self.hframe = tkinter.Frame(self)
-        self.hframe.grid(column = 0, row = 2, sticky = "news")
+        self.hframe.grid(column=0, row=2, sticky='news')
         self.hframe.helpdisplay = ttk.Frame(self.hframe)
-        self.hframe.helpdisplay.pack(side = 'left', fill = 'both', expand = 'true')
+        self.hframe.helpdisplay.pack(side='left', fill='both', expand='true')
 
-        self.hframe.helpdisplay.helptext = tkinter.Text(self.hframe.helpdisplay, wrap='word')
-        self.hframe.helpdisplay.helptext.pack(side = 'top', fill = 'both', expand = 'true')
+        self.hframe.helpdisplay.helptext = tkinter.Text(
+            self.hframe.helpdisplay, wrap='word'
+        )
+        self.hframe.helpdisplay.helptext.pack(
+            side='top', fill='both', expand='true'
+        )
         # Add scrollbar to help window
         self.hframe.scrollbar = ttk.Scrollbar(self.hframe)
         self.hframe.scrollbar.pack(side='right', fill='y')
         # attach help window to scrollbar
-        self.hframe.helpdisplay.helptext.config(yscrollcommand = self.hframe.scrollbar.set)
-        self.hframe.scrollbar.config(command = self.hframe.helpdisplay.helptext.yview)
+        self.hframe.helpdisplay.helptext.config(
+            yscrollcommand=self.hframe.scrollbar.set
+        )
+        self.hframe.scrollbar.config(
+            command=self.hframe.helpdisplay.helptext.yview
+        )
 
         self.hframe.toc = ttk.Treeview(self.hframe, selectmode='browse')
         self.hframe.toc.bind('<<TreeviewSelect>>', self.toc_to_page)
         self.hframe.toc.bind('<<TreeviewOpen>>', self.toc_toggle)
         self.hframe.toc.bind('<<TreeviewClose>>', self.toc_toggle)
-        self.hframe.toc.tag_configure('title', font=('Helvetica', fontsize, 'bold italic'),
-                        foreground = 'brown', anchor = 'center')
-        self.hframe.toc.heading('#0', text = "Table of Contents")
+        self.hframe.toc.tag_configure(
+            'title',
+            font=('Helvetica', fontsize, 'bold italic'),
+            foreground='brown',
+            anchor='center',
+        )
+        self.hframe.toc.heading('#0', text='Table of Contents')
 
         self.bbar = ttk.Frame(self)
-        self.bbar.grid(column = 0, row = 3, sticky = "news")
-        self.bbar.close_button = ttk.Button(self.bbar, text='Close',
-		command=self.close, style = 'normal.TButton')
-        self.bbar.close_button.grid(column=0, row=0, padx = 5)
+        self.bbar.grid(column=0, row=3, sticky='news')
+        self.bbar.close_button = ttk.Button(
+            self.bbar, text='Close', command=self.close, style='normal.TButton'
+        )
+        self.bbar.close_button.grid(column=0, row=0, padx=5)
 
-        self.bbar.prev_button = ttk.Button(self.bbar, text='Prev',
-		command=self.prevpage, style = 'normal.TButton')
-        self.bbar.prev_button.grid(column=1, row=0, padx = 5)
+        self.bbar.prev_button = ttk.Button(
+            self.bbar,
+            text='Prev',
+            command=self.prevpage,
+            style='normal.TButton',
+        )
+        self.bbar.prev_button.grid(column=1, row=0, padx=5)
 
-        self.bbar.next_button = ttk.Button(self.bbar, text='Next',
-		command=self.nextpage, style = 'normal.TButton')
-        self.bbar.next_button.grid(column=2, row=0, padx = 5)
+        self.bbar.next_button = ttk.Button(
+            self.bbar,
+            text='Next',
+            command=self.nextpage,
+            style='normal.TButton',
+        )
+        self.bbar.next_button.grid(column=2, row=0, padx=5)
 
-        self.bbar.contents_button = ttk.Button(self.bbar, text='Table of Contents',
-		command=self.page_to_toc, style = 'normal.TButton')
-        self.bbar.contents_button.grid(column=3, row=0, padx = 5)
+        self.bbar.contents_button = ttk.Button(
+            self.bbar,
+            text='Table of Contents',
+            command=self.page_to_toc,
+            style='normal.TButton',
+        )
+        self.bbar.contents_button.grid(column=3, row=0, padx=5)
 
         self.rowconfigure(0, weight=0)
         self.rowconfigure(1, weight=0)
@@ -81,7 +114,7 @@ class HelpWindow(tkinter.Toplevel):
 
         # Help pages
         self.pages = []
-        self.pageno = -1		# No page
+        self.pageno = -1  # No page
         self.toggle = False
 
     def grid_configure(self, padx, pady):
@@ -91,8 +124,10 @@ class HelpWindow(tkinter.Toplevel):
         # remove contents
         if self.pageno >= 0 and self.pageno < len(self.pages):
             self.hframe.helpdisplay.helptext.delete('1.0', 'end')
-            self.hframe.helpdisplay.helptext.insert('end', self.pages[self.pageno]['text'])
-            self.helptitle.configure(text = self.pages[self.pageno]['title'])
+            self.hframe.helpdisplay.helptext.insert(
+                'end', self.pages[self.pageno]['text']
+            )
+            self.helptitle.configure(text=self.pages[self.pageno]['title'])
 
     def toc_toggle(self, event):
         self.toggle = True
@@ -118,9 +153,11 @@ class HelpWindow(tkinter.Toplevel):
         # Display a page after displaying the table of contents
         self.hframe.toc.pack_forget()
         self.hframe.scrollbar.pack_forget()
-        self.hframe.helpdisplay.pack(side='left', fill='both', expand = 'true')
+        self.hframe.helpdisplay.pack(side='left', fill='both', expand='true')
         self.hframe.scrollbar.pack(side='right', fill='y')
-        self.hframe.scrollbar.config(command = self.hframe.helpdisplay.helptext.yview)
+        self.hframe.scrollbar.config(
+            command=self.hframe.helpdisplay.helptext.yview
+        )
         # Enable Prev and Next buttons
         self.bbar.prev_button.configure(state='enabled')
         self.bbar.next_button.configure(state='enabled')
@@ -131,9 +168,9 @@ class HelpWindow(tkinter.Toplevel):
         # Display the table of contents after displaying a page
         self.hframe.scrollbar.pack_forget()
         self.hframe.helpdisplay.pack_forget()
-        self.hframe.toc.pack(side='left', fill='both', expand = 'true')
+        self.hframe.toc.pack(side='left', fill='both', expand='true')
         self.hframe.scrollbar.pack(side='right', fill='y')
-        self.hframe.scrollbar.config(command = self.hframe.toc.yview)
+        self.hframe.scrollbar.config(command=self.hframe.toc.yview)
         # Disable Prev and Next buttons
         self.bbar.prev_button.configure(state='disabled')
         self.bbar.next_button.configure(state='disabled')
@@ -145,10 +182,15 @@ class HelpWindow(tkinter.Toplevel):
         newdict['title'] = toc_text
         self.pages.append(newdict)
         newpageno = len(self.pages)
-        self.hframe.toc.insert('', 'end', text=str(newpageno) + '.  ' + toc_text,
-		tag='title', value = newpageno - 1)
+        self.hframe.toc.insert(
+            '',
+            'end',
+            text=str(newpageno) + '.  ' + toc_text,
+            tag='title',
+            value=newpageno - 1,
+        )
         if self.pageno < 0:
-            self.pageno = 0	# First page
+            self.pageno = 0  	# First page
 
     # Fill the help text from a file.  The format of the file is:
     # <page_num>
@@ -188,9 +230,14 @@ class HelpWindow(tkinter.Toplevel):
                         newdict['text'] = page_text
                         newdict['title'] = pageid + '.  ' + toc_text
                         try:
-                            self.hframe.toc.insert(parentid, 'end',
-					text=newdict['title'], tag='title',
-					value = newpageno - 1, iid = pageid)
+                            self.hframe.toc.insert(
+                                parentid,
+                                'end',
+                                text=newdict['title'],
+                                tag='title',
+                                value=newpageno - 1,
+                                iid=pageid,
+                            )
                         except:
                             print('Text helper error:  Line ' + line)
                     if newpagerex.match(line):
@@ -220,7 +267,7 @@ class HelpWindow(tkinter.Toplevel):
     def page(self, pagenum):
         # Go to indicated page
         if pagenum >= 0 and pagenum < len(self.pages):
-            self.pageno = pagenum 
+            self.pageno = pagenum
             self.redisplay()
 
     def close(self):

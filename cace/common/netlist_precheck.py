@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-#----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # netlist_precheck.py
-#----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 #
 # Do a pre-check on a schematic-captured netlist to see if it can
 # be made into a layout without generating errors due to devices that
 # cannot be physically realized.
 #
-#----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # Written by Tim Edwards
 # Efabless Corporation
 # December 28, 2016
 # Version 1.0
 # Revised December 19, 2023
-#----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 
 import os
 import re
@@ -22,23 +22,36 @@ import subprocess
 
 from .safe_eval import safe_eval
 
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
 # run_precheck
 #
 # This routine is called after the schematic-captured netlist
 # has been read and processed for the subcircuit information.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
 
-def run_precheck(subname, subpins, complist, pdkpath, library, debug=False, keep=False, logname=''):
+
+def run_precheck(
+    subname,
+    subpins,
+    complist,
+    pdkpath,
+    library,
+    debug=False,
+    keep=False,
+    logname='',
+):
     parmrex = re.compile('([^=]+)=([^=]+)', re.IGNORECASE)
-    exprrex = re.compile('\'([^\']+)\'', re.IGNORECASE)
+    exprrex = re.compile("'([^']+)'", re.IGNORECASE)
 
     logfile = sys.stdout
     if logname != '':
         try:
             logfile = open(logname, 'w')
         except:
-            print('Cannot open log file ' + logname + ' for writing.', file=sys.stderr)
+            print(
+                'Cannot open log file ' + logname + ' for writing.',
+                file=sys.stderr,
+            )
 
     # Write out a TCL script to generate and measure component layouts
     #
@@ -71,22 +84,51 @@ def run_precheck(subname, subpins, complist, pdkpath, library, debug=False, keep
                 devtype = device[1:]
 
             # devtype is assumed to exist in the library. If not, increment failures
-            print('set device [info commands ' + library + '::' + devtype + '_draw]', file=ofile)
+            print(
+                'set device [info commands '
+                + library
+                + '::'
+                + devtype
+                + '_draw]',
+                file=ofile,
+            )
             # on failure, check for a different library by looking at the namespaces
             print('if {$device == ""} {', file=ofile)
-            print('    set templib [lindex [namespace children] 0]', file=ofile)
-            print('    set device [info commands ${templib}::' + devtype + '_draw]', file=ofile)
+            print(
+                '    set templib [lindex [namespace children] 0]', file=ofile
+            )
+            print(
+                '    set device [info commands ${templib}::'
+                + devtype
+                + '_draw]',
+                file=ofile,
+            )
             print('    if {$device != ""} {', file=ofile)
-            print('        puts stdout "Found cell ' + devtype + ' in namespace ${templib}."', file=ofile)
+            print(
+                '        puts stdout "Found cell '
+                + devtype
+                + ' in namespace ${templib}."',
+                file=ofile,
+            )
             print('    }', file=ofile)
             print('}', file=ofile)
             # on failure, check if the cell can be read from a known directory in the path
             print('if {$device == ""} {', file=ofile)
             print('    foreach dir [path search] {', file=ofile)
-            print('        if {![catch {set device [glob ${dir}/' + devtype + '.mag]}]} {break}', file=ofile)
+            print(
+                '        if {![catch {set device [glob ${dir}/'
+                + devtype
+                + '.mag]}]} {break}',
+                file=ofile,
+            )
             print('    }', file=ofile)
             print('    if {$device != ""} {', file=ofile)
-            print('        puts stdout "Found cell ' + devtype + ' in search path ${dir}."', file=ofile)
+            print(
+                '        puts stdout "Found cell '
+                + devtype
+                + ' in search path ${dir}."',
+                file=ofile,
+            )
             print('    }', file=ofile)
             print('}', file=ofile)
 
@@ -96,19 +138,24 @@ def run_precheck(subname, subpins, complist, pdkpath, library, debug=False, keep
         print('quit -noprompt', file=ofile)
 
     # Construct the full path to the magicrc file
-    magicopts = ['magic', '-dnull', '-noconsole'];
+    magicopts = ['magic', '-dnull', '-noconsole']
     if pdkpath != '':
         pdkname = os.path.split(pdkpath)[1]
-        magicrc = os.path.join(pdkpath, 'libs.tech', 'magic', pdkname + '.magicrc')
+        magicrc = os.path.join(
+            pdkpath, 'libs.tech', 'magic', pdkname + '.magicrc'
+        )
     magicopts.append('-rcfile')
     magicopts.append(magicrc)
 
     # Run the script now, and wait for it to finish
     faillines = []
     with open('precheck_script.tcl', 'r') as ifile:
-        with subprocess.Popen(magicopts,
-			stdout=subprocess.PIPE, stdin=ifile,
-			universal_newlines = True) as script:
+        with subprocess.Popen(
+            magicopts,
+            stdout=subprocess.PIPE,
+            stdin=ifile,
+            universal_newlines=True,
+        ) as script:
             failline = re.compile('.*\[ \t\]*\[([0-9]+)\[ \t\]*')
             output = script.communicate()[0]
             for line in output.splitlines():
@@ -129,7 +176,8 @@ def run_precheck(subname, subpins, complist, pdkpath, library, debug=False, keep
 
     return faillines
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # netlist_precheck
 #
 # Main routine for netlist_precheck.py if called from python
@@ -139,9 +187,12 @@ def run_precheck(subname, subpins, complist, pdkpath, library, debug=False, keep
 # retain all generated files.
 # If logfile is an empty string, then write results to stdout,
 # otherwise write results to the named log file.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
 
-def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfile=''):
+
+def netlist_precheck(
+    inputfile, pdkpath, library, debug=False, keep=False, logfile=''
+):
     # Read SPICE netlist
 
     with open(inputfile, 'r') as ifile:
@@ -163,7 +214,7 @@ def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfi
     spicelines = spicetext.replace('\n+', ' ').splitlines()
 
     insub = False
-    subname = ""
+    subname = ''
     subpins = []
     complist = []
     subdict = {}
@@ -210,7 +261,7 @@ def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfi
                     rmatch = parmrex.match(token)
                     if rmatch:
                         parmname = rmatch.group(1).upper()
-                        if parmname.upper() == "M":
+                        if parmname.upper() == 'M':
                             parmval = rmatch.group(2)
                             try:
                                 mult = int(parmval)
@@ -220,7 +271,7 @@ def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfi
                         # Last one that isn't a parameter will be kept
                         # (only applies to subcircuit instances)
                         devtype = token
-                if device == "x" and devtype in subdict:
+                if device == 'x' and devtype in subdict:
                     expanded = True
                     # Replace this component by its subcell expansion
                     for i in range(mult):
@@ -237,18 +288,37 @@ def netlist_precheck(inputfile, pdkpath, library, debug=False, keep=False, logfi
         print('Input filename is ' + toppath)
 
     if topname not in pindict:
-        print('Precheck error:  Top cell name ' + topname + ' not in pin dictionary!')
+        print(
+            'Precheck error:  Top cell name '
+            + topname
+            + ' not in pin dictionary!'
+        )
         return -1
 
     if topname not in subdict:
-        print('Precheck error:  Top cell name ' + topname + ' not in subcircuit dictionary!')
+        print(
+            'Precheck error:  Top cell name '
+            + topname
+            + ' not in subcircuit dictionary!'
+        )
         return -1
 
-    return run_precheck(topname, pindict[topname], subdict[topname], pdkpath, library, debug, keep, logfile)
+    return run_precheck(
+        topname,
+        pindict[topname],
+        subdict[topname],
+        pdkpath,
+        library,
+        debug,
+        keep,
+        logfile,
+    )
 
-#--------------------------------------------------------------------
+
+# --------------------------------------------------------------------
 # Print usage information
-#--------------------------------------------------------------------
+# --------------------------------------------------------------------
+
 
 def usage():
     print('')
@@ -261,9 +331,10 @@ def usage():
     print('      -log=<logfile>')
     print('')
 
-#--------------------------------------------------------------------
+
+# --------------------------------------------------------------------
 # Main routine for layout_precheck.py if called from the command line
-#--------------------------------------------------------------------
+# --------------------------------------------------------------------
 
 if __name__ == '__main__':
 
@@ -313,4 +384,3 @@ if __name__ == '__main__':
             sys.exit(1)
 
     netlist_precheck(inputfile, pdkpath, library, debug, keep, logfile)
-

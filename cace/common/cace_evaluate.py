@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 # cace_evaluate.py
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 #
 # A script that takes a list of one or more physical parameters to measure
 # and takes appropriate action to produce a measurement, and a set of
 # scripts that implement such functions using internal routines calling
 # standard open-source EDA tools.
 #
-#--------------------------------------------------------------------------
+# --------------------------------------------------------------------------
 
 import os
 import sys
@@ -30,20 +30,25 @@ from .cace_collate import incompleteresult
 from .layout_estimate import *
 from .netlist_precheck import *
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Run magic to querty the PDKNAMESPACE variable, which should be set
 # by the Tcl device generator script.
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def get_magic_namespace(dsheet):
 
     rcfilename = get_magic_rcfile(dsheet)
 
-    mproc = subprocess.Popen(['magic', '-dnull', '-noconsole', '-rcfile',
-		rcfilename],
-		stdin = subprocess.PIPE, stdout = subprocess.PIPE,
-		universal_newlines = True)
-    mproc.stdin.write('if {[catch {puts namespace=$PDKNAMESPACE}]} {puts namespace=$PDKPATH}\n')
+    mproc = subprocess.Popen(
+        ['magic', '-dnull', '-noconsole', '-rcfile', rcfilename],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    mproc.stdin.write(
+        'if {[catch {puts namespace=$PDKNAMESPACE}]} {puts namespace=$PDKPATH}\n'
+    )
     outlines = mproc.communicate()[0]
     retcode = mproc.returncode
     if retcode != 0:
@@ -59,11 +64,13 @@ def get_magic_namespace(dsheet):
 
     return dsheet['PDK']
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Run magic to get the bounds of the design geometry
 #
 # Return triplet of area, width, and height
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def run_magic_geometry(dsheet, layout_filename):
     is_mag = True if os.path.splitext(layout_filename)[1] == '.mag' else False
@@ -77,10 +84,13 @@ def run_magic_geometry(dsheet, layout_filename):
 
     rcfilename = get_magic_rcfile(dsheet)
 
-    areaproc = subprocess.Popen(['magic', '-dnull', '-noconsole', '-rcfile',
-		rcfilename],
-		stdin = subprocess.PIPE, stdout = subprocess.PIPE,
-		cwd = layout_path, universal_newlines = True)
+    areaproc = subprocess.Popen(
+        ['magic', '-dnull', '-noconsole', '-rcfile', rcfilename],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        cwd=layout_path,
+        universal_newlines=True,
+    )
     if is_mag:
         areaproc.stdin.write('load ' + layout_cellname + '\n')
     else:
@@ -95,7 +105,7 @@ def run_magic_geometry(dsheet, layout_filename):
         areaproc.stdin.write('      }\n')
         areaproc.stdin.write('   }\n')
         areaproc.stdin.write('}\n')
-        
+
     areaproc.stdin.write('select top cell\n')
     areaproc.stdin.write('box\n')
     areaproc.stdin.write('quit -noprompt\n')
@@ -106,7 +116,9 @@ def run_magic_geometry(dsheet, layout_filename):
         print('Error:  Magic exited with non-zero return code!')
         return 0, 0, 0
 
-    magrex = re.compile('microns:[ \t]+([0-9.]+)[ \t]*x[ \t]*([0-9.]+)[ \t]+.*[ \t]+([0-9.]+)[ \t]*$')
+    magrex = re.compile(
+        'microns:[ \t]+([0-9.]+)[ \t]*x[ \t]*([0-9.]+)[ \t]+.*[ \t]+([0-9.]+)[ \t]*$'
+    )
     for line in outlines.splitlines():
         lmatch = magrex.match(line)
         if lmatch:
@@ -116,7 +128,8 @@ def run_magic_geometry(dsheet, layout_filename):
 
     return areaval, widthval, heightval
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Determine bounds of the design geometry
 #
 # "cond" should be one of "area", "width", or "height", and determines
@@ -128,7 +141,8 @@ def run_magic_geometry(dsheet, layout_filename):
 # routine.
 #
 # In case of any failure, the return value is None.
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def cace_area(datasheet, param, cond, toolargs=None):
     areaest = 0
@@ -168,15 +182,21 @@ def cace_area(datasheet, param, cond, toolargs=None):
     rcfile = get_magic_rcfile(datasheet)
 
     if source == 'schematic':
-        print('Source netlist is schematic:  Physical parameters are estimated.')
+        print(
+            'Source netlist is schematic:  Physical parameters are estimated.'
+        )
         netlist_path = os.path.join(paths['netlist'], 'schematic')
         netlist_filename = os.path.join(netlist_path, projname + '.spice')
         namespace = get_magic_namespace(datasheet)
-        layoutest = layout_estimate(netlist_filename, namespace, rcfile, debug, keep)
+        layoutest = layout_estimate(
+            netlist_filename, namespace, rcfile, debug, keep
+        )
         try:
             areaest = float(layoutest)
         except:
-            print('Layout estimate returned non-numeric result ' + str(areaest))
+            print(
+                'Layout estimate returned non-numeric result ' + str(areaest)
+            )
             areaest = 0
 
         # Assume a cell layout with a golden ratio aspect.  This is of course
@@ -191,7 +211,9 @@ def cace_area(datasheet, param, cond, toolargs=None):
             if 'maximum' in spec:
                 spectype = 'maximum'
                 maxrec = spec['maximum']
-                maxresult = find_limits(spectype, maxrec, [areaest], units, debug)
+                maxresult = find_limits(
+                    spectype, maxrec, [areaest], units, debug
+                )
                 if maxresult[1] == 'fail':
                     score = 'fail'
                 resultdict['maximum'] = maxresult
@@ -229,16 +251,20 @@ def cace_area(datasheet, param, cond, toolargs=None):
             if 'maximum' in spec:
                 spectype = 'maximum'
                 maxrec = spec['maximum']
-                maxresult = find_limits(spectype, maxrec, resultlist, units, debug)
+                maxresult = find_limits(
+                    spectype, maxrec, resultlist, units, debug
+                )
                 if maxresult[1] == 'fail':
                     score = 'fail'
                 resultdict['maximum'] = maxresult
 
     return resultdict
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Run magic to get a DRC report
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def cace_drc(datasheet, param, toolargs=None):
 
@@ -292,10 +318,14 @@ def cace_drc(datasheet, param, toolargs=None):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    drcproc = subprocess.Popen(['magic', '-dnull', '-noconsole', '-rcfile',
-		rcfile],
-		stdin = subprocess.PIPE, stdout = subprocess.PIPE,
-		env = newenv, cwd = layout_path, universal_newlines = True)
+    drcproc = subprocess.Popen(
+        ['magic', '-dnull', '-noconsole', '-rcfile', rcfile],
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        env=newenv,
+        cwd=layout_path,
+        universal_newlines=True,
+    )
 
     if is_mag:
         drcproc.stdin.write('load ' + layout_cellname + '\n')
@@ -311,14 +341,14 @@ def cace_drc(datasheet, param, toolargs=None):
         drcproc.stdin.write('      }\n')
         drcproc.stdin.write('   }\n')
         drcproc.stdin.write('}\n')
-        
-    drcproc.stdin.write("drc on\n")
-    drcproc.stdin.write("catch {drc style drc(full)}\n")
-    drcproc.stdin.write("select top cell\n")
-    drcproc.stdin.write("drc check\n")
-    drcproc.stdin.write("drc catchup\n")
-    drcproc.stdin.write("set dcount [drc list count total]\n")
-    drcproc.stdin.write("puts stdout \"drc = $dcount\"\n")
+
+    drcproc.stdin.write('drc on\n')
+    drcproc.stdin.write('catch {drc style drc(full)}\n')
+    drcproc.stdin.write('select top cell\n')
+    drcproc.stdin.write('drc check\n')
+    drcproc.stdin.write('drc catchup\n')
+    drcproc.stdin.write('set dcount [drc list count total]\n')
+    drcproc.stdin.write('puts stdout "drc = $dcount"\n')
     outlines = drcproc.communicate()[0]
     retcode = drcproc.returncode
 
@@ -342,17 +372,21 @@ def cace_drc(datasheet, param, toolargs=None):
             if 'maximum' in spec:
                 spectype = 'maximum'
                 maxrec = spec['maximum']
-                maxresult = find_limits(spectype, maxrec, [drccount], '', debug)
+                maxresult = find_limits(
+                    spectype, maxrec, [drccount], '', debug
+                )
                 if maxresult[1] == 'fail':
                     score = 'fail'
                 resultdict['maximum'] = maxresult
 
     return resultdict
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Run the invalid device check on a schematic.  This is used in place of
 # LVS when only a schematic exists.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def run_invalid_device_check(datasheet):
 
@@ -382,12 +416,16 @@ def run_invalid_device_check(datasheet):
     if not schem_netlist:
         return -1
     else:
-        faillines = netlist_precheck(schem_netlist, pdk_path, namespace, debug, keep)
+        faillines = netlist_precheck(
+            schem_netlist, pdk_path, namespace, debug, keep
+        )
         return len(faillines)
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Run netgen to get an LVS result
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def run_and_analyze_lvs(datasheet, toolargs=None):
 
@@ -452,7 +490,9 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
     # not, then assume it is the top level.
 
     is_subckt = False
-    subrex = re.compile('^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE)
+    subrex = re.compile(
+        '^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
+    )
     with open(layout_netlist) as ifile:
         spitext = ifile.read()
 
@@ -512,9 +552,13 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    with subprocess.Popen(lvsargs, cwd=root_path,
-		stdout=subprocess.PIPE, stderr=subprocess.PIPE,
-		env=newenv) as lvsproc:
+    with subprocess.Popen(
+        lvsargs,
+        cwd=root_path,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        env=newenv,
+    ) as lvsproc:
         pgroup = os.getpgid(lvsproc.pid)
         lvsout, lvserr = lvsproc.communicate()
         retcode = lvsproc.returncode
@@ -534,13 +578,15 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
                 if debug:
                     print(line, end='')
                 try:
-                   pline = line.decode('ascii')
-                   if 'Logging to file' in pline:
-                       outfilepath = pline.split()[3].strip('"')
-                       jsonfilepath = os.path.splitext(outfilepath)[0] + '.json'
+                    pline = line.decode('ascii')
+                    if 'Logging to file' in pline:
+                        outfilepath = pline.split()[3].strip('"')
+                        jsonfilepath = (
+                            os.path.splitext(outfilepath)[0] + '.json'
+                        )
                 except:
-                   # Might happen if non-ASCII characters are output from netgen
-                   print('Unexpected output from netgen: ' + pline)
+                    # Might happen if non-ASCII characters are output from netgen
+                    print('Unexpected output from netgen: ' + pline)
 
     if not os.path.isfile(jsonfilepath):
         print('Error:  No output JSON file generated by netgen!')
@@ -570,8 +616,12 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
         if topcell:
             if 'devices' in cellrec:
                 devices = cellrec['devices']
-                devlist = [val for pair in zip(devices[0], devices[1]) for val in pair]
-                devpair = list(devlist[p:p + 2] for p in range(0, len(devlist), 2))
+                devlist = [
+                    val for pair in zip(devices[0], devices[1]) for val in pair
+                ]
+                devpair = list(
+                    devlist[p : p + 2] for p in range(0, len(devlist), 2)
+                )
                 for dev in devpair:
                     c1dev = dev[0]
                     c2dev = dev[1]
@@ -593,8 +643,12 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
 
             if 'pins' in cellrec:
                 pins = cellrec['pins']
-                pinlist = [val for pair in zip(pins[0], pins[1]) for val in pair]
-                pinpair = list(pinlist[p:p + 2] for p in range(0, len(pinlist), 2))
+                pinlist = [
+                    val for pair in zip(pins[0], pins[1]) for val in pair
+                ]
+                pinpair = list(
+                    pinlist[p : p + 2] for p in range(0, len(pinlist), 2)
+                )
                 for pin in pinpair:
                     if pin[0].lower() != pin[1].lower():
                         failures += 1
@@ -611,9 +665,11 @@ def run_and_analyze_lvs(datasheet, toolargs=None):
 
     return failures
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Run netgen to get an LVS result
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def cace_lvs(datasheet, param, toolargs=None):
 
@@ -630,13 +686,17 @@ def cace_lvs(datasheet, param, toolargs=None):
         failures = run_and_analyze_lvs(datasheet, toolargs)
 
     if isinstance(failures, list):
-        print('Unknown result from LVS or device check analysis:' + str(failures))
+        print(
+            'Unknown result from LVS or device check analysis:' + str(failures)
+        )
         failures = 'failure'
     elif isinstance(failures, str) and failures != 'failure':
         try:
             failures = int(failures)
         except:
-            print('Unknown result from LVS or device check analysis:' + failures)
+            print(
+                'Unknown result from LVS or device check analysis:' + failures
+            )
             failures = 'failure'
 
     if failures == 'failure':
@@ -661,12 +721,14 @@ def cace_lvs(datasheet, param, toolargs=None):
 
     return resultdict
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
 # Main entrypoint of cace_evaluate
 #
 # "datasheet" is the CACE characterization dataset.
 # "param" is the dictionary for a single physical parameter.
-#---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
 
 def cace_evaluate(datasheet, param):
 
@@ -722,7 +784,11 @@ def cace_evaluate(datasheet, param):
     elif tool == 'cace_lvs':
         resultdict = cace_lvs(datasheet, param, toolargs)
     else:
-        print('Error:  Unknown evaluation procedure ' + tool + ';  not evaluating.')
+        print(
+            'Error:  Unknown evaluation procedure '
+            + tool
+            + ';  not evaluating.'
+        )
         return param
 
     resultdict['name'] = runtime_options['netlist_source']
@@ -730,4 +796,5 @@ def cace_evaluate(datasheet, param):
 
     return param
 
-#---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------

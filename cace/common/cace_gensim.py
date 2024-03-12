@@ -10,10 +10,10 @@
 # Note:  Unlike the former version of this script, the simulations are
 # done independently by cace_launch., which is not invoked from
 # cace_gensim.  cace_gensim only generates the set of simulation netlists.
-# 
+#
 # There is no command line usage of cace_gensim.py.  It is called from
 # either cace.py (command line) or cace_gui.py (GUI)
-# 
+#
 
 import os
 import sys
@@ -31,19 +31,20 @@ from .cace_write import *
 from .cace_regenerate import get_pdk_root
 from .safe_eval import safe_eval
 
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
 # Read the indicated file, find the .subckt line, and copy out the
 # pin names and DUT name.  Complain if pin names don't match pin names
 # in the datasheet.
 # NOTE:  There may be more than one subcircuit in the netlist, so
 # insist upon the actual DUT (pname)
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def construct_dut_from_path(pname, pathname, pinlist):
 
     subrex = re.compile('^[^\*]*[ \t]*.subckt[ \t]+(.*)$', re.IGNORECASE)
-    outline = ""
-    dutname = ""
+    outline = ''
+    dutname = ''
     if not os.path.isfile(pathname):
         print('Error:  No design netlist file ' + pathname + ' found.')
         return outline
@@ -58,7 +59,7 @@ def construct_dut_from_path(pname, pathname, pinlist):
     for line in dutlines:
         lmatch = subrex.match(line)
         if lmatch:
-            rest = lmatch.group(1) 
+            rest = lmatch.group(1)
             tokens = rest.split()
             dutname = tokens[0]
             if dutname == pname:
@@ -66,7 +67,11 @@ def construct_dut_from_path(pname, pathname, pinlist):
                 for pin in tokens[1:]:
                     upin = pin.upper()
                     try:
-                        pinmatch = next(item for item in pinlist if item['name'].upper() == upin)
+                        pinmatch = next(
+                            item
+                            for item in pinlist
+                            if item['name'].upper() == upin
+                        )
                     except StopIteration:
                         # Maybe this is not the DUT?
                         found = 0
@@ -77,89 +82,131 @@ def construct_dut_from_path(pname, pathname, pinlist):
                         found += 1
                 break
 
-    if found == 0 and dutname == "":
+    if found == 0 and dutname == '':
         print('File ' + pathname + ' does not contain any subcircuits!')
-        raise SyntaxError('File ' + pathname + ' does not contain any subcircuits!')
+        raise SyntaxError(
+            'File ' + pathname + ' does not contain any subcircuits!'
+        )
     elif found == 0:
-        if dutname != pname: 
-            print('File ' + pathname + ' does not have a subcircuit named ' + pname + '!')
-            raise SyntaxError('File ' + pathname + ' does not have a subcircuit named ' + pname + '!')
+        if dutname != pname:
+            print(
+                'File '
+                + pathname
+                + ' does not have a subcircuit named '
+                + pname
+                + '!'
+            )
+            raise SyntaxError(
+                'File '
+                + pathname
+                + ' does not have a subcircuit named '
+                + pname
+                + '!'
+            )
         else:
             print('Pins in schematic: ' + str(tokens[1:]))
             print('Pins in datasheet: ', end='')
             for pin in pinlist:
                 print(pin['name'] + ' ', end='')
             print('')
-            print('File ' + pathname + ' subcircuit ' + pname + ' does not have expected pins!')
-            raise SyntaxError('File ' + pathname + ' subcircuit ' + pname + ' does not have expected pins!')
+            print(
+                'File '
+                + pathname
+                + ' subcircuit '
+                + pname
+                + ' does not have expected pins!'
+            )
+            raise SyntaxError(
+                'File '
+                + pathname
+                + ' subcircuit '
+                + pname
+                + ' does not have expected pins!'
+            )
     elif found != len(pinlist):
-        print('File ' + pathname + ' does not contain the project DUT ' + pname)
+        print(
+            'File ' + pathname + ' does not contain the project DUT ' + pname
+        )
         print('or not all pins of the DUT were found.')
         print('Pinlist is : ', end='')
         for pinrec in pinlist:
             print(pinrec['name'] + ' ', end='')
         print('')
-         
+
         print('Length of pinlist is ' + str(len(pinlist)))
         print('Number of pins found in subcircuit call is ' + str(found))
-        raise SyntaxError('File ' + pathname + ' does not contain the project DUT!')
+        raise SyntaxError(
+            'File ' + pathname + ' does not contain the project DUT!'
+        )
     else:
         outline = outline + dutname + '\n'
     return outline
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # floating-point linear numeric sequence generator, to be used with
 # condition generator
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def linseq(condition, unit, start, stop, step):
     a = numeric(start)
     e = numeric(stop)
     s = numeric(step)
-    while (a < e + s):
-        if (a > e):
+    while a < e + s:
+        if a > e:
             yield (condition, unit, stop)
         else:
             yield (condition, unit, str(a))
         a = a + s
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # floating-point logarithmic numeric sequence generator, to be used with
 # condition generator
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def logseq(condition, unit, start, stop, step):
     a = numeric(start)
     e = numeric(stop)
     s = numeric(step)
-    while (a < e * s):
-        if (a > e):
+    while a < e * s:
+        if a > e:
             yield (condition, unit, stop)
         else:
             yield (condition, unit, str(a))
         a = a * s
-    
-#-----------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------
 # binary (integer) numeric sequence generators, to be used with
 # condition generator
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def bindigits(n, bits):
-    s = bin(n & int("1" * bits, 2))[2:]
-    return ("{0:0>%s}" % (bits)).format(s)
+    s = bin(n & int('1' * bits, 2))[2:]
+    return ('{0:0>%s}' % (bits)).format(s)
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # compute the 2's compliment of integer value val
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def twos_comp(val, bits):
-    if (val & (1 << (bits - 1))) != 0: # if sign bit is set e.g., 8bit: 128-255
+    if (
+        val & (1 << (bits - 1))
+    ) != 0:   # if sign bit is set e.g., 8bit: 128-255
         val = val - (1 << bits)        # compute negative value
     return val                         # return positive value as is
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Binary sequence counter (used for linear stepping of binary vectors)
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def bcount(condition, unit, start, stop, step):
     blen = len(start)
@@ -169,18 +216,20 @@ def bcount(condition, unit, start, stop, step):
         a = twos_comp(a, blen)
         e = twos_comp(e, blen)
     s = int(step)
-    while (a < e + s):
-        if (a > e):
+    while a < e + s:
+        if a > e:
             bstr = bindigits(e, blen)
         else:
             bstr = bindigits(a, blen)
         yield (condition, unit, bstr)
         a = a + s
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Binary sequence shifter (used for logarithmic stepping of binary
 # vectors)
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def bshift(condition, unit, start, stop, step):
     a = safe_eval('0b' + start)
@@ -189,19 +238,21 @@ def bshift(condition, unit, start, stop, step):
         a = twos_comp(a, blen)
         e = twos_comp(e, blen)
     s = int(step)
-    while (a < e * s):
-        if (a > e):
+    while a < e * s:
+        if a > e:
             bstr = bindigits(e, blen)
         else:
             bstr = bindigits(a, blen)
         yield (condition, unit, bstr)
         a = a * s
-    
-#-----------------------------------------------------------------------
+
+
+# -----------------------------------------------------------------------
 # Define a generator for conditions.  Given a condition (dictionary),
 # return (as a yield) each specified condition as a 3-tuple
 # (condition_type, value, unit)
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def condition_gen(cond):
     lcond = cond['name']
@@ -212,41 +263,52 @@ def condition_gen(cond):
 
     if 'enumerate' in cond:
         for i in cond['enumerate']:
-            yield(lcond, unit, i)
+            yield (lcond, unit, i)
     elif 'maximum' in cond and 'step' in cond and cond['step'] == 'linear':
         minimum = cond['minimum'] if 'minimum' in cond else 1
         if unit == "'b" or '[' in lcond:
-            yield from bcount(lcond, unit, minimum, cond['maximum'], cond['stepsize'])
+            yield from bcount(
+                lcond, unit, minimum, cond['maximum'], cond['stepsize']
+            )
         else:
             print('Diagnostic: yield from linseq')
-            yield from linseq(lcond, unit, minimum, cond['maximum'], cond['stepsize'])
-    elif 'maximum' in cond and 'step' in cond and cond['step'] == 'logarithmic':
+            yield from linseq(
+                lcond, unit, minimum, cond['maximum'], cond['stepsize']
+            )
+    elif (
+        'maximum' in cond and 'step' in cond and cond['step'] == 'logarithmic'
+    ):
         minimum = cond['minimum'] if 'minimum' in cond else 1
         if unit == "'b" or '[' in lcond:
-            yield from bshift(lcond, unit, minimum, cond['maximum'], cond['stepsize'])
+            yield from bshift(
+                lcond, unit, minimum, cond['maximum'], cond['stepsize']
+            )
         else:
-            yield from logseq(lcond, unit, minimum, cond['maximum'], cond['stepsize'])
+            yield from logseq(
+                lcond, unit, minimum, cond['maximum'], cond['stepsize']
+            )
     elif 'minimum' in cond and 'maximum' in cond and 'typical' in cond:
-        yield(lcond, unit, cond['minimum'])
-        yield(lcond, unit, cond['typical'])
-        yield(lcond, unit, cond['maximum'])
+        yield (lcond, unit, cond['minimum'])
+        yield (lcond, unit, cond['typical'])
+        yield (lcond, unit, cond['maximum'])
     elif 'minimum' in cond and 'maximum' in cond:
-        yield(lcond, unit, cond['minimum'])
-        yield(lcond, unit, cond['maximum'])
+        yield (lcond, unit, cond['minimum'])
+        yield (lcond, unit, cond['maximum'])
     elif 'minimum' in cond and 'typical' in cond:
-        yield(lcond, unit, cond['minimum'])
-        yield(lcond, unit, cond['typical'])
+        yield (lcond, unit, cond['minimum'])
+        yield (lcond, unit, cond['typical'])
     elif 'maximum' in cond and 'typical' in cond:
-        yield(lcond, unit, cond['typical'])
-        yield(lcond, unit, cond['maximum'])
+        yield (lcond, unit, cond['typical'])
+        yield (lcond, unit, cond['maximum'])
     elif 'minimum' in cond:
-        yield(lcond, unit, cond['minimum'])
+        yield (lcond, unit, cond['minimum'])
     elif 'maximum' in cond:
-        yield(lcond, unit, cond['maximum'])
+        yield (lcond, unit, cond['maximum'])
     elif 'typical' in cond:
-        yield(lcond, unit, cond['typical'])
+        yield (lcond, unit, cond['typical'])
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Find the maximum time to run a simulation.  This is the maximum of:
 # (1) maximum value, if parameter is RISETIME or FALLTIME, and (2) maximum
 # RISETIME or FALLTIME of any condition.
@@ -257,16 +319,17 @@ def condition_gen(cond):
 # NOTE:  This list is limited to rise and fall time values, as they are
 # the only time constraints known to cace_gensim at this time.  This list
 # will be extended as more simulation parameters are added.
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def findmaxtime(param, lcondlist):
     maxtime = 0.0
     try:
-       simunit = param['unit']
+        simunit = param['unit']
     except KeyError:
-       # Plots has no min/max/typ so doesn't require units.
-       if 'plot' in param:
-           return maxtime
+        # Plots has no min/max/typ so doesn't require units.
+        if 'plot' in param:
+            return maxtime
 
     maxval = 0.0
     found = False
@@ -305,33 +368,47 @@ def findmaxtime(param, lcondlist):
             condunit = cond['unit']
             maxval = 0.0
             if 'maximum' in cond:
-                maxval = numeric(spice_unit_convert([condunit, cond['maximum']], 'time'))
+                maxval = numeric(
+                    spice_unit_convert([condunit, cond['maximum']], 'time')
+                )
             elif 'enumerate' in cond:
-                maxval = numeric(spice_unit_convert([condunit, cond['enumerate'][-1]], 'time'))
+                maxval = numeric(
+                    spice_unit_convert(
+                        [condunit, cond['enumerate'][-1]], 'time'
+                    )
+                )
             elif 'typical' in cond:
-                maxval = numeric(spice_unit_convert([condunit, cond['typical']], 'time'))
+                maxval = numeric(
+                    spice_unit_convert([condunit, cond['typical']], 'time')
+                )
             elif 'minimum' in cond:
-                maxval = numeric(spice_unit_convert([condunit, cond['minimum']], 'time'))
+                maxval = numeric(
+                    spice_unit_convert([condunit, cond['minimum']], 'time')
+                )
             if maxval > maxtime:
                 maxtime = maxval
 
     return maxtime
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Picked up from StackOverflow:  Procedure to remove non-unique entries
 # in a list of lists (as always, thanks StackOverflow!).
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def uniquify(seq):
     seen = set()
     return [x for x in seq if str(x) not in seen and not seen.add(str(x))]
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Replace the substitution token {INCLUDE_DUT} with the contents of the
 # DUT subcircuit netlist file.  "functional" is a list of IP block names
 # that are to be searched for in .include lines in the netlist and
 # replaced with functional view equivalents (if such exist).
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def inline_dut(filename, functional, rootpath, ofile):
 
@@ -339,7 +416,9 @@ def inline_dut(filename, functional, rootpath, ofile):
     comtrex = re.compile(r'^\*')
 
     # SPICE include statement
-    inclrex = re.compile(r'[ \t]*\.include[ \t]+["\']?([^"\' \t]+)["\']?', re.IGNORECASE)
+    inclrex = re.compile(
+        r'[ \t]*\.include[ \t]+["\']?([^"\' \t]+)["\']?', re.IGNORECASE
+    )
 
     # Node name with brackets
     braktrex = re.compile(r'([^ \t]+)\[([^ \t])\]', re.IGNORECASE)
@@ -387,7 +466,7 @@ def inline_dut(filename, functional, rootpath, ofile):
             else:
                 ipname = incname
             if ipname.upper() in functional:
-                # Search for functional view (depends on if this is a read-only IP or 
+                # Search for functional view (depends on if this is a read-only IP or
                 # read-write local subcircuit)
                 funcpath = None
                 ippath = ippathrex.match(incpath)
@@ -398,7 +477,16 @@ def inline_dut(filename, functional, rootpath, ofile):
                     spitype = ippath.group(4)
                     ipname3 = ippath.group(5)
                     ipnetlist = ippath.group(6)
-                    funcpath = userpath + '/design/ip/' + ipname2 + '/' + ipversion + '/spice-func/' + ipname + '.spice'
+                    funcpath = (
+                        userpath
+                        + '/design/ip/'
+                        + ipname2
+                        + '/'
+                        + ipversion
+                        + '/spice-func/'
+                        + ipname
+                        + '.spice'
+                    )
                 else:
                     locpath = locpathrex.match(incpath)
                     if locpath:
@@ -406,7 +494,14 @@ def inline_dut(filename, functional, rootpath, ofile):
                         ipname2 = locpath.group(2)
                         spitype = locpath.group(3)
                         ipnetlist = locpath.group(4)
-                        funcpath = userpath + '/design/' + ipname2 + '/spi/func/' + ipname + '.spice' 
+                        funcpath = (
+                            userpath
+                            + '/design/'
+                            + ipname2
+                            + '/spi/func/'
+                            + ipname
+                            + '.spice'
+                        )
                     else:
                         altpath = altpathrex.match(incpath)
                         if altpath:
@@ -415,8 +510,15 @@ def inline_dut(filename, functional, rootpath, ofile):
                             spitype = altpath.group(3)
                             ipname3 = altpath.group(4)
                             ipnetlist = altpath.group(5)
-                            funcpath = userpath + '/design/' + ipname2 + '/spi/func/' + ipname + '.spice' 
-                        
+                            funcpath = (
+                                userpath
+                                + '/design/'
+                                + ipname2
+                                + '/spi/func/'
+                                + ipname
+                                + '.spice'
+                            )
+
                 funcpath = os.path.expanduser(funcpath)
                 if funcpath and os.path.exists(funcpath):
                     print('Subsituting functional view for IP block ' + ipname)
@@ -425,12 +527,16 @@ def inline_dut(filename, functional, rootpath, ofile):
                     subsline = '.include ' + funcpath
                 elif funcpath:
                     print('Original netlist is ' + incpath)
-                    print('Functional view specified but no functional view found.')
+                    print(
+                        'Functional view specified but no functional view found.'
+                    )
                     print('Tried looking for ' + funcpath)
                     print('Retaining original view.')
                 else:
                     print('Original netlist is ' + incpath)
-                    print('Cannot make sense of netlist path to find functional view.')
+                    print(
+                        'Cannot make sense of netlist path to find functional view.'
+                    )
 
         # If include file name is in <lib>__<cell> format (from electric) and the
         # functional view is not, then find the subcircuit call and replace the
@@ -457,7 +563,16 @@ def inline_dut(filename, functional, rootpath, ofile):
             if lmatch:
                 testname = lmatch.group(1)
                 if testname.upper() in functional:
-                    subsline = 'X' + subinst + ' ' + ' '.join(pins) + ' ' + testname + ' ' + ' '.join(params)
+                    subsline = (
+                        'X'
+                        + subinst
+                        + ' '
+                        + ' '.join(pins)
+                        + ' '
+                        + testname
+                        + ' '
+                        + ' '.join(params)
+                    )
 
         # Remove any array brackets from node names in the top-level subcircuit,
         # because they interfere with the array notation used by XSPICE which may
@@ -475,14 +590,16 @@ def inline_dut(filename, functional, rootpath, ofile):
 
     ofile.write('\n')
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Read a template file and record all of the variable names that will
 # be substituted, so it is clear which local and global conditions
 # need to be enumerated.  Vectors are reduced to just the vector name.
 #
 # Returns a dictionary with keys corresponding to condition names;
 # the dictionary values are unused and just set to "True".
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def get_condition_names_used(testbenchpath, testbench):
 
@@ -525,22 +642,34 @@ def get_condition_names_used(testbenchpath, testbench):
 
     return condlist
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # Define how to write a simulation file by making substitutions into a
 # template schematic.
 #
-#	filename:  Root name of the simulatable output file
-#	paths:	   Dictionary of paths from the characterization file
-#	tool:	   Name of tool that uses the template (e.g., "ngspice")
-#	template:  Name of the template file to be substituted
-#	dutpath:   Path and filename of the design netlist
-#	simvals:   Complete list of conditions to be enumerated
-#	maxtime:   Value to use for {Tmax} substitution
-#	schemline: DUT pin list from schematic, for ordering
-#	pdkname:   Name of the PDK pulled from the datasheet
-#-----------------------------------------------------------------------
+# 	filename:  Root name of the simulatable output file
+# 	paths:	   Dictionary of paths from the characterization file
+# 	tool:	   Name of tool that uses the template (e.g., "ngspice")
+# 	template:  Name of the template file to be substituted
+# 	dutpath:   Path and filename of the design netlist
+# 	simvals:   Complete list of conditions to be enumerated
+# 	maxtime:   Value to use for {Tmax} substitution
+# 	schemline: DUT pin list from schematic, for ordering
+# 	pdkname:   Name of the PDK pulled from the datasheet
+# -----------------------------------------------------------------------
 
-def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdkname, debug):
+
+def substitute(
+    filename,
+    paths,
+    tool,
+    template,
+    dutpath,
+    simvals,
+    schemline,
+    pdkname,
+    debug,
+):
     """Simulation derived by substitution into template schematic"""
 
     # Regular expressions
@@ -611,13 +740,15 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                 # 'FUNCTIONAL' is a reserved name so don't throw an error.
                 continue
             try:
-                entry = next(item for item in sweeps if item['name'] == condition)
+                entry = next(
+                    item for item in sweeps if item['name'] == condition
+                )
             except (StopIteration, KeyError):
                 if debug:
                     print('New sweeps entry ' + condition + ' found.')
                     # print('Line = ' + line)
                     # print('Substitution list = ' + str(sublist))
-                entry = {'name':condition}
+                entry = {'name': condition}
                 sweeps.append(entry)
 
                 # Find each entry in simvals with the same condition.
@@ -627,7 +758,9 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                 units = ''
                 for simval in simvals:
                     try:
-                        simrec = next(item for item in simval if item[0] == condition)
+                        simrec = next(
+                            item for item in simval if item[0] == condition
+                        )
                     except StopIteration:
                         print('No condition = ' + condition + ' in record:\n')
                         ptext = str(simval) + '\n'
@@ -640,7 +773,11 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                 # Remove non-unique entries from lvals
                 lvals = list(set(lvals))
                 if not lvals:
-                    print('CACE gensim error:  No substitution for "' + condition + '"')
+                    print(
+                        'CACE gensim error:  No substitution for "'
+                        + condition
+                        + '"'
+                    )
                     continue
 
                 # Now parse lvals for minimum/maximum
@@ -654,7 +791,7 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                     entry['steps'] = str(numvals)
                     entry['stepsize'] = str((maxval - minval) / (numvals - 1))
                 else:
-                    entry['steps'] = "1"
+                    entry['steps'] = '1'
                     entry['stepsize'] = str(minval)
 
     # Remove non-unique entries from simvals
@@ -694,9 +831,15 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                         sweeptype = sweeprec.group(2)
                         condition = sweeprec.group(1)
 
-                        entry = next(item for item in sweeps if item['name'] == condition)
+                        entry = next(
+                            item
+                            for item in sweeps
+                            if item['name'] == condition
+                        )
                         if 'unit' in entry:
-                            uval = spice_unit_convert((entry['unit'], entry[sweeptype]))
+                            uval = spice_unit_convert(
+                                (entry['unit'], entry[sweeptype])
+                            )
                             repl = str(uval)
                     else:
                         cond = condex.match(vpattern)
@@ -721,9 +864,15 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                         pinidx = int(lmatch.group(2))
                                         vcondition = lmatch.group(1)
                                         vtype = 3
-                                
+
                             try:
-                                 entry = next((item for item in simval if item[0] == condition))
+                                entry = next(
+                                    (
+                                        item
+                                        for item in simval
+                                        if item[0] == condition
+                                    )
+                                )
                             except (StopIteration, KeyError):
                                 # check against known keys that are not conditions
                                 if condition == 'N':
@@ -741,8 +890,15 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                     if len(functional) == 0:
                                         repl = '.include ' + dutpath + '\n'
                                     else:
-                                        inline_dut(dutpath, functional, rootpath, ofile)
-                                        repl = '** End of in-line DUT subcircuit'
+                                        inline_dut(
+                                            dutpath,
+                                            functional,
+                                            rootpath,
+                                            ofile,
+                                        )
+                                        repl = (
+                                            '** End of in-line DUT subcircuit'
+                                        )
                                 elif condition == 'DUT_call':
                                     repl = schemline
                                 elif condition == 'DUT_name':
@@ -753,7 +909,9 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                 elif condition == 'simpath':
                                     repl = simfilepath
                                 elif condition == 'random':
-                                    repl = str(int(time.time() * 1000) & 0x7fffffff)
+                                    repl = str(
+                                        int(time.time() * 1000) & 0x7FFFFFFF
+                                    )
                                 # Stack math operators.  Perform specified math
                                 # operation on the last two values and replace.
                                 #
@@ -762,93 +920,207 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                 elif condition == '+':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     if len(ltok) >= 2:
                                         ntok = ltok[:-2]
-                                        ntok.append(str(numeric(ltok[-2]) + numeric(ltok[-1])))
-                                        subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                        ntok.append(
+                                            str(
+                                                numeric(ltok[-2])
+                                                + numeric(ltok[-1])
+                                            )
+                                        )
+                                        subsline = (
+                                            ' '.join(ntok).replace(' = ', '=')
+                                            + line[patmatch.end() :]
+                                        )
                                     else:
-                                        print('CACE gensim: substitution error in "' + subsline + '"')
+                                        print(
+                                            'CACE gensim: substitution error in "'
+                                            + subsline
+                                            + '"'
+                                        )
                                     repl = ''
                                     no_repl_ok = True
                                 elif condition == '-':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     if len(ltok) >= 2:
                                         ntok = ltok[:-2]
-                                        ntok.append(str(numeric(ltok[-2]) - numeric(ltok[-1])))
-                                        subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                        ntok.append(
+                                            str(
+                                                numeric(ltok[-2])
+                                                - numeric(ltok[-1])
+                                            )
+                                        )
+                                        subsline = (
+                                            ' '.join(ntok).replace(' = ', '=')
+                                            + line[patmatch.end() :]
+                                        )
                                     else:
-                                        print('CACE gensim: substitution error in "' + subsline + '"')
+                                        print(
+                                            'CACE gensim: substitution error in "'
+                                            + subsline
+                                            + '"'
+                                        )
                                     repl = ''
                                     no_repl_ok = True
                                 elif condition == '*':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     if len(ltok) >= 2:
                                         ntok = ltok[:-2]
-                                        ntok.append(str(numeric(ltok[-2]) * numeric(ltok[-1])))
-                                        subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                        ntok.append(
+                                            str(
+                                                numeric(ltok[-2])
+                                                * numeric(ltok[-1])
+                                            )
+                                        )
+                                        subsline = (
+                                            ' '.join(ntok).replace(' = ', '=')
+                                            + line[patmatch.end() :]
+                                        )
                                     else:
-                                        print('CACE gensim: substitution error in "' + subsline + '"')
+                                        print(
+                                            'CACE gensim: substitution error in "'
+                                            + subsline
+                                            + '"'
+                                        )
                                     repl = ''
                                     no_repl_ok = True
                                 elif condition == '/':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     if len(ltok) >= 2:
                                         ntok = ltok[:-2]
-                                        ntok.append(str(numeric(ltok[-2]) / numeric(ltok[-1])))
-                                        subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                        ntok.append(
+                                            str(
+                                                numeric(ltok[-2])
+                                                / numeric(ltok[-1])
+                                            )
+                                        )
+                                        subsline = (
+                                            ' '.join(ntok).replace(' = ', '=')
+                                            + line[patmatch.end() :]
+                                        )
                                     else:
-                                        print('CACE gensim: substitution error in "' + subsline + '"')
+                                        print(
+                                            'CACE gensim: substitution error in "'
+                                            + subsline
+                                            + '"'
+                                        )
                                     repl = ''
                                     no_repl_ok = True
                                 elif condition == 'MAX':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     if len(ltok) >= 2:
                                         ntok = ltok[:-2]
-                                        ntok.append(str(max(numeric(ltok[-2]), numeric(ltok[-1]))))
-                                        subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                        ntok.append(
+                                            str(
+                                                max(
+                                                    numeric(ltok[-2]),
+                                                    numeric(ltok[-1]),
+                                                )
+                                            )
+                                        )
+                                        subsline = (
+                                            ' '.join(ntok).replace(' = ', '=')
+                                            + line[patmatch.end() :]
+                                        )
                                     else:
-                                        print('CACE gensim: substitution error in "' + subsline + '"')
+                                        print(
+                                            'CACE gensim: substitution error in "'
+                                            + subsline
+                                            + '"'
+                                        )
                                     repl = ''
                                     no_repl_ok = True
                                 elif condition == 'MIN':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     if len(ltok) >= 2:
                                         ntok = ltok[:-2]
-                                        ntok.append(str(min(numeric(ltok[-2]), numeric(ltok[-1]))))
-                                        subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                        ntok.append(
+                                            str(
+                                                min(
+                                                    numeric(ltok[-2]),
+                                                    numeric(ltok[-1]),
+                                                )
+                                            )
+                                        )
+                                        subsline = (
+                                            ' '.join(ntok).replace(' = ', '=')
+                                            + line[patmatch.end() :]
+                                        )
                                     else:
-                                        print('CACE gensim: substitution error in "' + subsline + '"')
+                                        print(
+                                            'CACE gensim: substitution error in "'
+                                            + subsline
+                                            + '"'
+                                        )
                                     repl = ''
                                     no_repl_ok = True
                                 # 'NEG' acts on only the previous value in the string.
                                 elif condition == 'NEG':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     ntok = ltok[:-1]
                                     ntok.append(str(-numeric(ltok[-1])))
-                                    subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                    subsline = (
+                                        ' '.join(ntok).replace(' = ', '=')
+                                        + line[patmatch.end() :]
+                                    )
                                     repl = ''
                                     no_repl_ok = True
                                 # 'INT' also acts on only the previous value in the string.
                                 elif condition == 'INT':
                                     smatch = varex.search(subsline)
                                     watchend = smatch.start()
-                                    ltok = subsline[0:watchend].replace('=', ' = ').split()
+                                    ltok = (
+                                        subsline[0:watchend]
+                                        .replace('=', ' = ')
+                                        .split()
+                                    )
                                     ntok = ltok[:-1]
                                     ntok.append(str(int(ltok[-1])))
-                                    subsline = ' '.join(ntok).replace(' = ', '=') + line[patmatch.end():]
+                                    subsline = (
+                                        ' '.join(ntok).replace(' = ', '=')
+                                        + line[patmatch.end() :]
+                                    )
                                     repl = ''
                                     no_repl_ok = True
                                 elif condition.find('PIN|') == 0:
@@ -859,15 +1131,19 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                         pinname = pinrec.group(1).upper()
                                         netname = pinrec.group(2).upper()
                                     else:
-                                        print('Error: Bad PIN variable ' + condition + ' in DUT!')
+                                        print(
+                                            'Error: Bad PIN variable '
+                                            + condition
+                                            + ' in DUT!'
+                                        )
                                         continue
                                     try:
-                                       idx = schempins.index(pinname)
+                                        idx = schempins.index(pinname)
                                     except ValueError:
-                                       repl = netname
+                                        repl = netname
                                     else:
-                                       repl = '{PIN}'
-                                       simpins[idx] = netname
+                                        repl = '{PIN}'
+                                        simpins[idx] = netname
                                 elif condition.find('FUNCTIONAL|') == 0:
                                     # Parse for {FUNCTIONAL|<ip_name>}
                                     # Add <ip_name> to "functional" array.
@@ -877,19 +1153,41 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                     funcrec = funcrex.match(condition)
                                     ipname = funcrec.group(1)
                                     functional.append(ipname.upper())
-                                    repl = '** Using functional view for ' + ipname
+                                    repl = (
+                                        '** Using functional view for '
+                                        + ipname
+                                    )
                                 else:
                                     if lmatch:
                                         try:
-                                            entry = next((item for item in simval if item[0].split('[')[0].split('<')[0] == vcondition))
+                                            entry = next(
+                                                (
+                                                    item
+                                                    for item in simval
+                                                    if item[0]
+                                                    .split('[')[0]
+                                                    .split('<')[0]
+                                                    == vcondition
+                                                )
+                                            )
                                         except:
                                             if vtype == 3:
                                                 for entry in simval:
-                                                    lmatch = vect3rex.match(entry[0])
+                                                    lmatch = vect3rex.match(
+                                                        entry[0]
+                                                    )
                                                     if lmatch:
-                                                        if lmatch.group(1) == vcondition:
-                                                            vlen = len(entry[2])
-                                                            uval = entry[2][(vlen - 1) - pinidx]
+                                                        if (
+                                                            lmatch.group(1)
+                                                            == vcondition
+                                                        ):
+                                                            vlen = len(
+                                                                entry[2]
+                                                            )
+                                                            uval = entry[2][
+                                                                (vlen - 1)
+                                                                - pinidx
+                                                            ]
                                                             repl = str(uval)
                                                             break
                                             else:
@@ -898,7 +1196,9 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                                         else:
                                             # Handle as vector bit slice (see below)
                                             vlen = len(entry[2])
-                                            uval = entry[2][(vlen - 1) - pinidx]
+                                            uval = entry[2][
+                                                (vlen - 1) - pinidx
+                                            ]
                                             repl = str(uval)
                                     # else if no match, subsline remains as-is.
 
@@ -922,7 +1222,11 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                         # Make the variable substitution
                         subsline = subsline.replace(pattern, repl)
                     elif not no_repl_ok:
-                        print('Warning: Variable ' + pattern + ' had no substitution')
+                        print(
+                            'Warning: Variable '
+                            + pattern
+                            + ' had no substitution'
+                        )
 
                 # Check if {PIN} are in line.  If so, order by index and
                 # rewrite pins in order
@@ -931,9 +1235,9 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
                         if simpins[i]:
                             subsline = subsline.replace('{PIN}', simpins[i], 1)
                         else:
-                            print("Error:  simpins is " + str(simpins) + '\n')
-                            print("        subsline is " + subsline + '\n')
-                            print("        i is " + str(i) + '\n')
+                            print('Error:  simpins is ' + str(simpins) + '\n')
+                            print('        subsline is ' + subsline + '\n')
+                            print('        i is ' + str(i) + '\n')
 
                 # Check for a verilog include file, and if any is found, copy it
                 # to the target simulation directory.  Replace any leading path
@@ -981,14 +1285,16 @@ def substitute(filename, paths, tool, template, dutpath, simvals, schemline, pdk
 
     return testbenches
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # cace_gensim
 #
 # Generate simulation testbenches for a single electrical parameter.
 #
 # "dataset" is the datasheet characterization dictionary.
 # "param" is the dictionary of one parameter in the dataset.
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def cace_gensim(dataset, param):
 
@@ -1017,7 +1323,7 @@ def cace_gensim(dataset, param):
 
         return param
 
-    if debug: 
+    if debug:
         print('Generating simulation files for parameter ' + paramname)
 
     # Get list of default conditions and generate a list of the condition names
@@ -1028,9 +1334,9 @@ def cace_gensim(dataset, param):
 
     # Make a copy of the pin list in the datasheet, and expand any vectors.
     pinlist = []
-    vectrex = re.compile(r"([^\[]+)\[([0-9]+):([0-9]+)\]")
-    vect2rex = re.compile(r"([^<]+)\<([0-9]+):([0-9]+)\>")
-    vect3rex = re.compile(r"([^0-9]+)([0-9]+):([0-9]+)")
+    vectrex = re.compile(r'([^\[]+)\[([0-9]+):([0-9]+)\]')
+    vect2rex = re.compile(r'([^<]+)\<([0-9]+):([0-9]+)\>')
+    vect3rex = re.compile(r'([^0-9]+)([0-9]+):([0-9]+)')
 
     for pinrec in dataset['pins']:
         vmatch = vectrex.match(pinrec['name'])
@@ -1080,7 +1386,7 @@ def cace_gensim(dataset, param):
     if source != 'schematic':
         if source == 'layout':
             layoutpath = os.path.join(paths['netlist'], 'layout')
-        elif source == 'pex': 
+        elif source == 'pex':
             layoutpath = os.path.join(paths['netlist'], 'pex')
         else:
             layoutpath = os.path.join(paths['netlist'], 'rcx')
@@ -1095,7 +1401,11 @@ def cace_gensim(dataset, param):
 
     if not os.path.isfile(dutpath):
         if 'verilog' not in paths:
-            print('No SPICE netlist exists at ' + dutpath + ' and no verilog path exists.')
+            print(
+                'No SPICE netlist exists at '
+                + dutpath
+                + ' and no verilog path exists.'
+            )
             print('This is an error condition.')
             return param
 
@@ -1118,14 +1428,13 @@ def cace_gensim(dataset, param):
     #
     # In the following code:
     #   "condnames" is the full list of conditions found in the template
-    #		testbench netlists that will need substitution, looking
-    #		at all testbenches that are required by the parameter.
+    # 		testbench netlists that will need substitution, looking
+    # 		at all testbenches that are required by the parameter.
     #   "pcondnames" is the list of conditions found in the datasheet
-    #		for the parameter.
-    #	"defcondnames" is a list of conditions found in the default set.
-    #	"lcondnames" is the list of parameter conditions + defaults that
-    #		should match the "condnames" list.
-
+    # 		for the parameter.
+    # 	"defcondnames" is a list of conditions found in the default set.
+    # 	"lcondnames" is the list of parameter conditions + defaults that
+    # 		should match the "condnames" list.
 
     # Get the simulation dictionary and find the tool and template
     # NOTE:  The "simulate" value could be a list in the case of, for
@@ -1170,7 +1479,11 @@ def cace_gensim(dataset, param):
         newpcond = pcond
         if 'unit' not in pcondlist:
             try:
-                defcond = next(item for item in defcondlist if item['name'] == pcond['name'])
+                defcond = next(
+                    item
+                    for item in defcondlist
+                    if item['name'] == pcond['name']
+                )
             except:
                 pass
             else:
@@ -1183,13 +1496,13 @@ def cace_gensim(dataset, param):
     # For each vector type in pcondlist and defcondlist, reduce to
     # just the name portion of the vector and the opening delimiter.
 
-    vectrex = re.compile(r'([^\[]+)\[([0-9:]+)\]')		# name[number]
+    vectrex = re.compile(r'([^\[]+)\[([0-9:]+)\]')  # name[number]
 
     newdefcondnames = []
     for defcondname in defcondnames:
         vmatch = vectrex.match(defcondname)
         if vmatch:
-            newdefcondnames.append(vmatch.group(1) + '[')        
+            newdefcondnames.append(vmatch.group(1) + '[')
         else:
             newdefcondnames.append(defcondname)
 
@@ -1214,29 +1527,70 @@ def cace_gensim(dataset, param):
     # items that have reserved names, and the pins which have a fixed
     # format.
 
-    reserved = ['filename', 'simpath', 'DUT_name', 'N', 'DUT_path',
-		'PDK_ROOT', 'PDK', 'include_DUT', 'DUT_call', 'steptime',
-		'random', '+', '-', '*', '/', 'MIN', 'NEG', 'INT',
-		'FUNCTIONAL']
+    reserved = [
+        'filename',
+        'simpath',
+        'DUT_name',
+        'N',
+        'DUT_path',
+        'PDK_ROOT',
+        'PDK',
+        'include_DUT',
+        'DUT_call',
+        'steptime',
+        'random',
+        '+',
+        '-',
+        '*',
+        '/',
+        'MIN',
+        'NEG',
+        'INT',
+        'FUNCTIONAL',
+    ]
 
     lcondlist = []
     for cond in condnames:
         if cond[-1] == '[':
             if cond in pcondnames:
-                lcondlist.extend(list(item for item in pcondlist if item['name'].startswith(cond)))
+                lcondlist.extend(
+                    list(
+                        item
+                        for item in pcondlist
+                        if item['name'].startswith(cond)
+                    )
+                )
             elif cond in defcondnames:
-                lcondlist.extend(list(item for item in defcondlist if item['name'].startswith(cond)))
+                lcondlist.extend(
+                    list(
+                        item
+                        for item in defcondlist
+                        if item['name'].startswith(cond)
+                    )
+                )
             elif not cond.startswith('PIN|') and not '=' in cond:
                 if cond not in reserved:
-                    print('Error:  Unknown/unhandled condition name "' + cond + '"')
+                    print(
+                        'Error:  Unknown/unhandled condition name "'
+                        + cond
+                        + '"'
+                    )
         else:
             if cond in pcondnames:
-                lcondlist.extend(list(item for item in pcondlist if item['name'] == cond))
+                lcondlist.extend(
+                    list(item for item in pcondlist if item['name'] == cond)
+                )
             elif cond in defcondnames:
-                lcondlist.extend(list(item for item in defcondlist if item['name'] == cond))
+                lcondlist.extend(
+                    list(item for item in defcondlist if item['name'] == cond)
+                )
             elif not cond.startswith('PIN|') and not '=' in cond:
                 if cond not in reserved:
-                    print('Error:  Unknown/unhandled condition name "' + cond + '"')
+                    print(
+                        'Error:  Unknown/unhandled condition name "'
+                        + cond
+                        + '"'
+                    )
 
     # Get the list of parameters that are collated (simulated together
     # and results passed as a list to the measurement).  These go first
@@ -1255,9 +1609,20 @@ def cace_gensim(dataset, param):
         goodcollnames = collnames.copy()
         for collname in collnames:
             try:
-                collidx = next((index for (index, d) in enumerate(lcondlist) if d['name'] == collname))
+                collidx = next(
+                    (
+                        index
+                        for (index, d) in enumerate(lcondlist)
+                        if d['name'] == collname
+                    )
+                )
             except:
-                print('Error:  Request to collate ' + collname + ' which is not a condition of parameter ' + paramname)
+                print(
+                    'Error:  Request to collate '
+                    + collname
+                    + ' which is not a condition of parameter '
+                    + paramname
+                )
                 goodcollnames.remove(collname)
             else:
                 lcondlist.insert(0, lcondlist.pop(collidx))
@@ -1280,7 +1645,7 @@ def cace_gensim(dataset, param):
     if 'Tmax' in condnames:
         if 'Tmax' not in lcondnames:
             maxtime = findmaxtime(param, lcondlist)
-            print("maxtime is " + str(maxtime))
+            print('maxtime is ' + str(maxtime))
             maxtimedict = {}
             maxtimedict['name'] = 'Tmax'
             maxtimedict['unit'] = 's'
@@ -1331,9 +1696,13 @@ def cace_gensim(dataset, param):
     cgensim = []
     for i in range(len(rlen)):
         mpre = reduce(lambda x, y: x * y, rlen[0:i], 1)
-        mpost = reduce(lambda x, y: x * y, rlen[i + 1:], 1)
+        mpost = reduce(lambda x, y: x * y, rlen[i + 1 :], 1)
         clist = list(condition_gen(lcondlist[i]))
-        duplist = [item for item in list(condition_gen(lcondlist[i])) for j in range(mpre)]
+        duplist = [
+            item
+            for item in list(condition_gen(lcondlist[i]))
+            for j in range(mpre)
+        ]
         cgensim.append(duplist * mpost)
 
     # Transpose this list
@@ -1342,15 +1711,25 @@ def cace_gensim(dataset, param):
     # Make parameter substitutions into each template file and generate
     # an output simulatable file.  Record the names of the testbenches
     # created.
- 
-    for testbench,tool in zip(testbenches,tools):
+
+    for testbench, tool in zip(testbenches, tools):
         template = os.path.join(testbenchpath, testbench)
         if os.path.isfile(template):
-            param['testbenches'] = substitute(paramname, paths, tool,
-				template, dutpath, simvals, schemline, pdkname, debug)
+            param['testbenches'] = substitute(
+                paramname,
+                paths,
+                tool,
+                template,
+                dutpath,
+                simvals,
+                schemline,
+                pdkname,
+                debug,
+            )
         else:
             print('Error:  No testbench file ' + template + '.')
 
     return param
 
-#------------------------------------------------------------------------
+
+# ------------------------------------------------------------------------

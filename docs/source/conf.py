@@ -23,13 +23,12 @@ release = __version__
 extensions = ['myst_parser']
 
 source_suffix = {
-    ".md": "markdown",
-    ".rst": "restructuredtext",
+    '.md': 'markdown',
+    '.rst': 'restructuredtext',
 }
 
 templates_path = ['_templates']
 exclude_patterns = []
-
 
 
 # -- Options for HTML output -------------------------------------------------

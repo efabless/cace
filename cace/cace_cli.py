@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Circuit Automatic Characterization Engine (CACE) system
 # cace.py ---
 # Read a text file in CACE (ASCII) format 4.0, run
@@ -8,12 +8,12 @@
 # parameters, as appropriate, and write out a modified
 # file with simulation and analysis results.
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Written by Tim Edwards
 # Efabless Corporation
 # November 22, 2023
 # For CACE version 4.0
-#--------------------------------------------------------
+# --------------------------------------------------------
 
 import os
 import sys
@@ -32,11 +32,12 @@ from .common.cace_makeplot import *
 
 import multiprocessing.pool
 
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
 # Create a multiprocessing class that can be nested
 # Solution pulled from discussion at:
 # https://stackoverflow.com/questions/6974695/python-process-pool-non-daemonic
-#-----------------------------------------------------------------------------
+# -----------------------------------------------------------------------------
+
 
 class NoDaemonProcess(multiprocessing.Process):
     @property
@@ -47,8 +48,10 @@ class NoDaemonProcess(multiprocessing.Process):
     def daemon(self, value):
         pass
 
+
 class NoDaemonContext(type(multiprocessing.get_context())):
     Process = NoDaemonProcess
+
 
 # We sub-class multiprocessing.pool.Pool instead of multiprocessing.Pool
 # because the latter is only a wrapper function, not a proper class.
@@ -57,9 +60,11 @@ class NestablePool(multiprocessing.pool.Pool):
         kwargs['context'] = NoDaemonContext()
         super(NestablePool, self).__init__(*args, **kwargs)
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # Exit the child process when SIGUSR1 is given to the process
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
+
 
 def child_process_exit(signum, frame):
     print('CACE:  Received forced stop.')
@@ -69,7 +74,8 @@ def child_process_exit(signum, frame):
         print('Terminate failed; Child PID is ' + str(os.getpid()))
         print('Waiting on process to finish.')
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # cace_run_eparam
 #
 # Run complete characterization of a single electrical parameter
@@ -81,7 +87,8 @@ def child_process_exit(signum, frame):
 #
 # "datasheet" is the CACE characterization dataset
 # "eparam" is the dictionary of a single electrical parameter
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
+
 
 def cace_run_eparam(datasheet, eparam):
 
@@ -120,7 +127,8 @@ def cace_run_eparam(datasheet, eparam):
 
     return eparam
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # cace_run_pparam
 #
 # Physical parameter evaluation is done by running scripts which do
@@ -129,7 +137,8 @@ def cace_run_eparam(datasheet, eparam):
 #
 # "datasheet" is the CACE characterization dataset
 # "pparam" is the dictionary of a single physical parameter
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def cace_run_pparam(datasheet, pparam):
 
@@ -149,14 +158,16 @@ def cace_run_pparam(datasheet, pparam):
     print('Evaluating physical parameter ' + pparamname)
     return cace_evaluate(datasheet, pparam)
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # cace_run_all_eparams
 #
 # Run all electrical parameters simulations and measurements.
 # This routine contains a nested multiprocessing pool.
 #
 # "datasheet" is the CACE characterization dataset
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def cace_run_all_eparams(datasheet):
 
@@ -185,12 +196,19 @@ def cace_run_all_eparams(datasheet):
             idx = 0
             for eparam in datasheet['electrical_parameters']:
                 eparam['sequence'] = idx
-                results.append(pool.apply_async(cace_run_eparam, (datasheet, eparam),))
+                results.append(
+                    pool.apply_async(
+                        cace_run_eparam,
+                        (datasheet, eparam),
+                    )
+                )
                 idx += 1
 
             # Replace the electrical parameter list in the datasheet with the
             # number of electrical parameters
-            datasheet['electrical_parameters'] = len(datasheet['electrical_parameters'])
+            datasheet['electrical_parameters'] = len(
+                datasheet['electrical_parameters']
+            )
 
             for result in results:
                 try:
@@ -236,7 +254,9 @@ def cace_run_all_eparams(datasheet):
                 pass
             else:
                 if fileext == '.tv':
-                    os.remove(os.path.join(root_path, simulation_path, filename))
+                    os.remove(
+                        os.path.join(root_path, simulation_path, filename)
+                    )
 
     # Because this comes back from multiprocessing as an unordered result,
     # add an entry to the front of the list to distinguish it.
@@ -246,14 +266,16 @@ def cace_run_all_eparams(datasheet):
     alleparams.extend(datasheet['electrical_parameters'])
     return alleparams
 
-#-----------------------------------------------------------------------
+
+# -----------------------------------------------------------------------
 # cace_run_all_pparams
 #
 # Run all physical parameter measurements.
 # This routine contains a nested multiprocessing pool.
 #
 # "datasheet" is the CACE characterization dataset
-#-----------------------------------------------------------------------
+# -----------------------------------------------------------------------
+
 
 def cace_run_all_pparams(datasheet):
 
@@ -277,12 +299,19 @@ def cace_run_all_pparams(datasheet):
             idx = 0
             for pparam in datasheet['physical_parameters']:
                 pparam['sequence'] = idx
-                results.append(pool.apply_async(cace_run_pparam, (datasheet, pparam),))
+                results.append(
+                    pool.apply_async(
+                        cace_run_pparam,
+                        (datasheet, pparam),
+                    )
+                )
                 idx += 1
 
             # Replace the physical parameter list in the datasheet with the
             # number of physical parameters
-            datasheet['physical_parameters'] = len(datasheet['physical_parameters'])
+            datasheet['physical_parameters'] = len(
+                datasheet['physical_parameters']
+            )
 
             for result in results:
                 try:
@@ -315,18 +344,20 @@ def cace_run_all_pparams(datasheet):
         allpparams.extend(datasheet['physical_parameters'])
         return allpparams
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # cace_run
 #
 # Run CACE on a characterization datasheet.
 #
 # "datasheet" is the CACE characterization dataset
 # "paramname" is an optional parameter name, which if present may
-#	be the name of either an electrical parameter or a physical
-#	parameter.  If omitted, then characterization is run on
-#	the full set of electrical and physical parameters in the
-#	datasheet.
-#-----------------------------------------------------------------
+# 	be the name of either an electrical parameter or a physical
+# 	parameter.  If omitted, then characterization is run on
+# 	the full set of electrical and physical parameters in the
+# 	datasheet.
+# -----------------------------------------------------------------
+
 
 def cace_run(datasheet, paramname=None):
 
@@ -342,7 +373,7 @@ def cace_run(datasheet, paramname=None):
         runtime_options['sequential'] = False
         datasheet['runtime_options'] = runtime_options
 
-    valid_sources = ['best', 'all', 'schematic', 'layout', 'pex', 'rcx'];
+    valid_sources = ['best', 'all', 'schematic', 'layout', 'pex', 'rcx']
     if source not in valid_sources:
         print('Invalid value for the netlist source.  Valid values are:')
         print('    ' + ' '.join(valid_sources))
@@ -390,7 +421,7 @@ def cace_run(datasheet, paramname=None):
         runtime_options['status'] = 'failed'
         return datasheet
 
-    # Handle a single parameter specified on the 
+    # Handle a single parameter specified on the
 
     if paramname:
         # Special option paramname = "check" is used to run the
@@ -399,7 +430,7 @@ def cace_run(datasheet, paramname=None):
         if paramname == 'check':
             runtime_options['status'] = 'passed'
             return datasheet
- 
+
         # Scan the names of electrical and physical parameters to
         # see whether the indicated parameter to check is an
         # electrical or physical parameter, and call the appropriate
@@ -425,7 +456,7 @@ def cace_run(datasheet, paramname=None):
             print('Valid physical parameter names are:')
             for pparam in datasheet['physical_parameters']:
                 print('   ' + pparam['name'])
-            
+
         return datasheet
 
     # From this point:  Running characterization on the entire datasheet
@@ -439,8 +470,18 @@ def cace_run(datasheet, paramname=None):
         with NestablePool() as top_pool:
             results = []
             # Note:  datasheet must be cast as a list if it is a single argument.
-            results.append(top_pool.apply_async(cace_run_all_eparams, [datasheet],))
-            results.append(top_pool.apply_async(cace_run_all_pparams, [datasheet],))
+            results.append(
+                top_pool.apply_async(
+                    cace_run_all_eparams,
+                    [datasheet],
+                )
+            )
+            results.append(
+                top_pool.apply_async(
+                    cace_run_all_pparams,
+                    [datasheet],
+                )
+            )
 
             for result in results:
                 try:
@@ -460,9 +501,11 @@ def cace_run(datasheet, paramname=None):
 
     return datasheet
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # Print usage statement
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
+
 
 def usage():
     print('Usage:')
@@ -507,15 +550,19 @@ def usage():
     print('')
     print('Option "-sequential" runs simulations sequentially.')
     print('')
-    print('Option "-nosim" does not re-run simulations if the output file exists.')
+    print(
+        'Option "-nosim" does not re-run simulations if the output file exists.'
+    )
     print('   (Warning---does not check if simulations are out of date).')
     print('')
     print('Option "-summary" prints a summary of results at the end.')
 
-#-----------------------------------------------------------------
+
+# -----------------------------------------------------------------
 # Top level call to cace.py
 # If called from the command line
-#-----------------------------------------------------------------
+# -----------------------------------------------------------------
+
 
 def cli():
     options = []
@@ -617,7 +664,9 @@ def cli():
             os.chdir(paths['root'])
             paths['root'] = os.getcwd()
             if debug:
-                print('Working directory set to project root at ' + paths['root'])
+                print(
+                    'Working directory set to project root at ' + paths['root']
+                )
 
             # All run-time options are dropped into a dictionary,
             # passed to all routines, and removed at the end.
@@ -639,7 +688,7 @@ def cli():
             # Run CACE.  Use only as directed.
             charresult = cace_run(dataset, paramname)
             if debug:
-               print('Done with CACE simulations and evaluations.')
+                print('Done with CACE simulations and evaluations.')
 
         if charresult == {}:
             result = 1
@@ -650,7 +699,7 @@ def cli():
                 # Dump the result as a JSON file
                 jsonfile = os.path.splitext(outfile)[0] + '_debug.json'
                 with open(jsonfile, 'w') as ofile:
-                    json.dump(charresult, ofile, indent = 4)
+                    json.dump(charresult, ofile, indent=4)
             else:
                 # Write the result in CACE ASCII format version 4.0
                 cace_write(charresult, outfile, doruntime=False)
@@ -660,7 +709,7 @@ def cli():
                 print('CACE Summary of results:')
                 print('------------------------')
                 cace_summary(charresult, paramname)
-            
+
     else:
         if debug:
             print('arguments = ' + ' '.join(arguments))
@@ -669,6 +718,7 @@ def cli():
         sys.exit(1)
 
     sys.exit(result)
+
 
 if __name__ == '__main__':
     cli()

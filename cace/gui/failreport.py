@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 #
-#--------------------------------------------------------------------
+# --------------------------------------------------------------------
 # Characterization Report Window for the project manager
 #
-#--------------------------------------------------------------------
+# --------------------------------------------------------------------
 # Written by Tim Edwards
 # efabless, inc.
 # September 12, 2016
 # Version 0.1
-#----------------------------------------------------------
+# ----------------------------------------------------------
 
 import os
 import base64
@@ -26,79 +26,125 @@ class FailReport(tkinter.Toplevel):
     """failure report window."""
 
     def __init__(self, parent=None, fontsize=11, *args, **kwargs):
-        '''See the __init__ for Tkinter.Toplevel.'''
+        """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
         s = ttk.Style()
         s.configure('bg.TFrame', background='gray40')
-        s.configure('italic.TLabel', font=('Helvetica', fontsize, 'italic'), anchor = 'west')
-        s.configure('title.TLabel', font=('Helvetica', fontsize, 'bold italic'),
-                        foreground = 'brown', anchor = 'center')
+        s.configure(
+            'italic.TLabel',
+            font=('Helvetica', fontsize, 'italic'),
+            anchor='west',
+        )
+        s.configure(
+            'title.TLabel',
+            font=('Helvetica', fontsize, 'bold italic'),
+            foreground='brown',
+            anchor='center',
+        )
         s.configure('normal.TLabel', font=('Helvetica', fontsize))
-        s.configure('red.TLabel', font=('Helvetica', fontsize), foreground = 'red')
-        s.configure('green.TLabel', font=('Helvetica', fontsize), foreground = 'green4')
-        s.configure('blue.TLabel', font=('Helvetica', fontsize), foreground = 'blue')
-        s.configure('brown.TLabel', font=('Helvetica', fontsize, 'italic'),
-			foreground = 'brown', anchor = 'center')
-        s.configure('normal.TButton', font=('Helvetica', fontsize), border = 3,
-			relief = 'raised')
-        s.configure('red.TButton', font=('Helvetica', fontsize), foreground = 'red',
-			border = 3, relief = 'raised')
-        s.configure('green.TButton', font=('Helvetica', fontsize), foreground = 'green4',
-			border = 3, relief = 'raised')
-        s.configure('title.TButton', font=('Helvetica', fontsize, 'bold italic'),
-                        foreground = 'brown', border = 0, relief = 'groove')
+        s.configure(
+            'red.TLabel', font=('Helvetica', fontsize), foreground='red'
+        )
+        s.configure(
+            'green.TLabel', font=('Helvetica', fontsize), foreground='green4'
+        )
+        s.configure(
+            'blue.TLabel', font=('Helvetica', fontsize), foreground='blue'
+        )
+        s.configure(
+            'brown.TLabel',
+            font=('Helvetica', fontsize, 'italic'),
+            foreground='brown',
+            anchor='center',
+        )
+        s.configure(
+            'normal.TButton',
+            font=('Helvetica', fontsize),
+            border=3,
+            relief='raised',
+        )
+        s.configure(
+            'red.TButton',
+            font=('Helvetica', fontsize),
+            foreground='red',
+            border=3,
+            relief='raised',
+        )
+        s.configure(
+            'green.TButton',
+            font=('Helvetica', fontsize),
+            foreground='green4',
+            border=3,
+            relief='raised',
+        )
+        s.configure(
+            'title.TButton',
+            font=('Helvetica', fontsize, 'bold italic'),
+            foreground='brown',
+            border=0,
+            relief='groove',
+        )
 
         self.withdraw()
         self.title('Local Characterization Report')
         self.root = parent.root
-        self.rowconfigure(0, weight = 1)
-        self.columnconfigure(0, weight = 1)
+        self.rowconfigure(0, weight=1)
+        self.columnconfigure(0, weight=1)
 
         # Scrolled frame:  Need frame, then canvas and scrollbars;  finally, the
         # actual grid of results gets placed in the canvas.
         self.failframe = ttk.Frame(self)
-        self.failframe.grid(column = 0, row = 0, sticky = 'nsew')
+        self.failframe.grid(column=0, row=0, sticky='nsew')
         self.mainarea = tkinter.Canvas(self.failframe)
-        self.mainarea.grid(row = 0, column = 0, sticky = 'nsew')
+        self.mainarea.grid(row=0, column=0, sticky='nsew')
 
         self.mainarea.faildisplay = ttk.Frame(self.mainarea)
-        self.mainarea.create_window((0,0), window=self.mainarea.faildisplay,
-			anchor="nw", tags="self.frame")
+        self.mainarea.create_window(
+            (0, 0),
+            window=self.mainarea.faildisplay,
+            anchor='nw',
+            tags='self.frame',
+        )
 
         # Create a frame for displaying plots, but don't put it in the grid.
         # Make it resizeable.
         self.plotframe = ttk.Frame(self)
-        self.plotframe.rowconfigure(0, weight = 1)
-        self.plotframe.columnconfigure(0, weight = 1)
+        self.plotframe.rowconfigure(0, weight=1)
+        self.plotframe.columnconfigure(0, weight=1)
 
         # Main window resizes, not the scrollbars
-        self.failframe.rowconfigure(0, weight = 1)
-        self.failframe.columnconfigure(0, weight = 1)
+        self.failframe.rowconfigure(0, weight=1)
+        self.failframe.columnconfigure(0, weight=1)
         # Add scrollbars
-        xscrollbar = ttk.Scrollbar(self.failframe, orient = 'horizontal')
-        xscrollbar.grid(row = 1, column = 0, sticky = 'nsew')
-        yscrollbar = ttk.Scrollbar(self.failframe, orient = 'vertical')
-        yscrollbar.grid(row = 0, column = 1, sticky = 'nsew')
+        xscrollbar = ttk.Scrollbar(self.failframe, orient='horizontal')
+        xscrollbar.grid(row=1, column=0, sticky='nsew')
+        yscrollbar = ttk.Scrollbar(self.failframe, orient='vertical')
+        yscrollbar.grid(row=0, column=1, sticky='nsew')
         # Attach viewing area to scrollbars
-        self.mainarea.config(xscrollcommand = xscrollbar.set)
-        xscrollbar.config(command = self.mainarea.xview)
-        self.mainarea.config(yscrollcommand = yscrollbar.set)
-        yscrollbar.config(command = self.mainarea.yview)
+        self.mainarea.config(xscrollcommand=xscrollbar.set)
+        xscrollbar.config(command=self.mainarea.xview)
+        self.mainarea.config(yscrollcommand=yscrollbar.set)
+        yscrollbar.config(command=self.mainarea.yview)
         # Set up configure callback
-        self.mainarea.faildisplay.bind("<Configure>", self.frame_configure)
+        self.mainarea.faildisplay.bind('<Configure>', self.frame_configure)
 
         self.bbar = ttk.Frame(self)
-        self.bbar.grid(column = 0, row = 1, sticky = "news")
-        self.bbar.close_button = ttk.Button(self.bbar, text='Close',
-		command=self.close, style = 'normal.TButton')
-        self.bbar.close_button.grid(column=0, row=0, padx = 5)
+        self.bbar.grid(column=0, row=1, sticky='news')
+        self.bbar.close_button = ttk.Button(
+            self.bbar, text='Close', command=self.close, style='normal.TButton'
+        )
+        self.bbar.close_button.grid(column=0, row=0, padx=5)
         # Table button returns to table view but is only displayed for plots.
-        self.bbar.table_button = ttk.Button(self.bbar, text='Table', style = 'normal.TButton')
+        self.bbar.table_button = ttk.Button(
+            self.bbar, text='Table', style='normal.TButton'
+        )
 
-        self.protocol("WM_DELETE_WINDOW", self.close)
-        ToolTip(self.bbar.close_button,
-			text='Close detail view of conditions and results')
+        self.protocol('WM_DELETE_WINDOW', self.close)
+        ToolTip(
+            self.bbar.close_button,
+            text='Close detail view of conditions and results',
+        )
 
         self.sortdir = False
         self.data = []
@@ -108,12 +154,12 @@ class FailReport(tkinter.Toplevel):
 
     def frame_configure(self, event):
         self.update_idletasks()
-        self.mainarea.configure(scrollregion=self.mainarea.bbox("all"))
+        self.mainarea.configure(scrollregion=self.mainarea.bbox('all'))
 
     def check_failure(self, record, calc, value):
         #
         # record will be a list of <value> ['fail'|''] [<calc-type>]
-        # 
+        #
         # Return on any condition that is not specified as a failure
 
         if len(record) < 2 or record[1] != 'fail':
@@ -141,23 +187,29 @@ class FailReport(tkinter.Toplevel):
     def findunit(self, condname, param, dsheet):
         unit = ''
         try:
-            loccond = next(item for item in param['conditions'] if item['name'] == condname)
+            loccond = next(
+                item
+                for item in param['conditions']
+                if item['name'] == condname
+            )
         except StopIteration:
             globcond = dsheet['default_conditions']
             try:
-                globitem = next(item for item in globcond if item['name'] == condname)
+                globitem = next(
+                    item for item in globcond if item['name'] == condname
+                )
             except (TypeError, StopIteration):
-                unit = ''	# No units
+                unit = ''  	# No units
             else:
                 if 'unit' in globitem:
                     unit = globitem['unit']
                 else:
-                    unit = ''	# No units
+                    unit = ''  	# No units
         else:
             if 'unit' in loccond:
                 unit = loccond['unit']
             else:
-                unit = ''	# No units
+                unit = ''  	# No units
         return unit
 
     def size_plotreport(self):
@@ -211,14 +263,16 @@ class FailReport(tkinter.Toplevel):
 
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
-        self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
-        canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
+        self.plotframe.grid(row=0, column=0, sticky='nsew')
+        canvas = cace_makeplot(dsheet, param, parent=self.plotframe)
         param.pop('plot')
 
         if 'display' in param:
-            ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
+            ttk.Label(
+                self.plotframe, text=param['display'], style='title.TLabel'
+            ).grid(row=1, column=0)
         canvas.draw()
-        canvas.get_tk_widget().grid(row=0, column=0, sticky = 'nsew')
+        canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
         # Finally, open the window if it was not already open.
         self.open()
 
@@ -240,26 +294,31 @@ class FailReport(tkinter.Toplevel):
 
         # faild = self.mainarea.faildisplay	# definition for convenience
         self.failframe.grid_forget()
-        self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
+        self.plotframe.grid(row=0, column=0, sticky='nsew')
 
         # Temporarily set a 'plot' record in param
         param['plot'] = plotrec
 
-        canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
+        canvas = cace_makeplot(dsheet, param, parent=self.plotframe)
         param.pop('plot')
         if 'display' in param:
-            ttk.Label(self.plotframe, text=param['display'], style='title.TLabel').grid(row=1, column=0)
+            ttk.Label(
+                self.plotframe, text=param['display'], style='title.TLabel'
+            ).grid(row=1, column=0)
 
         if canvas:
             canvas.draw()
-            canvas.get_tk_widget().grid(row=0, column=0, sticky = 'nsew')
+            canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
 
             # Display the button to return to the table view
             # except for transient and Monte Carlo simulations which are too large to tabulate.
             if not condition == 'time':
-                self.bbar.table_button.grid(column=1, row=0, padx = 5)
-                self.bbar.table_button.configure(command=lambda param=param, dsheet=dsheet,
-			filename=filename: self.display(param, dsheet, filename))
+                self.bbar.table_button.grid(column=1, row=0, padx=5)
+                self.bbar.table_button.configure(
+                    command=lambda param=param, dsheet=dsheet, filename=filename: self.display(
+                        param, dsheet, filename
+                    )
+                )
 
             # Finally, open the window if it was not already open.
             self.open()
@@ -285,33 +344,37 @@ class FailReport(tkinter.Toplevel):
 
         if 'plot' in param:
             self.failframe.grid_forget()
-            self.plotframe.grid(row = 0, column = 0, sticky = 'nsew')
+            self.plotframe.grid(row=0, column=0, sticky='nsew')
 
             # Clear the plotframe and remake
             for widget in self.plotframe.winfo_children():
                 widget.destroy()
 
-            canvas = cace_makeplot(dsheet, param, parent = self.plotframe)
+            canvas = cace_makeplot(dsheet, param, parent=self.plotframe)
             if 'display' in param:
-                ttk.Label(self.plotframe, text=param['display'],
-				style='title.TLabel').grid(row=1, column=0)
+                ttk.Label(
+                    self.plotframe, text=param['display'], style='title.TLabel'
+                ).grid(row=1, column=0)
             canvas.draw()
-            canvas.get_tk_widget().grid(row=0, column=0, sticky = 'nsew')
+            canvas.get_tk_widget().grid(row=0, column=0, sticky='nsew')
             self.data = param
             # Display the button to return to the table view
-            self.bbar.table_button.grid(column=1, row=0, padx = 5)
-            self.bbar.table_button.configure(command=lambda param=param, dsheet=dsheet,
-			filename=filename: self.display(param, dsheet, filename))
+            self.bbar.table_button.grid(column=1, row=0, padx=5)
+            self.bbar.table_button.configure(
+                command=lambda param=param, dsheet=dsheet, filename=filename: self.display(
+                    param, dsheet, filename
+                )
+            )
 
         elif not 'testbenches' in param:
-            print("No testbench results to build a report with.")
+            print('No testbench results to build a report with.')
             return
 
         else:
             self.data = param
             self.plotframe.grid_forget()
-            self.failframe.grid(column = 0, row = 0, sticky = 'nsew')
-            faild = self.mainarea.faildisplay	# definition for convenience
+            self.failframe.grid(column=0, row=0, sticky='nsew')
+            faild = self.mainarea.faildisplay  	# definition for convenience
             testbenches = param['testbenches']
 
             # Rearrange testbench results;  this is due to legacy code and
@@ -341,13 +404,19 @@ class FailReport(tkinter.Toplevel):
                 # that conditions list needs to be expanded by variables.
                 if isinstance(result, list):
                     if len(result) > 1:
-                        print('Warning: result truncated from length ' + str(len(result)))
+                        print(
+                            'Warning: result truncated from length '
+                            + str(len(result))
+                        )
                     result = result[0]
 
                 # Results get double-nested?
                 if isinstance(result, list):
                     if len(result) > 1:
-                        print('Warning: result truncated from length ' + str(len(result)))
+                        print(
+                            'Warning: result truncated from length '
+                            + str(len(result))
+                        )
                     result = result[0]
                 tresult.append(result)
 
@@ -381,7 +450,9 @@ class FailReport(tkinter.Toplevel):
             # Numerically sort by result (to be done:  sort according to up/down
             # criteria, which will be retained per header entry)
             try:
-                results.sort(key = lambda row: float(row[0]), reverse = self.sortdir)
+                results.sort(
+                    key=lambda row: float(row[0]), reverse=self.sortdir
+                )
             except:
                 print('Failure to sort results:  results = ' + str(results))
 
@@ -400,22 +471,32 @@ class FailReport(tkinter.Toplevel):
                     pass
 
             faild.titlebar = ttk.Frame(faild)
-            faild.titlebar.grid(row = 0, column = 0, sticky = 'ewns')
+            faild.titlebar.grid(row=0, column=0, sticky='ewns')
 
-            faild.titlebar.label1 = ttk.Label(faild.titlebar, text = 'Electrical Parameter: ',
-			style = 'italic.TLabel')
-            faild.titlebar.label1.pack(side = 'left', padx = 6, ipadx = 3)
+            faild.titlebar.label1 = ttk.Label(
+                faild.titlebar,
+                text='Electrical Parameter: ',
+                style='italic.TLabel',
+            )
+            faild.titlebar.label1.pack(side='left', padx=6, ipadx=3)
             if 'display' in param:
-                faild.titlebar.label2 = ttk.Label(faild.titlebar, text = param['display'],
-			style = 'normal.TLabel')
-                faild.titlebar.label2.pack(side = 'left', padx = 6, ipadx = 3)
-                faild.titlebar.label3 = ttk.Label(faild.titlebar, text = '  Testbench: ',
-			style = 'italic.TLabel')
-                faild.titlebar.label3.pack(side = 'left', padx = 6, ipadx = 3)
+                faild.titlebar.label2 = ttk.Label(
+                    faild.titlebar,
+                    text=param['display'],
+                    style='normal.TLabel',
+                )
+                faild.titlebar.label2.pack(side='left', padx=6, ipadx=3)
+                faild.titlebar.label3 = ttk.Label(
+                    faild.titlebar, text='  Testbench: ', style='italic.TLabel'
+                )
+                faild.titlebar.label3.pack(side='left', padx=6, ipadx=3)
             simulate = param['simulate']
-            faild.titlebar.label4 = ttk.Label(faild.titlebar, text = simulate['template'],
-			style = 'normal.TLabel')
-            faild.titlebar.label4.pack(side = 'left', padx = 6, ipadx = 3)
+            faild.titlebar.label4 = ttk.Label(
+                faild.titlebar,
+                text=simulate['template'],
+                style='normal.TLabel',
+            )
+            faild.titlebar.label4.pack(side='left', padx=6, ipadx=3)
 
             if 'spec' in param:
                 spec = param['spec']
@@ -423,36 +504,49 @@ class FailReport(tkinter.Toplevel):
                 spec = {}
 
             if 'minimum' in spec:
-                faild.titlebar.label7 = ttk.Label(faild.titlebar, text = '  Min Limit: ',
-			style = 'italic.TLabel')
-                faild.titlebar.label7.pack(side = 'left', padx = 3, ipadx = 3)
-                faild.titlebar.label8 = ttk.Label(faild.titlebar, text = spec['minimum'],
-    			style = 'normal.TLabel')
-                faild.titlebar.label8.pack(side = 'left', padx = 6, ipadx = 3)
+                faild.titlebar.label7 = ttk.Label(
+                    faild.titlebar, text='  Min Limit: ', style='italic.TLabel'
+                )
+                faild.titlebar.label7.pack(side='left', padx=3, ipadx=3)
+                faild.titlebar.label8 = ttk.Label(
+                    faild.titlebar, text=spec['minimum'], style='normal.TLabel'
+                )
+                faild.titlebar.label8.pack(side='left', padx=6, ipadx=3)
                 if 'unit' in param:
-                    faild.titlebar.label9 = ttk.Label(faild.titlebar, text = param['unit'],
-				style = 'italic.TLabel')
-                    faild.titlebar.label9.pack(side = 'left', padx = 3, ipadx = 3)
+                    faild.titlebar.label9 = ttk.Label(
+                        faild.titlebar,
+                        text=param['unit'],
+                        style='italic.TLabel',
+                    )
+                    faild.titlebar.label9.pack(side='left', padx=3, ipadx=3)
             if 'maximum' in spec:
-                faild.titlebar.label10 = ttk.Label(faild.titlebar, text = '  Max Limit: ',
-			style = 'italic.TLabel')
-                faild.titlebar.label10.pack(side = 'left', padx = 6, ipadx = 3)
-                faild.titlebar.label11 = ttk.Label(faild.titlebar, text = spec['maximum'],
-    			style = 'normal.TLabel')
-                faild.titlebar.label11.pack(side = 'left', padx = 6, ipadx = 3)
+                faild.titlebar.label10 = ttk.Label(
+                    faild.titlebar, text='  Max Limit: ', style='italic.TLabel'
+                )
+                faild.titlebar.label10.pack(side='left', padx=6, ipadx=3)
+                faild.titlebar.label11 = ttk.Label(
+                    faild.titlebar, text=spec['maximum'], style='normal.TLabel'
+                )
+                faild.titlebar.label11.pack(side='left', padx=6, ipadx=3)
                 if 'unit' in param:
-                    faild.titlebar.label12 = ttk.Label(faild.titlebar, text = param['unit'],
-	    			style = 'italic.TLabel')
-                    faild.titlebar.label12.pack(side = 'left', padx = 3, ipadx = 3)
+                    faild.titlebar.label12 = ttk.Label(
+                        faild.titlebar,
+                        text=param['unit'],
+                        style='italic.TLabel',
+                    )
+                    faild.titlebar.label12.pack(side='left', padx=3, ipadx=3)
 
             # Simplify view by removing constant values from the table and just listing them
             # on the second line.
 
             faild.constants = ttk.Frame(faild)
-            faild.constants.grid(row = 1, column = 0, sticky = 'ewns')
-            faild.constants.title = ttk.Label(faild.constants, text = 'Constant Conditions: ',
-			style = 'italic.TLabel')
-            faild.constants.title.grid(row = 0, column = 0, padx = 6, ipadx = 3)
+            faild.constants.grid(row=1, column=0, sticky='ewns')
+            faild.constants.title = ttk.Label(
+                faild.constants,
+                text='Constant Conditions: ',
+                style='italic.TLabel',
+            )
+            faild.constants.title.grid(row=0, column=0, padx=6, ipadx=3)
             j = 0
             for condname, unit, drange in zip(names, units, ranges):
                 if len(drange) == 1:
@@ -461,13 +555,13 @@ class FailReport(tkinter.Toplevel):
                     labtext += ' = ' + drange[0] + ' ' + unit + ' '
                     row = int(j / 3)
                     col = 1 + (j % 3)
-                    ttk.Label(faild.constants, text = labtext,
-				style = 'blue.TLabel').grid(row = row,
-				column = col, padx = 6, sticky = 'nsew')
+                    ttk.Label(
+                        faild.constants, text=labtext, style='blue.TLabel'
+                    ).grid(row=row, column=col, padx=6, sticky='nsew')
                     j += 1
 
-            body = ttk.Frame(faild, style = 'bg.TFrame')
-            body.grid(row = 2, column = 0, sticky = 'ewns')
+            body = ttk.Frame(faild, style='bg.TFrame')
+            body.grid(row=2, column=0, sticky='ewns')
 
             # Print out names
             j = 0
@@ -479,22 +573,35 @@ class FailReport(tkinter.Toplevel):
 
                 if len(drange) == 1:
                     continue
-    
+
                 labtext = condname
                 plottext = condname
                 if j == 0:
                     # Add unicode arrow up/down depending on sort direction
                     labtext += ' \u21e9' if self.sortdir else ' \u21e7'
-                    header = ttk.Button(body, text=labtext, style = 'title.TButton',
-				command = lambda param=param,
-				dsheet=dsheet: self.changesort(param, dsheet))
+                    header = ttk.Button(
+                        body,
+                        text=labtext,
+                        style='title.TButton',
+                        command=lambda param=param, dsheet=dsheet: self.changesort(
+                            param, dsheet
+                        ),
+                    )
                     ToolTip(header, text='Reverse order of results')
                 else:
-                    header = ttk.Button(body, text=labtext, style = 'title.TLabel',
-				command = lambda plottext=plottext, dsheet=dsheet,
-				filename=filename: self.table_to_plot(plottext, dsheet, filename))
-                    ToolTip(header, text='Plot results with this condition on the X axis')
-                header.grid(row = 0, column = j, sticky = 'ewns')
+                    header = ttk.Button(
+                        body,
+                        text=labtext,
+                        style='title.TLabel',
+                        command=lambda plottext=plottext, dsheet=dsheet, filename=filename: self.table_to_plot(
+                            plottext, dsheet, filename
+                        ),
+                    )
+                    ToolTip(
+                        header,
+                        text='Plot results with this condition on the X axis',
+                    )
+                header.grid(row=0, column=j, sticky='ewns')
 
                 # Second row is the measurement unit
                 # if j == 0:
@@ -508,8 +615,8 @@ class FailReport(tkinter.Toplevel):
                 #     # Find condition in local conditions else global conditions
                 #     unit = self.findunit(condname, param, dsheet)
 
-                unitlabel = ttk.Label(body, text=unit, style = 'brown.TLabel')
-                unitlabel.grid(row = 1, column = j, sticky = 'ewns')
+                unitlabel = ttk.Label(body, text=unit, style='brown.TLabel')
+                unitlabel.grid(row=1, column=j, sticky='ewns')
 
                 # (Pick up limits when all entries have been processed---see below)
                 j += 1
@@ -544,10 +651,14 @@ class FailReport(tkinter.Toplevel):
                 for condition, drange in zip(result, ranges):
                     if len(drange) > 1:
                         if j == 0:
-                            pname = ttk.Label(body, text=str(scaled_value), style = lstyle)
+                            pname = ttk.Label(
+                                body, text=str(scaled_value), style=lstyle
+                            )
                         else:
-                            pname = ttk.Label(body, text=condition, style = lstyle)
-                        pname.grid(row = m, column = j, sticky = 'ewns')
+                            pname = ttk.Label(
+                                body, text=condition, style=lstyle
+                            )
+                        pname.grid(row=m, column=j, sticky='ewns')
                         j += 1
 
             # Row 2 contains the ranges of each column
@@ -557,7 +668,7 @@ class FailReport(tkinter.Toplevel):
                 if len(vrange) > 1:
 
                     condlimits = '( '
-                
+
                     # This is a bit of a hack;  results are assumed floating-point
                     # unless they can't be resolved as a number.  So numerical values
                     # that should be treated as integers or strings must be handled
@@ -569,15 +680,17 @@ class FailReport(tkinter.Toplevel):
                         for l in vrange:
                             condlimits += l + ' '
                     condlimits += ')'
-                    header = ttk.Label(body, text=condlimits, style = 'blue.TLabel')
-                    header.grid(row = 2, column = j, sticky = 'ewns')
+                    header = ttk.Label(
+                        body, text=condlimits, style='blue.TLabel'
+                    )
+                    header.grid(row=2, column=j, sticky='ewns')
                     j += 1
                 k += 1
 
             # Add padding around widgets in the body of the failure report, so that
             # the frame background comes through, making a grid.
             for child in body.winfo_children():
-                child.grid_configure(ipadx = 5, ipady = 1, padx = 2, pady = 2)
+                child.grid_configure(ipadx=5, ipady=1, padx=2, pady=2)
 
             # Resize the window to fit in the display, if necessary.
             self.size_failreport()

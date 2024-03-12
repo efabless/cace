@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # CACE file writer
 #
 # This script takes a dictionary from CACE and writes
@@ -9,11 +9,11 @@
 # Input:  datasheet dictionary
 # Output: file in CACE 4.0 format
 #
-#--------------------------------------------------------
+# --------------------------------------------------------
 # Written by Tim Edwards
 # Efabless corporation
 # November 22, 2023
-#--------------------------------------------------------
+# --------------------------------------------------------
 
 import io
 import re
@@ -26,14 +26,15 @@ import subprocess
 from .cace_compat import *
 from .cace_regenerate import printwarn
 
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
 # generate_svg
 #
 # Generate an SVG drawing of the schematic symbol using xschem
 #
 # Return the name of the SVG file if the drawing was generated,
 # None if not.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def generate_svg(datasheet):
 
@@ -72,33 +73,50 @@ def generate_svg(datasheet):
             if pdk and 'PDK' not in newenv:
                 newenv['PDK'] = pdk
 
-            xschemargs = ['xschem', '-b', '-x', '-q', '--svg', '--plotfile',
-			svgpath] 
+            xschemargs = [
+                'xschem',
+                '-b',
+                '-x',
+                '-q',
+                '--svg',
+                '--plotfile',
+                svgpath,
+            ]
 
             # Use the PDK xschemrc file for xschem startup
-            xschemrcfile = os.path.join(pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc')
+            xschemrcfile = os.path.join(
+                pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc'
+            )
             if os.path.isfile(xschemrcfile):
                 xschemargs.extend(['--rcfile', xschemrcfile])
 
             xschemargs.append(sympath)
 
-            xproc = subprocess.Popen(xschemargs,
-			stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-			cwd=rootdir)
+            xproc = subprocess.Popen(
+                xschemargs,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=rootdir,
+            )
 
             xout = xproc.communicate()[0]
             if xproc.returncode != 0:
                 for line in xout.splitlines():
                     print(line.decode('utf-8'))
 
-                print('Xschem process returned error code ' + str(xproc.returncode) + '\n')
+                print(
+                    'Xschem process returned error code '
+                    + str(xproc.returncode)
+                    + '\n'
+                )
             else:
                 printwarn(xout)
                 return svgname
 
     return None
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # cace_generate_html
 #
 # Convert the characterization data into a formatted datasheet
@@ -110,7 +128,8 @@ def generate_svg(datasheet):
 # If filename is None, then filename is automatically generated
 # from the project name with extension ".html" and placed in
 # the documentation directory specified in 'paths'.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_generate_html(datasheet, filename=None, debug=False):
 
@@ -140,26 +159,30 @@ def cace_generate_html(datasheet, filename=None, debug=False):
     svgname = generate_svg(datasheet)
 
     with open(ofilename, 'w') as ofile:
-        ofile.write('<HTML>\n') 
-        ofile.write('<BODY>\n') 
+        ofile.write('<HTML>\n')
+        ofile.write('<BODY>\n')
 
         if 'cace_format' in datasheet:
             vformat = datasheet['cace_format']
         else:
             vformat = ''
-        ofile.write(' '.join(['<H1> CACE', vformat, 'datasheet </H1>\n'])) 
+        ofile.write(' '.join(['<H1> CACE', vformat, 'datasheet </H1>\n']))
 
         ofile.write('\n\n<HR>\n\n')
         ofile.write('<FONT size=+1><B>' + datasheet['name'] + '</B></FONT>\n')
         ofile.write('\n\n<HR>\n\n')
 
         if 'description' in datasheet:
-            ofile.write(' '.join(['<I>', datasheet['description'], '</I><BR><BR>\n']))
+            ofile.write(
+                ' '.join(['<I>', datasheet['description'], '</I><BR><BR>\n'])
+            )
 
         # Output PDK and designer information as a table
 
         if 'PDK' in datasheet:
-            ofile.write('<TABLE border="1" frame="box" rules="none" width="40%" cellspacing="0"\n')
+            ofile.write(
+                '<TABLE border="1" frame="box" rules="none" width="40%" cellspacing="0"\n'
+            )
             ofile.write('\tcellpadding="2" bgcolor="#ffffdd">\n')
             ofile.write('<TBODY>\n')
             ofile.write('<TR>\n')
@@ -174,12 +197,21 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
         if 'authorship' in datasheet:
             authdict = datasheet['authorship']
-            ofile.write('<TABLE border="1" frame="box" rules="none" width="40%" cellspacing="0"\n')
+            ofile.write(
+                '<TABLE border="1" frame="box" rules="none" width="40%" cellspacing="0"\n'
+            )
             ofile.write('\tcellpadding="2" bgcolor="#ffffdd">\n')
             ofile.write('<TBODY>\n')
 
-            known_fields = ['designer', 'company', 'institution', 'email',
-			'creation_date', 'modification_date', 'license']
+            known_fields = [
+                'designer',
+                'company',
+                'institution',
+                'email',
+                'creation_date',
+                'modification_date',
+                'license',
+            ]
 
             if 'designer' in authdict:
                 ofile.write('<TR>\n')
@@ -241,13 +273,23 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
             if len(dictlist) == 0 or len(dictlist) == 1 and dictlist[0] == {}:
                 ofile.write('<BLOCKQUOTE>\n')
-                ofile.write('   (<B>' + datasheet['name'] + '</B> has no external dependencies.)\n')
+                ofile.write(
+                    '   (<B>'
+                    + datasheet['name']
+                    + '</B> has no external dependencies.)\n'
+                )
                 ofile.write('</BLOCKQUOTE>\n')
             else:
                 ofile.write('\n<UL>\n')
                 for depend in dictlist:
                     if 'repository' in depend:
-                        ofile.write('   <LI> <A HREF=' + depend['repository'] + '> ' + depend['name'] + '</A>\n')
+                        ofile.write(
+                            '   <LI> <A HREF='
+                            + depend['repository']
+                            + '> '
+                            + depend['name']
+                            + '</A>\n'
+                        )
                         numdepend += 1
                     elif 'name' in depend:
                         ofile.write('   <LI> ' + depend['name'] + '\n')
@@ -260,11 +302,15 @@ def cace_generate_html(datasheet, filename=None, debug=False):
             if svgname:
                 ofile.write('\n<BLOCKQUOTE>\n   <CENTER>\n')
                 ofile.write('      <IMG SRC=' + svgname + ' WIDTH=30%>\n')
-                ofile.write('      <BR>\n      <I>Project schematic symbol</I>\n')
+                ofile.write(
+                    '      <BR>\n      <I>Project schematic symbol</I>\n'
+                )
                 ofile.write('      <BR>\n')
                 ofile.write('   </CENTER>\n</BLOCKQUOTE>\n\n')
 
-            ofile.write('<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n')
+            ofile.write(
+                '<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n'
+            )
             ofile.write('\tcellpadding="2" bgcolor="#eeeeff">\n')
             ofile.write('<TBODY>\n<TR>\n')
             ofile.write('<TD> <I>pin name</I>')
@@ -327,7 +373,9 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
         if 'default_conditions' in datasheet:
             ofile.write('<H2> Default conditions </H2>\n')
-            ofile.write('<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n')
+            ofile.write(
+                '<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n'
+            )
             ofile.write('\tcellpadding="2" bgcolor="#ddeeff">\n')
             ofile.write('<TBODY>\n<TR>\n')
             ofile.write('<TD> <I>name</I>')
@@ -386,7 +434,9 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
         if 'electrical_parameters' in datasheet:
             ofile.write('<H2> Electrical parameters </H2>\n')
-            ofile.write('<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n')
+            ofile.write(
+                '<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n'
+            )
             ofile.write('\tcellpadding="2" bgcolor="#ddffff">\n')
             ofile.write('<TBODY>\n<TR>\n')
             ofile.write('<TD> <I>name</I>')
@@ -499,7 +549,6 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         spectext = ' '
                     ofile.write('<TD> ' + spectext + '\n')
 
-
                 if 'note' in param:
                     paramnote = param['note']
                 else:
@@ -510,11 +559,17 @@ def cace_generate_html(datasheet, filename=None, debug=False):
             ofile.write('</TBODY>\n')
             ofile.write('</TABLE>\n')
 
-            ofile.write('<BR><I>Note:</I> Values taken from ' + netlist_source_text + '<BR>\n')
+            ofile.write(
+                '<BR><I>Note:</I> Values taken from '
+                + netlist_source_text
+                + '<BR>\n'
+            )
 
         if 'physical_parameters' in datasheet:
             ofile.write('<H2> Physical parameters </H2>\n')
-            ofile.write('<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n')
+            ofile.write(
+                '<TABLE border="1" frame="box" rules="all" width="80%" cellspacing="0"\n'
+            )
             ofile.write('\tcellpadding="2" bgcolor="#eeffff">\n')
             ofile.write('<TBODY>\n<TR>\n')
             ofile.write('<TD> <I>name</I>')
@@ -625,7 +680,6 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         spectext = ' '
                     ofile.write('<TD> ' + spectext + '\n')
 
-
                 if 'note' in param:
                     paramnote = param['note']
                 else:
@@ -636,7 +690,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
             ofile.write('</TBODY>\n')
             ofile.write('</TABLE>\n')
 
-            ofile.write('<BR><I>Note:</I> Values taken from ' + netlist_source_text + '<BR>\n')
+            ofile.write(
+                '<BR><I>Note:</I> Values taken from '
+                + netlist_source_text
+                + '<BR>\n'
+            )
 
         ofile.write('</BODY>\n')
         ofile.write('</HTML>\n')
@@ -660,9 +718,17 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         else:
                             plotpath = ''
 
-                        plottypes = ['rcx', 'pex', 'layout', 'schematic', 'none']
+                        plottypes = [
+                            'rcx',
+                            'pex',
+                            'layout',
+                            'schematic',
+                            'none',
+                        ]
                         for plotsubdir in plottypes:
-                            plotfilepath = os.path.join(plotpath, plotsubdir, plotfile)
+                            plotfilepath = os.path.join(
+                                plotpath, plotsubdir, plotfile
+                            )
                             absfilepath = os.path.abspath(plotfilepath)
                             if not filename:
                                 fullfilepath = os.path.join('..', plotfilepath)
@@ -682,13 +748,23 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         if os.path.isfile(absfilepath):
                             ofile.write('\n<BLOCKQUOTE>\n')
                             ofile.write('   <CENTER>\n')
-                            ofile.write('      <IMG SRC=' + fullfilepath + '>\n')
+                            ofile.write(
+                                '      <IMG SRC=' + fullfilepath + '>\n'
+                            )
                             if 'description' in param:
                                 ofile.write('      <BR>\n')
-                                ofile.write('      <I>' + param['description'] + '</I>\n')
+                                ofile.write(
+                                    '      <I>'
+                                    + param['description']
+                                    + '</I>\n'
+                                )
                                 if plotsubdir != 'none':
                                     ofile.write('      <BR>\n')
-                                    ofile.write('      (Values taken from ' + plotsubdir + ' extraction)\n')
+                                    ofile.write(
+                                        '      (Values taken from '
+                                        + plotsubdir
+                                        + ' extraction)\n'
+                                    )
                             ofile.write('   </CENTER>\n')
                             ofile.write('</BLOCKQUOTE>\n\n')
                         else:
@@ -696,12 +772,14 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
     print('Done writing HTML output file ' + ofilename)
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # cace_summarize_result
 #
 # Print a summary report of a single "results" block from a
 # datasheet.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_summarize_result(param, result):
     spec = param['spec']
@@ -734,15 +812,17 @@ def cace_summarize_result(param, result):
 
     print('')
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # cace_summary
 #
 # Print a summary report of results from a datasheet
 #
 # "datasheet" is a CACE characterization dataset
 # "paramname" is the name of a single parameter to summarize,
-#	or if it is None, then all parameters should be output.
-#---------------------------------------------------------------
+# 	or if it is None, then all parameters should be output.
+# ---------------------------------------------------------------
+
 
 def cace_summary(datasheet, paramname):
 
@@ -786,15 +866,31 @@ def cace_summary(datasheet, paramname):
                     else:
                         cace_summarize_result(pparam, results)
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # Convert from unicode to text format
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def uchar_sub(string):
-    ucode_list = ['\u00b5', '\u00b0', '\u03c3', '\u03a9',
-		'\u00b2', '\u221a', '\u03c1']
-    text_list = ['{micro}', '{degrees}', '{sigma}', '{ohms}',
-		'{squared}', '{sqrt}', '{rho}']
+    ucode_list = [
+        '\u00b5',
+        '\u00b0',
+        '\u03c3',
+        '\u03a9',
+        '\u00b2',
+        '\u221a',
+        '\u03c1',
+    ]
+    text_list = [
+        '{micro}',
+        '{degrees}',
+        '{sigma}',
+        '{ohms}',
+        '{squared}',
+        '{sqrt}',
+        '{rho}',
+    ]
 
     idx = 0
     for item in ucode_list:
@@ -804,16 +900,18 @@ def uchar_sub(string):
 
     return string
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # Output a list item
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_output_list(dictname, itemlist, outlines, indent):
     tabs = ''
     for i in range(0, indent):
         tabs = tabs + '\t'
     newline = tabs
-    
+
     first = True
     for item in itemlist:
         if not first:
@@ -822,7 +920,9 @@ def cace_output_list(dictname, itemlist, outlines, indent):
             newline = tabs + '+'
             outlines.append(newline)
         if isinstance(item, dict):
-            outlines = cace_output_known_dict(dictname, item, outlines, False, indent)
+            outlines = cace_output_known_dict(
+                dictname, item, outlines, False, indent
+            )
             first = False
         elif dictname == 'results':
             if isinstance(item, str):
@@ -833,12 +933,12 @@ def cace_output_list(dictname, itemlist, outlines, indent):
             else:
                 # Results passed back as stdout from simulation or evaluation
                 asciiout = list(uchar_sub(word) for word in item)
-                newline = tabs +  ' '.join(asciiout)
+                newline = tabs + ' '.join(asciiout)
             outlines.append(newline)
         elif dictname == 'conditions':
             # Results passed back as stdout from simulation or evaluation
             asciiout = list(uchar_sub(word) for word in item)
-            newline = tabs +  ' '.join(asciiout)
+            newline = tabs + ' '.join(asciiout)
             outlines.append(newline)
         else:
             # This should not happen---list items other than "results"
@@ -847,8 +947,10 @@ def cace_output_list(dictname, itemlist, outlines, indent):
             outlines.append(newline)
     return outlines
 
-#---------------------------------------------------------------
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_output_item(key, value, outlines, indent):
     tabs = ''
@@ -869,11 +971,21 @@ def cace_output_item(key, value, outlines, indent):
         outlines = cace_output_standard_comments(key, outlines)
         newline = tabs + key + ' {'
         outlines.append(newline)
-        outlines = cace_output_known_dict(key, value, outlines, False, indent + 1)
+        outlines = cace_output_known_dict(
+            key, value, outlines, False, indent + 1
+        )
         newline = tabs + '}'
     elif isinstance(value, list):
         # Handle lists that are not dictionaries
-        just_lists = ['minimum', 'maximum', 'typical', 'Vmin', 'Vmax', 'format', 'tool']
+        just_lists = [
+            'minimum',
+            'maximum',
+            'typical',
+            'Vmin',
+            'Vmax',
+            'format',
+            'tool',
+        ]
         if key in just_lists:
             moretab = '\t' if len(str(key)) < 7 else ''
             newline = tabs + key + ':\t' + moretab + ' '.join(value)
@@ -888,7 +1000,7 @@ def cace_output_item(key, value, outlines, indent):
                 while ridx <= numenums:
                     enumstring = ' '.join(value[lidx:ridx])
                     if len(enumstring) > 35:
-                        newline = newline + ' '.join(value[lidx:ridx-1])
+                        newline = newline + ' '.join(value[lidx : ridx - 1])
                         if ridx <= numenums:
                             newline = newline + ' \\'
                         outlines.append(newline)
@@ -913,11 +1025,13 @@ def cace_output_item(key, value, outlines, indent):
     outlines.append(newline)
     return outlines
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # Output an known dictionary item.  The purpose is to output
 # keys in a sane and consistent order when possible.  Includes
 # output of "standard comments" for specific sections.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_output_standard_comments(dictname, outlines):
     if dictname == 'pins':
@@ -957,7 +1071,9 @@ def cace_output_standard_comments(dictname, outlines):
 
     elif dictname == 'default_conditions':
         outlines.append('')
-        newline = '# Default values for electrical parameter measurement conditions'
+        newline = (
+            '# Default values for electrical parameter measurement conditions'
+        )
         outlines.append(newline)
         newline = '# if not otherwise specified'
         outlines.append(newline)
@@ -966,53 +1082,135 @@ def cace_output_standard_comments(dictname, outlines):
 
     return outlines
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # Output an known dictionary item.  The purpose is to output
 # keys in a sane and consistent order when possible.  Includes
 # output of "standard comments" for specific sections.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
     if dictname == 'topmost':
-        orderedlist = ['name', 'description', 'category', 'note', 'commit',
-		'PDK', 'foundry', 'cace_format', 'authorship', 'paths',
-		'dependencies', 'pins', 'default_conditions',
-		'electrical_parameters', 'physical_parameters',
-		'runtime_options']
+        orderedlist = [
+            'name',
+            'description',
+            'category',
+            'note',
+            'commit',
+            'PDK',
+            'foundry',
+            'cace_format',
+            'authorship',
+            'paths',
+            'dependencies',
+            'pins',
+            'default_conditions',
+            'electrical_parameters',
+            'physical_parameters',
+            'runtime_options',
+        ]
         if 'cace_format' not in itemdict:
             itemdict['cace_format'] = '4.0'
 
     elif dictname == 'pins':
-        orderedlist = ['name', 'description', 'type', 'direction', 'Vmin', 'Vmax', 'note']
+        orderedlist = [
+            'name',
+            'description',
+            'type',
+            'direction',
+            'Vmin',
+            'Vmax',
+            'note',
+        ]
 
     elif dictname == 'paths':
-        orderedlist = ['root', 'documentation', 'schematic', 'layout',
-		'magic', 'netlist', 'netgen', 'verilog', 'testbench',
-		'simulation', 'plots', 'logs']
+        orderedlist = [
+            'root',
+            'documentation',
+            'schematic',
+            'layout',
+            'magic',
+            'netlist',
+            'netgen',
+            'verilog',
+            'testbench',
+            'simulation',
+            'plots',
+            'logs',
+        ]
 
     elif dictname == 'dependencies':
         orderedlist = ['name', 'path', 'repository', 'commit', 'note']
 
     elif dictname == 'electrical_parameters':
-        orderedlist = ['name', 'status', 'description', 'display', 'unit',
-		'spec', 'results', 'simulate', 'measure', 'plot', 'variables',
-		'conditions', 'testbenches']
+        orderedlist = [
+            'name',
+            'status',
+            'description',
+            'display',
+            'unit',
+            'spec',
+            'results',
+            'simulate',
+            'measure',
+            'plot',
+            'variables',
+            'conditions',
+            'testbenches',
+        ]
 
     elif dictname == 'physical_parameters':
-        orderedlist = ['name', 'status', 'description', 'display', 'unit',
-		'spec', 'evaluate', 'conditions', 'results']
+        orderedlist = [
+            'name',
+            'status',
+            'description',
+            'display',
+            'unit',
+            'spec',
+            'evaluate',
+            'conditions',
+            'results',
+        ]
 
     elif dictname == 'default_conditions':
-        orderedlist = ['name', 'description', 'display', 'unit', 'minimum',
-		'typical', 'maximum', 'enumerate', 'step', 'stepsize', 'note']
+        orderedlist = [
+            'name',
+            'description',
+            'display',
+            'unit',
+            'minimum',
+            'typical',
+            'maximum',
+            'enumerate',
+            'step',
+            'stepsize',
+            'note',
+        ]
 
     elif dictname == 'testbenches':
-        orderedlist = ['filename', 'conditions', 'variables', 'results', 'format']
+        orderedlist = [
+            'filename',
+            'conditions',
+            'variables',
+            'results',
+            'format',
+        ]
 
     elif dictname == 'authorship':
-        orderedlist = ['designer', 'company', 'institution', 'organization',
-		'address', 'email', 'url',
-		'creation_date', 'modification_date', 'license', 'note']
+        orderedlist = [
+            'designer',
+            'company',
+            'institution',
+            'organization',
+            'address',
+            'email',
+            'url',
+            'creation_date',
+            'modification_date',
+            'license',
+            'note',
+        ]
         # Date string formatted as, e.g., "November 22, 2023 at 01:16pm"
         datestring = datetime.datetime.now().strftime('%B %e, %Y at %I:%M%P')
         if 'creation_date' not in itemdict:
@@ -1027,8 +1225,15 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
         orderedlist = ['name', 'minimum', 'typical', 'maximum', 'status']
 
     elif dictname == 'simulate':
-        orderedlist = ['tool', 'template', 'filename', 'format', 'collate',
-		'group_size', 'note']
+        orderedlist = [
+            'tool',
+            'template',
+            'filename',
+            'format',
+            'collate',
+            'group_size',
+            'note',
+        ]
 
     elif dictname == 'measure':
         orderedlist = ['tool', 'filename', 'calc', 'note']
@@ -1037,15 +1242,41 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
         orderedlist = ['tool', 'filename', 'note']
 
     elif dictname == 'conditions':
-        orderedlist = ['name', 'description', 'display', 'unit', 'minimum',
-		'typical', 'maximum', 'enumerate', 'step', 'stepsize', 'note']
+        orderedlist = [
+            'name',
+            'description',
+            'display',
+            'unit',
+            'minimum',
+            'typical',
+            'maximum',
+            'enumerate',
+            'step',
+            'stepsize',
+            'note',
+        ]
     elif dictname == 'plot':
-        orderedlist = ['filename', 'title', 'type', 'xaxis', 'xlabel', 'yaxis',
-		'ylabel', 'note']
+        orderedlist = [
+            'filename',
+            'title',
+            'type',
+            'xaxis',
+            'xlabel',
+            'yaxis',
+            'ylabel',
+            'note',
+        ]
     elif dictname == 'variables':
         orderedlist = ['name', 'display', 'unit', 'note']
     elif dictname == 'runtime_options':
-        orderedlist = ['filename', 'netlist_source', 'score', 'debug', 'force', 'note']
+        orderedlist = [
+            'filename',
+            'netlist_source',
+            'score',
+            'debug',
+            'force',
+            'note',
+        ]
     else:
         orderedlist = []
 
@@ -1065,22 +1296,29 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
         outlines.append('')
 
     for key in unknown:
-        print('Diagnostic: Adding item with unrecognized key ' + key + ' in dictionary ' + dictname)
+        print(
+            'Diagnostic: Adding item with unrecognized key '
+            + key
+            + ' in dictionary '
+            + dictname
+        )
         value = itemdict[key]
         outlines = cace_output_item(key, value, outlines, indent)
- 
+
     return outlines
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # Output an unknown dictionary item
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_output_dict(itemdict, outlines, indent):
     tabs = ''
     for i in range(0, indent):
         tabs = tabs + '\t'
     newline = tabs
-    
+
     for key in itemdict:
         value = itemdict[key]
         outlines = cace_output_item(key, value, outlines, indent)
@@ -1089,12 +1327,14 @@ def cace_output_dict(itemdict, outlines, indent):
 
     return outlines
 
-#---------------------------------------------------------------
+
+# ---------------------------------------------------------------
 # Write a format 4.0 text file from a CACE datasheet dictionary
 #
 # If 'doruntime' is True, then write the runtime options
 # dictionary.  If False, then leave it out of the output.
-#---------------------------------------------------------------
+# ---------------------------------------------------------------
+
 
 def cace_write(datasheet, filename, doruntime=False):
     outlines = []
@@ -1109,8 +1349,10 @@ def cace_write(datasheet, filename, doruntime=False):
         outlines.append(newline)
         newline = ''
         outlines.append(newline)
-    
-    outlines = cace_output_known_dict('topmost', datasheet, outlines, doruntime, 0)
+
+    outlines = cace_output_known_dict(
+        'topmost', datasheet, outlines, doruntime, 0
+    )
 
     # If filename is None, then write to stdout.
     if not filename:
@@ -1127,9 +1369,11 @@ def cace_write(datasheet, filename, doruntime=False):
 
     return 0
 
-#------------------------------------------------------------------
+
+# ------------------------------------------------------------------
 # Print usage statement
-#------------------------------------------------------------------
+# ------------------------------------------------------------------
+
 
 def usage():
     print('Usage:')
@@ -1142,12 +1386,13 @@ def usage():
     print('When run from the top level, this program parses a CACE')
     print('format JSON file and outputs a CACE format 4.0 text file.')
 
-#------------------------------------------------------------------
+
+# ------------------------------------------------------------------
 # If called from the command line, this can be used to read in a
 # pre-format 4.0 CACE JSON file and write out a CACE format 4.0
 # text file.  It does exactly the same thing as the cace_compat.py
 # script when run from the command line.
-#------------------------------------------------------------------
+# ------------------------------------------------------------------
 
 if __name__ == '__main__':
     options = []
@@ -1176,7 +1421,9 @@ if __name__ == '__main__':
             try:
                 dataset = json.load(ifile)
             except json.decoder.JSONDecodeError as e:
-                print("Error:  Parse error reading JSON file " + datasheet + ':')
+                print(
+                    'Error:  Parse error reading JSON file ' + datasheet + ':'
+                )
                 print(str(e))
                 sys.exit(1)
 
@@ -1198,4 +1445,3 @@ if __name__ == '__main__':
         sys.exit(1)
 
     sys.exit(result)
-
