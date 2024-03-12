@@ -1,3 +1,4 @@
 setuptools>=68.1.2
 build>=1.1.1
 twine>=5.0.0
+blue>=0.9.1
