@@ -14,7 +14,7 @@ from cace import __version__
 
 project = 'CACE'
 copyright = '2024, Efabless Corporation'
-author = 'Tim Edwards'
+author = 'Tim Edwards, Leo Moser'
 release = __version__
 
 # -- General configuration ---------------------------------------------------
