@@ -811,7 +811,8 @@ class CACECharacterize(ttk.Frame):
         )
 
         # Return all individual "Simulate" buttons to normal text
-        for simbutton in self.simbuttons.keys():
+        for simbname in self.simbuttons.keys():
+            simbutton = self.simbuttons[simbname]
             simbutton.configure(text='Simulate')
 
     def edit_param(self, param):
@@ -992,7 +993,13 @@ class CACECharacterize(ttk.Frame):
 
         # Diagnostic
         print('Simulating parameter ' + name)
-        runtime_options['pid'] = os.getpid()
+        # NOTE: Commenting out the following line prevents the use of
+        # the process ID to set a common group ID that can be used to
+        # stop simulations by sending a kill signal to all threads.
+        # The method is not working, and on some systems os.setpgid()
+        # will not run.
+        #
+        # runtime_options['pid'] = os.getpid()
         p = multiprocessing.Process(
             target=self.cace_process,
             args=(
