@@ -1,0 +1,35 @@
+name: CI
+
+# Events that trigger workflow
+on:
+  # Runs on all pushes to the main branch
+  # if 'cace/__version__.py' was touched
+  push:
+    paths:
+    - 'cace/__version__.py'
+    branches:
+    - main
+  # Manual Dispatch
+  workflow_dispatch:
+
+jobs:
+  build-and-upload:
+    # Only run this job if the owner is Efabless
+    if: github.repository_owner == 'efabless'
+    runs-on: ubuntu-22.04
+    name: Build Package 📦 and Upload to PyPI 🐍
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: 3.8
+      - name: Install Dependencies
+        run: make dependencies
+      - name: Build Package
+        run: make build
+      - name: Upload
+        uses: pypa/gh-action-pypi-publish@master
+        with:
+          password: ${{ secrets.PYPI_API_TOKEN }}
