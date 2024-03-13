@@ -509,7 +509,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
                     if isinstance(resultmin, list):
                         if len(resultmin) > 1 and resultmin[1] == 'fail':
-                            ofile.write('<TD> <FONT COLOR=red>' + resultmin[0] + '</FONT>\n')
+                            ofile.write(
+                                '<TD> <FONT COLOR=red>'
+                                + resultmin[0]
+                                + '</FONT>\n'
+                            )
                         else:
                             ofile.write('<TD> ' + resultmin[0] + '\n')
                     else:
@@ -520,7 +524,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         resulttyp = ''
                     if isinstance(resulttyp, list):
                         if len(resulttyp) > 1 and resulttyp[1] == 'fail':
-                            ofile.write('<TD> <FONT COLOR=red>' + resulttyp[0] + '</FONT>\n')
+                            ofile.write(
+                                '<TD> <FONT COLOR=red>'
+                                + resulttyp[0]
+                                + '</FONT>\n'
+                            )
                         else:
                             ofile.write('<TD> ' + resulttyp[0] + '\n')
                     else:
@@ -531,7 +539,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         resultmax = ''
                     if isinstance(resultmax, list):
                         if len(resultmax) > 1 and resultmax[1] == 'fail':
-                            ofile.write('<TD> <FONT COLOR=red>' + resultmax[0] + '</FONT>\n')
+                            ofile.write(
+                                '<TD> <FONT COLOR=red>'
+                                + resultmax[0]
+                                + '</FONT>\n'
+                            )
                         else:
                             ofile.write('<TD> ' + resultmax[0] + '\n')
                     else:
@@ -659,7 +671,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
                     if isinstance(resultmin, list):
                         if len(resultmin) > 1 and resultmin[1] == 'fail':
-                            ofile.write('<TD> <FONT COLOR=red>' + resultmin[0] + '</FONT>\n')
+                            ofile.write(
+                                '<TD> <FONT COLOR=red>'
+                                + resultmin[0]
+                                + '</FONT>\n'
+                            )
                         else:
                             ofile.write('<TD> ' + resultmin[0] + '\n')
                     else:
@@ -670,7 +686,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         resulttyp = ''
                     if isinstance(resulttyp, list):
                         if len(resulttyp) > 1 and resulttyp[1] == 'fail':
-                            ofile.write('<TD> <FONT COLOR=red>' + resulttyp[0] + '</FONT>\n')
+                            ofile.write(
+                                '<TD> <FONT COLOR=red>'
+                                + resulttyp[0]
+                                + '</FONT>\n'
+                            )
                         else:
                             ofile.write('<TD> ' + resulttyp[0] + '\n')
                     else:
@@ -681,7 +701,11 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         resultmax = ''
                     if isinstance(resultmax, list):
                         if len(resultmax) > 1 and resultmax[1] == 'fail':
-                            ofile.write('<TD> <FONT COLOR=red>' + resultmax[0] + '</FONT>\n')
+                            ofile.write(
+                                '<TD> <FONT COLOR=red>'
+                                + resultmax[0]
+                                + '</FONT>\n'
+                            )
                         else:
                             ofile.write('<TD> ' + resultmax[0] + '\n')
                     else:
