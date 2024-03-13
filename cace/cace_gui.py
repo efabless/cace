@@ -891,6 +891,22 @@ class CACECharacterize(ttk.Frame):
         sys.stdout.flush()
         sys.stderr.flush()
 
+    # Get the value for runtime options['netlist_source']
+    def get_netlist_source(self):
+        netlist_text = self.origin.get()
+        if netlist_text == 'Schematic Capture':
+            return 'schematic'
+        elif netlist_text == 'Layout Extracted':
+            return 'layout'
+        elif netlist_text == 'C Extracted':
+            return 'pex'
+        elif netlist_text == 'R-C Extracted':
+            return 'rcx'
+        else:
+            print('Unhandled netlist source ' + netlist_text)
+            print('Reverting to schematic.')
+            return 'schematic'
+
     # Simulate a parameter (or run a physical parameter evaluation)
     def sim_param(self, name):
         dsheet = self.datasheet
@@ -901,19 +917,7 @@ class CACECharacterize(ttk.Frame):
             runtime_options = {}
             dsheet['runtime_options'] = runtime_options
 
-        if self.origin.get() == 'Schematic Capture':
-            runtime_options['netlist_source'] = 'schematic'
-        elif self.origin.get() == 'Layout Extracted':
-            runtime_options['netlist_source'] = 'layout'
-        elif self.origin.get() == 'C Extracted':
-            runtime_options['netlist_source'] = 'pex'
-        elif self.origin.get() == 'R-C Extracted':
-            runtime_options['netlist_source'] = 'rcx'
-        else:
-            print('Unhandled netlist source ' + self.origin.get())
-            print('Reverting to schematic.')
-            runtime_options['netlist_source'] = 'schematic'
-
+        runtime_options['netlist_source'] = self.get_netlist_source()
         runtime_options['force'] = self.settings.get_force()
         runtime_options['keep'] = self.settings.get_keep()
         runtime_options['sequential'] = self.settings.get_sequential()
@@ -1433,6 +1437,9 @@ class CACECharacterize(ttk.Frame):
             runtime_options = dsheet['runtime_options']
         else:
             runtime_options = {}
+            dsheet['runtime_options'] = runtime_options
+
+        runtime_options['netlist_source'] = self.get_netlist_source()
 
         # Add basic information at the top
 
@@ -1601,13 +1608,14 @@ class CACECharacterize(ttk.Frame):
                 dframe.plots = ttk.Frame(dframe)
                 dframe.plots.grid(column=2, row=n, columnspan=6, sticky='ewns')
                 status_value = '(not checked)'
+
                 if 'results' in param:
                     reslist = param['results']
                     if 'netlist_source' in runtime_options:
                         netlist_source = runtime_options['netlist_source']
                     if isinstance(reslist, list):
                         try:
-                            resdict = list(
+                            resdict = next(
                                 item
                                 for item in reslist
                                 if item['name'] == netlist_source

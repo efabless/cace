@@ -38,16 +38,17 @@ from .cace_regenerate import printwarn
 
 def generate_svg(datasheet):
 
-    paths = datasheet['paths']
-    if 'root' in paths:
-        rootdir = paths['root']
-    else:
-        rootdir = '.'
+    debug = False
+    if 'runtime_options' in datasheet:
+        runtime_options = datasheet['runtime_options']
+        if 'debug' in runtime_options:
+            debug = runtime_options['debug']
 
+    paths = datasheet['paths']
     if 'documentation' in paths:
         docdir = paths['documentation']
     else:
-        docdir = rootdir
+        docdir = '.'
 
     if 'schematic' in paths:
         schempath = paths['schematic']
@@ -92,11 +93,14 @@ def generate_svg(datasheet):
 
             xschemargs.append(sympath)
 
+            if debug:
+                print('Generating SVG of schematic symbol.')
+                print('Running: ' + ' '.join(xschemargs))
+
             xproc = subprocess.Popen(
                 xschemargs,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
-                cwd=rootdir,
             )
 
             xout = xproc.communicate()[0]
@@ -271,6 +275,7 @@ def cace_generate_html(datasheet, filename=None, debug=False):
             if isinstance(dictlist, dict):
                 dictlist = [datasheet['dependencies']]
 
+            numdepend = 0
             if len(dictlist) == 0 or len(dictlist) == 1 and dictlist[0] == {}:
                 ofile.write('<BLOCKQUOTE>\n')
                 ofile.write(
@@ -501,17 +506,36 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         resultmin = result['minimum']
                     else:
                         resultmin = ''
-                    ofile.write('<TD> ' + resultmin + '\n')
+
+                    if isinstance(resultmin, list):
+                        if len(resultmin) > 1 and resultmin[1] == 'fail':
+                            ofile.write('<TD> <FONT COLOR=red>' + resultmin[0] + '</FONT>\n')
+                        else:
+                            ofile.write('<TD> ' + resultmin[0] + '\n')
+                    else:
+                        ofile.write('<TD> ' + resultmin + '\n')
                     if 'typical' in result:
                         resulttyp = result['typical']
                     else:
                         resulttyp = ''
-                    ofile.write('<TD> ' + resulttyp + '\n')
+                    if isinstance(resulttyp, list):
+                        if len(resulttyp) > 1 and resulttyp[1] == 'fail':
+                            ofile.write('<TD> <FONT COLOR=red>' + resulttyp[0] + '</FONT>\n')
+                        else:
+                            ofile.write('<TD> ' + resulttyp[0] + '\n')
+                    else:
+                        ofile.write('<TD> ' + resulttyp + '\n')
                     if 'maximum' in result:
                         resultmax = result['maximum']
                     else:
                         resultmax = ''
-                    ofile.write('<TD> ' + resultmax + '\n')
+                    if isinstance(resultmax, list):
+                        if len(resultmax) > 1 and resultmax[1] == 'fail':
+                            ofile.write('<TD> <FONT COLOR=red>' + resultmax[0] + '</FONT>\n')
+                        else:
+                            ofile.write('<TD> ' + resultmax[0] + '\n')
+                    else:
+                        ofile.write('<TD> ' + resultmax + '\n')
 
                 elif 'spec' in param:
                     spec = param['spec']
@@ -632,17 +656,36 @@ def cace_generate_html(datasheet, filename=None, debug=False):
                         resultmin = result['minimum']
                     else:
                         resultmin = ''
-                    ofile.write('<TD> ' + resultmin + '\n')
+
+                    if isinstance(resultmin, list):
+                        if len(resultmin) > 1 and resultmin[1] == 'fail':
+                            ofile.write('<TD> <FONT COLOR=red>' + resultmin[0] + '</FONT>\n')
+                        else:
+                            ofile.write('<TD> ' + resultmin[0] + '\n')
+                    else:
+                        ofile.write('<TD> ' + resultmin + '\n')
                     if 'typical' in result:
                         resulttyp = result['typical']
                     else:
                         resulttyp = ''
-                    ofile.write('<TD> ' + resulttyp + '\n')
+                    if isinstance(resulttyp, list):
+                        if len(resulttyp) > 1 and resulttyp[1] == 'fail':
+                            ofile.write('<TD> <FONT COLOR=red>' + resulttyp[0] + '</FONT>\n')
+                        else:
+                            ofile.write('<TD> ' + resulttyp[0] + '\n')
+                    else:
+                        ofile.write('<TD> ' + resulttyp + '\n')
                     if 'maximum' in result:
                         resultmax = result['maximum']
                     else:
                         resultmax = ''
-                    ofile.write('<TD> ' + resultmax + '\n')
+                    if isinstance(resultmax, list):
+                        if len(resultmax) > 1 and resultmax[1] == 'fail':
+                            ofile.write('<TD> <FONT COLOR=red>' + resultmax[0] + '</FONT>\n')
+                        else:
+                            ofile.write('<TD> ' + resultmax[0] + '\n')
+                    else:
+                        ofile.write('<TD> ' + resultmax + '\n')
 
                 elif 'spec' in param:
                     spec = param['spec']
