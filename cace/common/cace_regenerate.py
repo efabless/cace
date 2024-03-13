@@ -1269,13 +1269,13 @@ def regenerate_netlists(dsheet):
         made_lvs_netlist = True
         result = regenerate_lvs_netlist(dsheet)
 
-    made_schem_nelist = False
+    made_schem_netlist = False
     if (
         source == 'all'
         or source == 'schematic'
         or (source == 'best' and result == False)
     ):
-        made_schem_nelist = True
+        made_schem_netlist = True
         result = regenerate_schematic_netlist(dsheet)
 
     # If LVS is run while netlist source is RCX, then the LVS netlist should
