@@ -626,6 +626,31 @@ class CACECharacterize(ttk.Frame):
             if doflush:
                 self.logfile.flush()
 
+    def set_working_directory(self, datasheet):
+        # CACE should be run from the location of the datasheet's root
+        # directory.  Typically, the datasheet is in the "cace" subdirectory
+        # and "root" is "..".
+
+        rootpath = None
+        if 'paths' in datasheet:
+            paths = datasheet['paths']
+            if 'root' in paths:
+                rootpath = paths['root']
+
+        dspath = os.path.split(self.filename)[0]
+        if rootpath:
+            dspath = os.path.join(dspath, rootpath)
+            paths['root'] = '.'
+
+        os.chdir(dspath)
+        print(
+            'Working directory set to '
+            + dspath
+            + ' ('
+            + os.path.abspath(dspath)
+            + ')'
+        )
+
     def set_datasheet(self, datasheet):
         if self.logfile:
             self.logprint('end of log.')
@@ -697,6 +722,11 @@ class CACECharacterize(ttk.Frame):
             self.datasheet_viewer.configure(height=screen_height - 10)
         elif heightnow > height:
             self.datasheet_viewer.configure(height=height)
+
+        # Set the current working directory from the datasheet's "path"
+        # dictionary, then reset the root path to the current working
+        # directory.
+        self.set_working_directory(dsheet)
 
     def choose_datasheet(self):
         datasheet = filedialog.askopenfilename(
@@ -867,23 +897,6 @@ class CACECharacterize(ttk.Frame):
         if 'pid' in runtime_options:
             os.setpgid(os.getpid(), runtime_options['pid'])
             signal.signal(signal.SIGUSR1, child_process_exit)
-
-        # CACE should be run from the location of the datasheet's root
-        # directory.  Typically, the datasheet is in the "cace" subdirectory
-        # and "root" is "..".
-
-        rootpath = None
-        if 'paths' in datasheet:
-            paths = datasheet['paths']
-            if 'root' in paths:
-                rootpath = paths['root']
-
-        dspath = os.path.split(self.filename)[0]
-        if rootpath:
-            os.chdir(os.path.join(dspath, rootpath))
-            paths['root'] = '.'
-        else:
-            os.chdir(dspath)
 
         charresult = cace_run(datasheet, name)
         charresult['simname'] = name
@@ -1323,6 +1336,7 @@ class CACECharacterize(ttk.Frame):
                     )
                 else:
                     # Regenerate datasheet view
+                    self.set_working_directory(self.datasheet)
                     self.create_datasheet_view()
 
     def generate_html(self, value={}):
