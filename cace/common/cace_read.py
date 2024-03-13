@@ -89,6 +89,7 @@ def cace_read(filename, debug=False):
         'designer',
         'company',
         'creation_date',
+        'modification_date',
         'license',
         'note',
         'comment',

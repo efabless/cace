@@ -395,6 +395,8 @@ class FailReport(tkinter.Toplevel):
                 else:
                     units.append('')
 
+            names.append('testbench')
+            units.append('')
             results = []
 
             for testbench in testbenches:
@@ -425,6 +427,8 @@ class FailReport(tkinter.Toplevel):
                         tresult.append(condition[2])
                     else:
                         tresult.append(condition[1])
+                # Add the testbench filename as the last entry
+                tresult.append(os.path.split(testbench['filename'])[1])
                 results.append(tresult)
 
             # Check for transient simulation
@@ -457,7 +461,7 @@ class FailReport(tkinter.Toplevel):
                 print('Failure to sort results:  results = ' + str(results))
 
             # To get ranges, transpose the results matrix, then make unique
-            ranges = list(map(list, zip(*results)))
+            ranges = list(map(list, zip(*results)))[0:-1]
             for r, vrange in enumerate(ranges):
                 try:
                     vmin = min(float(v) for v in vrange)
@@ -469,6 +473,8 @@ class FailReport(tkinter.Toplevel):
                 except ValueError:
                     ranges[r] = list(set(vrange))
                     pass
+            # For testbench names, just use the testbench number as the range.
+            ranges.append(['1', str(len(results))])
 
             faild.titlebar = ttk.Frame(faild)
             faild.titlebar.grid(row=0, column=0, sticky='ewns')
@@ -685,6 +691,7 @@ class FailReport(tkinter.Toplevel):
                     )
                     header.grid(row=2, column=j, sticky='ewns')
                     j += 1
+
                 k += 1
 
             # Add padding around widgets in the body of the failure report, so that
