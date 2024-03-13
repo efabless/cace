@@ -15,7 +15,7 @@ on:
 jobs:
   build-and-upload:
     # Only run this job if the owner is Efabless
-    if: github.repository_owner == 'Efabless'
+    if: github.repository_owner == 'efabless'
     runs-on: ubuntu-22.04
     name: Build Package 📦 and Upload to PyPI 🐍
     steps:
