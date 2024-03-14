@@ -437,16 +437,18 @@ def cace_run(datasheet, paramname=None):
         # routine to handle it.
 
         found = False
-        for eparam in datasheet['electrical_parameters']:
-            if eparam['name'] == paramname:
-                cace_run_eparam(datasheet, eparam)
-                found = True
-                break
-        for pparam in datasheet['physical_parameters']:
-            if pparam['name'] == paramname:
-                cace_run_pparam(datasheet, pparam)
-                found = True
-                break
+        if 'electrical_parameters' in datasheet:
+            for eparam in datasheet['electrical_parameters']:
+                if eparam['name'] == paramname:
+                    cace_run_eparam(datasheet, eparam)
+                    found = True
+                    break
+        if 'physical_parameters' in datasheet:
+            for pparam in datasheet['physical_parameters']:
+                if pparam['name'] == paramname:
+                    cace_run_pparam(datasheet, pparam)
+                    found = True
+                    break
 
         if not found:
             print('\nError:  No parameter named ' + paramname + ' found!')
