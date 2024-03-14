@@ -1036,7 +1036,9 @@ def regenerate_schematic_netlist(dsheet):
         if pdk and 'PDK' not in newenv:
             newenv['PDK'] = pdk
 
-        tclstr = set_xschem_paths(dsheet, schem_netlist_path, 'set lvs_netlist 1')
+        tclstr = set_xschem_paths(
+            dsheet, schem_netlist_path, 'set lvs_netlist 1'
+        )
 
         # Xschem arguments:
         # -n:  Generate a netlist
