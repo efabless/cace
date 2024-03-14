@@ -863,7 +863,7 @@ def check_dependencies(dsheet, debug=False):
 # -----------------------------------------------------------------------
 
 
-def set_xschem_paths(dsheet, tclstr=None):
+def set_xschem_paths(dsheet, symbolpath, tclstr=None):
     paths = dsheet['paths']
 
     # Root path
@@ -885,10 +885,11 @@ def set_xschem_paths(dsheet, tclstr=None):
 
     tcllist.append('append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path))
 
-    # Add the schematic path to the search path
-    if 'schematic' in paths:
-        schempath = os.path.join(root_path, paths['schematic'])
-        tcllist.append('append XSCHEM_LIBRARY_PATH :' + schempath)
+    # Add the path with the DUT symbol to the search path.  Note that testbenches
+    # use a version of the DUT symbol that is marked as "primitive" so that it
+    # does not get added to the netlist directly.  The netlist is included by a
+    # ".include" statement in the testbenches.
+    tcllist.append('append XSCHEM_LIBRARY_PATH :' + symbolpath)
 
     # If dependencies are declared, then pull in their locations
     # and add them to the search path as well.
@@ -1035,7 +1036,7 @@ def regenerate_schematic_netlist(dsheet):
         if pdk and 'PDK' not in newenv:
             newenv['PDK'] = pdk
 
-        tclstr = set_xschem_paths(dsheet, 'set lvs_netlist 1')
+        tclstr = set_xschem_paths(dsheet, schem_netlist_path, 'set lvs_netlist 1')
 
         # Xschem arguments:
         # -n:  Generate a netlist
@@ -1183,7 +1184,7 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    tclstr = set_xschem_paths(dsheet, '')
+    tclstr = set_xschem_paths(dsheet, testbenchpath, '')
     xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
 
     # Use the PDK xschemrc file for xschem startup
