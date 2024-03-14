@@ -30,6 +30,7 @@ def printwarn(output):
     failrex = re.compile('.*failure', re.IGNORECASE)
     warnrex = re.compile('.*warning', re.IGNORECASE)
     errrex = re.compile('.*error', re.IGNORECASE)
+    missrex = re.compile('.*not found', re.IGNORECASE)
 
     errors = 0
     outlines = output.splitlines()
@@ -45,7 +46,10 @@ def printwarn(output):
         fmatch = failrex.match(line)
         if fmatch:
             errors += 1
-        if ematch or wmatch or fmatch:
+        mmatch = missrex.match(line)
+        if mmatch:
+            errors += 1
+        if ematch or wmatch or fmatch or mmatch:
             print(line)
     return errors
 
@@ -1179,7 +1183,8 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q']
+    tclstr = set_xschem_paths(dsheet, '')
+    xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
 
     # Use the PDK xschemrc file for xschem startup
     xschemrcfile = os.path.join(
