@@ -492,14 +492,15 @@ def cace_run(datasheet, paramname=None):
                     print('cace_run_all_[e|p]param failed with exception:')
                     print(e)
                     presult = None
-                if presult:
-                    poolresult.append(presult)
+                poolresult.append(presult)
 
         # The pool results may arrive in either order, so arrange them properly.
-        idx0 = poolresult[0][0]
-        idx1 = poolresult[1][0]
-        datasheet['electrical_parameters'] = poolresult[idx0][1:]
-        datasheet['physical_parameters'] = poolresult[idx1][1:]
+        if poolresult[0]:
+            idx0 = poolresult[0][0]
+            datasheet['electrical_parameters'] = poolresult[idx0][1:]
+        if poolresult[1]:
+            idx1 = poolresult[1][0]
+            datasheet['physical_parameters'] = poolresult[idx1][1:]
 
     return datasheet
 
