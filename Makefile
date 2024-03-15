@@ -40,6 +40,10 @@ docs:
 host-docs:
 	python3 -m http.server --directory ./docs/build/html
 
+.PHONY: auto-docs
+auto-docs:
+	sphinx-autobuild docs/source docs/build/html
+
 .PHONY: clean
 clean:
 	rm -rf build/

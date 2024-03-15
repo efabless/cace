@@ -1,9 +1,9 @@
-# The CACE version 4.0 format description
+# Version 4.0 format description
 
 ## NOTE
 
 CACE files prior to version 4 (November 2023) are in JSON format
-and can be run through the script cace_compat.py to produce a
+and can be run through the script `cace_compat.py` to produce a
 version 4.0 text format.
 
 ## Syntax
@@ -11,7 +11,7 @@ version 4.0 text format.
 Every line is either a key:value pair or a key:dictionary or a key:list,
 or a blank line, or a comment.
 
-A comment is any line beginning with "#".
+A comment is any line beginning with `#`.
 
 A blank line is any line consisting only of spaces, tabs, and a newline.
 
@@ -20,12 +20,12 @@ For key:value, the format is
 	<key>:	<value>
 
 1. Spaces outside of <key> and <value> are optional.
-2. A keyword must be alphanumeric only;  it cannot contain spaces.
+2. A keyword must be alphanumeric only; it cannot contain spaces.
 3. The value may not begin with a space character but may contain space
-   characters.  If the value is interpreted as a string, the spaces are
-   taken literally.  If the value has multiple parts, then the spaces
+   characters. If the value is interpreted as a string, the spaces are
+   taken literally. If the value has multiple parts, then the spaces
    (or tabs) separate the entries.
-4. The key: value assignment ends with a newline.  The <value> may be
+4. The key: value assignment ends with a newline. The <value> may be
    made multi-line by ending lines with backslash-newline.
 
 For key:dictionary, the format is
@@ -54,14 +54,15 @@ For key:list, the format is
 	}
 
 1. Each <dictionary> is a dictionary as described above (one or more newline-
-   separated key:value pairs, key:dictionary, or nested key:list).  
+   separated key:value pairs, key:dictionary, or nested key:list).
 2. The "+" may be on its own line or precede the first dictionary keyword,
    separated by space.  A blank line preceding the "+" is optional.
 3. Each key within a dictionary must be unique, but different dictionaries
    in the list will contain the same keywords.
 
-All entries in the file are from the ASCII character set.  Non-ASCII characters
+All entries in the file are from the ASCII character set. Non-ASCII characters
 can be handled with known keywords in braces, such as (but not limited to):
+
 	{degrees}
 	{micro}
 	{sigma}
@@ -70,18 +71,16 @@ can be handled with known keywords in braces, such as (but not limited to):
 	{sqrt}
 
 Dictionaries are generally searched for known keys but unknown keys are not
-flagged.  Therefore comments and other non-critical information can be put
-in otherwise unused dictionary keys.  The key "note" is considered the
+flagged. Therefore comments and other non-critical information can be put
+in otherwise unused dictionary keys. The key "note" is considered the
 proper way to pass comments about the contents of a specific dictionary;
 these can end up as notes in a formatted datasheet output.
-.
-4.
-CACE format description:  Characterization file contents
------------------------------------------------------------------
 
-The top level file itself is a dictionary of <key>:<value>, <key>:<dictionary>,
-or <key>:<list> entries.  The top-level dictionary does not have a key and is
-not delimited by braces.  The file starts with the first key in the dictionary.
+##  Characterization file contents
+
+The top level file itself is a dictionary of `<key>`:`<value>`, `<key>`:`<dictionary>`,
+or `<key>`:`<list>` entries. The top-level dictionary does not have a key and is
+not delimited by braces. The file starts with the first key in the dictionary.
 
 Top-level dictionary:
 
@@ -109,13 +108,12 @@ Top-level dictionary:
 	physical_parameters: <list>
 	List of specified physical parameters, for spec and measurement (see below).
 
-The order of entries is not meaningful except that "default_conditions" must be
-declared before "electrical_parameters", since the electrical parameters will
+The order of entries is not meaningful except that `default_conditions` must be
+declared before `electrical_parameters`, since the electrical parameters will
 take default conditions before applying specific conditions.
 
-4.1
-Authorship
---------------
+### Authorship
+
 "authorship" dictionary:
 
 	designer:	<name>
@@ -136,9 +134,8 @@ Authorship
 	license:	<string>
 	A known license type, such as "Apache 2.0".
 
-4.2
-Paths
---------------
+### Paths
+
 "paths" dictionary:
 
 	documentation:	<path>
@@ -183,10 +180,10 @@ Paths
 	This is the location of the project and the root of all the other
 	paths in this dictionary.  It is automatically inserted by CACE.
 
-4.3
-Dependencies
---------------
+### Dependencies
+
 "dependencies" list:
+
 	Each entry in the list is a project on which the design under
 	test is dependent.  Each entry lists a dictionary with the
 	following dictionary entries:
@@ -208,9 +205,8 @@ Dependencies
 	project.  TBD:  Various values that define actions such as updating
 	the repository.
 
-4.4
-Pins
---------------
+### Pins
+
 "pins" dictionary:
 	
 	name:	<string>
@@ -240,9 +236,8 @@ Pins
 	another pin;  and may be referenced to another pin with an offset
 	(e.g., "vdd + 0.3").
 
-4.5
-Default conditions
---------------
+### Default conditions
+
 "default_conditions" dictionary:
 
 	name: <string>
@@ -291,9 +286,8 @@ Default conditions
 	enumeration or <value> multiplicative values for logarithmic
 	enumeration.
 
-4.6
-Parameter conditions
---------------
+### Parameter conditions
+
 "conditions" dictionary:
 
 	The "conditions" dictionary entries are the same as the
@@ -304,9 +298,8 @@ Parameter conditions
 	condition name exists in the netlist to be simulated or the file
 	to be evaluated (see "simulate" and "measure" entries).
 
-4.7
-Electrical conditions
---------------
+### Electrical conditions
+
 "electrical_parameters" dictionary:
 
 	name: <string>
@@ -367,9 +360,8 @@ Electrical conditions
 	This entry is automatically generated by CACE and enumerates all
 	of the testbenches to be simulated and evaluated, and the results.
 
-4.8
-Specification
---------------
+### Specification
+
 "spec" dictionary:
 
 	minimum: <value>|any  [fail]	[<calculation>-<limit>]
@@ -400,10 +392,10 @@ Specification
 	spec.  If <calculation>-<limit> is specified, then it overrides
 	the default calculation of "maximum-below"
 
-4.9
-Results
---------------
+### Results
+
 "results" dictionary:
+
 	A set of results that is the measurement counterpart to the
 	"spec" dictionary for an electrical parameter.  The difference
 	is that it includes a key "name" that specifies the netlist
@@ -420,10 +412,10 @@ Results
 	typical: <value> [pass|fail]
 	maximum: <value> [pass|fail]
 
-4.10
-Variables
---------------
+### Variables
+
 "variables" list:
+
 	A variable is any property that affects the electrical parameter
 	result but which is not a condition.  A variable may be used in
 	a plot to graph the result vs. something that is not a condition.
@@ -447,9 +439,8 @@ Variables
 	This is the unit that will be displayed after the display
 	string.
 
-4.11
-Simulation information
---------------
+### Simulation information
+
 "simulate" dictionary:
 
 	tool: <string>
@@ -491,10 +482,10 @@ Simulation information
 	runs over all the specified conditions before passing the result
 	to the first "measure" handler.
 
-4.12
-Measurement information
---------------
+### Measurement information
+
 "measure" dictionary:
+
 	Additional entries are tools that operate on the output of
 	the simulator to produce the final results for the datasheet.
 	They may be number-crunching tools like "octave" for compute-
@@ -524,10 +515,10 @@ Measurement information
 	the output is passed in stdout, and is a list of "result" values
 	that replaces the existing "result" values in the testbench.
 
-4.13
-Internal calculations
---------------
+### Internal calculations
+
 Internal calculation (measurement) methods:
+
 	time:
 	remove:
 	rebase:
@@ -543,10 +534,10 @@ Internal calculation (measurement) methods:
 	stabletime:
 	inside:
 	
-4.14
-Plots
---------------
+### Plots
+
 "plot" dictionary:
+
 	filename: <string>
 	Name of a graphic format and filename to use for graph output.
 	Plots are done with python matplotlib, so it must be a format
@@ -574,9 +565,8 @@ produced by plot-generating tools may contain vectors not in the listed
 conditions for the electrical parameter, such as TIME for time or TRACE for
 the result.
 	
-4.15
-Testbenches
---------------
+### Testbenches
+
 "testbenches" dictionary:
 
 	filename: <string>
@@ -602,9 +592,8 @@ Testbenches
 	the format, and entries must match the order of the entries
 	in the format.
 
-4.16
-Physical parameters
---------------
+### Physical parameters
+
 "physical_parameters" list:
 
 	The physical parameters list has the same keywords as the
@@ -620,10 +609,10 @@ Physical parameters
 	and takes the place of "simulate" and "measure" for electrical
 	parameters (see below).
 
-4.17
-Evaluation information
---------------
+### Evaluation information
+
 "evaluate" dictionary:
+
 	The "evaluate" dictionary is unique to the physical_parameters
 	dictionaries.  It describes how to obtain a specific physical
 	or other non-electrical parameter, such as cell size or number
@@ -643,10 +632,10 @@ Evaluation information
 	by "tool", if the tool is not an internal procedure.  The file
 	<name> should exist in the testbench directory.
 
-4.18
-Internal physical parameter tools
---------------
+### Internal physical parameter tools
+
 Internal physical parameter (evaluation) tools:
+
 	cace_drc:	Returns the number of DRC errors found in the design.
 			The result is generally useful only as being zero or
 			non-zero.
