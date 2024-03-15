@@ -7,5 +7,6 @@ This pages gives you an overview of how to use CACE.
 :maxdepth: 2
 
 getting_started
-characterize_help
+cace_cli
+cace_gui
 ```
