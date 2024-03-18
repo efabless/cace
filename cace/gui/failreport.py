@@ -594,6 +594,12 @@ class FailReport(tkinter.Toplevel):
                         ),
                     )
                     ToolTip(header, text='Reverse order of results')
+                elif labtext == 'testbench':
+                    header = ttk.Label(
+                        body,
+                        text=labtext,
+                        style='title.TLabel',
+                    )
                 else:
                     header = ttk.Button(
                         body,
