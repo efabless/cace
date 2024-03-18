@@ -20,6 +20,7 @@ from matplotlib.backends.backend_agg import FigureCanvasAgg
 
 from .cace_gensim import twos_comp
 from .cace_collate import addnewresult
+from .spiceunits import spice_unit_unconvert
 
 # -----------------------------------------------------------------------------
 # Given a plot record from a spec sheet and a full set of testbenches, generate
@@ -34,6 +35,9 @@ from .cace_collate import addnewresult
 
 
 def cace_makeplot(dsheet, param, parent=None):
+
+    # Regular expression for identifying digital values
+    binrex = re.compile(r'([0-9]*)\'([bodh])', re.IGNORECASE)
 
     if 'plot' not in param:
         return None
@@ -58,25 +62,6 @@ def cace_makeplot(dsheet, param, parent=None):
         if 'debug' in runtime_options:
             debug = runtime_options['debug']
 
-    # Development:  For now, just take the results from the 1st testbench
-    # All testbenches should have the same data, just with different sets
-    # of conditions.  Multiple testbench data will be steps in the graph.
-
-    numtbs = len(param['testbenches'])
-    if numtbs == 0:
-        print('Error:  Plot has no results.')
-
-    tbzero = param['testbenches'][0]
-    results = copy.deepcopy(tbzero['results'])
-
-    binrex = re.compile(r'([0-9]*)\'([bodh])', re.IGNORECASE)
-    # Organize data into plot lines according to formatting
-
-    if 'type' in plotrec:
-        plottype = plotrec['type']
-    else:
-        plottype = 'xyplot'
-
     # The 'format' record of the 'simulate' dictionary in the parameter
     # indicates how the simulation data should be formatted.  The first
     # two items describe how to read the file and are discarded.  The
@@ -94,10 +79,32 @@ def cace_makeplot(dsheet, param, parent=None):
     else:
         simformat = ['result']
 
+    if 'type' in plotrec:
+        plottype = plotrec['type']
+    else:
+        plottype = 'xyplot'
+
     if plottype == 'histogram':
         xname = 'result'
     else:
         xname = plotrec['xaxis']
+
+    # Organize data into plot lines according to formatting
+    # Because the data may get rearranged, create a copy of all testbench
+    # results and reference only the copied data.
+    tbdata = copy.deepcopy(param['testbenches'])
+
+    numtbs = len(tbdata)
+    if numtbs == 0:
+        print('Error:  Plot has no results.')
+
+    # All testbenches should have results in the same format.  Use only the
+    # first testbench to determine which column of results represents the
+    # plot's x-axis data.
+
+    zerotb = tbdata[0]
+    results = zerotb['results']
+    conditions = zerotb['conditions']
 
     # In case results[] is not a vector. . .  This should have been handled
     # outside of cace_makeplot and probably needs to be fixed.
@@ -116,12 +123,14 @@ def cace_makeplot(dsheet, param, parent=None):
         xidx = next(r for r in range(rlen) if simformat[r] == xname)
     except StopIteration:
 
+        if debug:
+            print('Refactoring testbench data for plot vs. ' + xname)
+
         # x-axis variable is not in the variable list.  If it exists as
         # a testbench condition and varies over the testbenches, then
         # add a column to each row of results to represent the variable,
-        # and add all testbench results to the <results> array.
+        # and then reorganize the testbenches.
 
-        conditions = tbzero['conditions']
         notfound = True
         for cond in conditions:
             if cond[0] == xname:
@@ -133,37 +142,74 @@ def cace_makeplot(dsheet, param, parent=None):
             print('Plot error:  No signal ' + xname + ' recorded in format.')
             return None
 
-        for result in results:
-            result.append(condvalue)
+        # For each testbench, add the x-axis condition value to to the results.
+        # Also create a string representation of all condition values except
+        # the x-axis condition for each testbench, and save it.
 
-        for tbi in param['testbenches'][1:]:
-            conditions = tbi['conditions']
+        for tbidx in range(0, numtbs):
+            thistb = tbdata[tbidx]
+            tbresults = thistb['results']
+            conditions = thistb['conditions']
+            condstr = ''
             for cond in conditions:
                 if cond[0] == xname:
                     condvalue = cond[2]
-                    break
-            for result in tbi['results']:
+                else:
+                    condstr += cond[2]
+            thistb['condstr'] = condstr
+            for result in tbresults:
                 if isinstance(result, list):
-                    newresult = result.copy()
+                    newresult = result
                 else:
                     newresult = [result]
                 newresult.append(condvalue)
-                results.append(newresult)
 
+        # For each testbench, find all other testbenches that have the same
+        # conditions *except* for the x-axis condition, and combine them
+        # into one testbench
+
+        for tbidx in range(0, numtbs):
+            thistb = tbdata[tbidx]
+            condstr = thistb['condstr']
+            for tbcomp in range(tbidx + 1, numtbs):
+                comptb = tbdata[tbcomp]
+                if 'killed' in comptb:
+                    continue
+                compstr = comptb['condstr']
+                if compstr == condstr:
+                    thistb['results'].extend(comptb['results'])
+                    comptb['killed'] = True
+
+        # Generate new set of testbenches from the combined set.
+        newtbdata = []
+        for tbidx in range(0, numtbs):
+            thistb = tbdata[tbidx]
+            if not 'killed' in thistb:
+                newtbdata.append(thistb)
+
+        # Replace the old testbench data
+        tbdata = newtbdata
+
+        # Adjust the testbench count and the length of results, the
+        # index of the X-axis variable, and the simformat list.
+
+        numtbs = len(tbdata)
         rlen = len(results[0])
         xidx = rlen - 1
         simformat.append(xname)
 
-    # Find unique values of each variable (except results, traces, and iterations)
-
-    conditions = tbzero['conditions']
-    binconv = []
-
     if debug:
         print('Processing ' + str(rlen) + ' plot variables.')
 
+    # Redefine "results" and "conditions" after refactoring.
+    zerotb = tbdata[0]
+    results = zerotb['results']
+    conditions = zerotb['conditions']
+
+    # Find unique values of each variable (except results, traces, and iterations)
     # Collect the records of everything being plotted.
 
+    binconv = []
     tracedicts = []
     traces = []
     residx = 0
@@ -187,9 +233,9 @@ def cace_makeplot(dsheet, param, parent=None):
 
         tracedicts.append(varrec)
 
-        # Mark which items need converting from digital.  Format is verilog-like.  Use
-        # a format width that is larger than the actual number of digits to force
-        # unsigned conversion.
+        # Mark which items need converting from digital.  Format is verilog-like.
+        # Use a format width that is larger than the actual number of digits to
+        # force unsigned conversion.
 
         if 'name' in varrec:
             varname = varrec['name']
@@ -216,22 +262,9 @@ def cace_makeplot(dsheet, param, parent=None):
         else:
             binconv.append([])
 
-    # Which stepped variables (ignoring X axis variable) have more than one value?
-    # watchsteps = list(i for i in range(1, rlen) if len(steps[i]) > 1 and i != xidx)
-    watchsteps = []
-
-    # Diagnostic
-    # print("Stepped conditions are: ")
-    # for j in watchsteps:
-    #      print(results[0][j] + '  (' + str(len(steps[j])) + ' steps)')  # FIXME
-
     needconvert = False
     if xname.split('|')[0] == 'digital' or binconv[xidx] != []:
         needconvert = True
-
-    # Collect results.  Make a separate record for each unique set of stepped conditions
-    # encountered.  Record has (X, Y) vector and a list of conditions.
-    pdata = {}
 
     # Limit the amount of data being processed.  NOTE:  This is a stupid-simple
     # way to do it and it needs much better handling;  e.g., import scipy and
@@ -247,93 +280,180 @@ def cace_makeplot(dsheet, param, parent=None):
     else:
         stepsize = 1
 
-    for idx in range(0, numpoints, stepsize):
-        item = results[idx]
+    # Find which conditions are variable;  conditions which are constant do
+    # not need to be displayed in the plot key.  Make a list "stepped" which
+    # is True for each condition that is not constant.  If any condition is
+    # stepped, then a legend is created for the plot.  Ignore a condition if
+    # it is the x-axis condition.
 
-        if needconvert:
-            base = binconv[xidx][0]
-            digits = binconv[xidx][1]
-            # Recast binary strings as integers
-            # Watch for strings that have been cast to floats (need to find the source of this)
-            if '.' in item[xidx]:
-                item[xidx] = item[xidx].split('.')[0]
-            a = int(item[xidx], base)
-            b = twos_comp(a, digits)
-            xvalue = b
-        else:
-            xvalue = item[xidx]
+    tracelegend = False
+    stepped = []
+    for cidx in range(0, len(conditions)):
+        stepped.append(False)
+        cond = conditions[cidx][2]
+        # If condition has been set as the x-axis variable, then it is no
+        # longer a stepped condition.
+        if conditions[cidx][0] == xname:
+            continue
+        for tbidx in range(0, numtbs):
+            testtb = tbdata[tbidx]
+            tbcond = testtb['conditions'][cidx][2]
+            if tbcond != cond:
+                stepped[cidx] = True
+                tracelegend = True
+                break
 
+    if debug:
+        print('Stepped conditions are: ')
+        stepcond = []
+        for j in range(0, len(stepped)):
+            if j == True:
+                stepcond.append(conditions[j][0])
+        print('    ' + ' '.join(stepcond))
+
+    # Now plot the result from each testbench.  Each plot ends up as a
+    # dictionary entry "pdict" in a larger dictionary "pdata".  Each entry
+    # in "pdata" (i.e., each plot trace) is indexed by the list of variable
+    # conditions comprising that trace.  This index becomes the text in the
+    # plot's legend to identify each trace.
+
+    # Warning:  The existing code does not differentiate between plot traces
+    # that are stepped conditions vs. plot traces that are variables.  In
+    # general, the variables should not be assumed to have any relationship
+    # to each other;  one might be a voltage and another current.  They
+    # should be placed in separate sub-graphs.
+
+    pdata = {}
+
+    # Collect results.  Make a separate record for each unique set of stepped
+    # conditions encountered.  Record has (X, Y) vector and a list of conditions.
+
+    for tbidx in range(0, numtbs):
+
+        thistb = tbdata[tbidx]
+        if tbidx > 0:
+            results = thistb['results']
+            conditions = thistb['conditions']
+
+            # In case results[] is not a vector. . .  This should have been handled
+            # outside of cace_makeplot and probably needs to be fixed.
+
+            if not isinstance(results[0], list):
+                for i in range(len(results)):
+                    result = results[i]
+                    if not isinstance(result, list):
+                        results[i] = [result]
+
+        # Create a key index from the list of variable conditions.
+        # Also create the corresponding text for the plot legend
+
+        klist = []
         slist = []
-        for j in watchsteps:
-            slist.append(item[j])
-        istr = ','.join(slist)
-        if istr not in pdata:
-            stextlist = []
-            for j in watchsteps:
-                if results[1][j] == '':
-                    # FIXME:  results[0][x] is no longer the trace name
-                    stextlist.append(results[0][j] + '=' + item[j])
-                else:
-                    # FIXME:  results[0][x] is no longer the trace name
-                    stextlist.append(
-                        results[0][j] + '=' + item[j] + ' ' + results[1][j]
-                    )
-            pdict = {}
-            pdata[istr] = pdict
-            pdict['xdata'] = []
-            if stextlist:
-                tracelegnd = False
-            else:
-                tracelegnd = True
+        for i in range(0, len(conditions)):
+            if stepped[i] == True:
+                klist.append(conditions[i][2])
+                slist.append(
+                    conditions[i][0]
+                    + '='
+                    + str(conditions[i][2])
+                    + conditions[i][1]
+                )
+        dkey = ','.join(klist)
+        stextlist = ' '.join(slist)
 
-            for i in traces:
-                aname = 'ydata' + str(i)
-                pdict[aname] = []
-                alabel = 'ylabel' + str(i)
+        # An empty string seems to work for a key?  But give it a real name.
+        if dkey == '':
+            dkey = 'default'
 
-                # Get the name of the trace.
-                tracedict = tracedicts[i]
-                if 'display' in tracedict:
-                    tracename = tracedict['display']
-                else:
-                    tracename = tracedict['name']
+        # Diagnostic for debugging
+        if debug:
+            print('Testbench ' + str(tbidx) + ' key = ' + dkey)
+            print('Testbench ' + str(tbidx) + ' legend = "' + stextlist + '"')
 
-                # Get the units of the trace
-                if 'unit' in tracedict:
-                    if not binrex.match(tracedict['unit']):
-                        tracename += ' (' + tracedict['unit'] + ')'
+        # Collect results from this testbench into a plot trace
 
-                pdict[alabel] = tracename
+        pdict = {}
+        pdata[dkey] = pdict
 
-            pdict['sdata'] = ' '.join(stextlist)
-        else:
-            pdict = pdata[istr]
+        pdict['xdata'] = []
+        pdict['sdata'] = stextlist
 
-        try:
-            xfloat = float(xvalue)
-        except:
-            pdict['xdata'].append(xvalue)
-        else:
-            pdict['xdata'].append(xfloat)
+        # Each variable (trace) forms a separate trace in this plot.
+        # (See note above)
 
         for i in traces:
-            # For each trace, convert the value from digital to integer if needed
-            if binconv[i] != []:
-                base = binconv[i][0]
-                digits = binconv[i][1]
-                a = int(item[i], base)
-                b = twos_comp(a, digits)
-                yvalue = b
-            else:
-                yvalue = item[i]
-
             aname = 'ydata' + str(i)
-            try:
-                yfloat = float(yvalue)
-            except:
-                pdict[aname].append(yvalue)
+            pdict[aname] = []
+            alabel = 'ylabel' + str(i)
+
+            # Get the name of the trace.
+            tracedict = tracedicts[i]
+            if 'display' in tracedict:
+                tracename = tracedict['display']
             else:
-                pdict[aname].append(yfloat)
+                tracename = tracedict['name']
+
+            # Get the units of the trace
+            if 'unit' in tracedict:
+                if not binrex.match(tracedict['unit']):
+                    tracename += ' (' + tracedict['unit'] + ')'
+
+            pdict[alabel] = tracename
+
+        # Now, for each entry in results, add an (X, Y) point to each
+        # plot trace.
+
+        for idx in range(0, numpoints, stepsize):
+            item = results[idx]
+
+            if needconvert:
+                base = binconv[xidx][0]
+                digits = binconv[xidx][1]
+                # Recast binary strings as integers
+                # Watch for strings that have been cast to floats
+                # (need to find the source of this)
+                if '.' in item[xidx]:
+                    item[xidx] = item[xidx].split('.')[0]
+                a = int(item[xidx], base)
+                b = twos_comp(a, digits)
+                xvalue = b
+            else:
+                xvalue = item[xidx]
+
+            try:
+                xfloat = float(xvalue)
+            except:
+                pdict['xdata'].append(xvalue)
+            else:
+                pdict['xdata'].append(xfloat)
+
+            for i in traces:
+                tracedict = tracedicts[i]
+                # For each trace, convert the value from digital to integer if needed
+                if binconv[i] != []:
+                    base = binconv[i][0]
+                    digits = binconv[i][1]
+                    a = int(item[i], base)
+                    b = twos_comp(a, digits)
+                    yvalue = b
+                else:
+                    yvalue = item[i]
+
+                aname = 'ydata' + str(i)
+                try:
+                    yfloat = float(yvalue)
+                except:
+                    pdict[aname].append(yvalue)
+                else:
+                    if 'unit' in tracedict:
+                        yscaled = spice_unit_unconvert(
+                            [tracedict['unit'], yfloat]
+                        )
+                        pdict[aname].append(yscaled)
+                    else:
+                        pdict[aname].append(yfloat)
+
+    # NOTE:  Loop over testbenches (tbidx) ends here
 
     fig = Figure()
     if parent == None:
@@ -345,6 +465,7 @@ def cace_makeplot(dsheet, param, parent=None):
     # 'extra artists' capability of print_figure will take care of the bounding box.
     # For display, prepare two subplots so that the legend takes up the space of the
     # second one.
+
     if parent == None:
         ax = fig.add_subplot(111)
     else:
@@ -378,7 +499,8 @@ def cace_makeplot(dsheet, param, parent=None):
                 ax.plot(
                     xdata,
                     pdict[aname],
-                    label=pdict[alabl] + ' ' + pdict['sdata'],
+                    # label=pdict[alabl] + ' ' + pdict['sdata'],
+                    label=pdict['sdata'],
                 )
 
         if not numeric:
@@ -408,13 +530,13 @@ def cace_makeplot(dsheet, param, parent=None):
     ax.set_ylabel(ytext)
 
     ax.grid(True)
-    if watchsteps or tracelegnd:
-        legnd = ax.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.0)
+    if tracelegend:
+        legend = ax.legend(loc=2, bbox_to_anchor=(1.05, 1), borderaxespad=0.0)
     else:
-        legnd = None
+        legend = None
 
-    if legnd:
-        legnd.set_draggable(True)
+    if legend:
+        legend.set_draggable(True)
 
     if parent == None:
         paths = dsheet['paths']
@@ -440,9 +562,9 @@ def cace_makeplot(dsheet, param, parent=None):
         # bbox_inches is set to 'tight'.  This forces a two-pass method
         # that calculates the real maximum bounds of the figure.  Otherwise
         # the legend gets clipped.
-        if legnd:
+        if legend:
             canvas.print_figure(
-                filename, bbox_inches='tight', bbox_extra_artists=[legnd]
+                filename, bbox_inches='tight', bbox_extra_artists=[legend]
             )
         else:
             canvas.print_figure(filename, bbox_inches='tight')

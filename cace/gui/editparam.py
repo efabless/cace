@@ -162,9 +162,11 @@ class EditParam(tkinter.Toplevel):
         dsheet = self.parent.datasheet
 
         # Get list of methods from testbench folder
-        dspath = os.path.split(self.parent.filename)[0]
+        # ("dspath" should be the same as "tbpath"---is there any case
+        # where it would not be?
+        # dspath = os.path.split(self.parent.filename)[0]
         paths = dsheet['paths']
-        tbpath = os.path.join(dspath, paths['root'], paths['testbench'])
+        tbpath = os.path.join(paths['root'], paths['testbench'])
         tbfiles = os.listdir(tbpath)
         methods = []
         for spicefile in tbfiles:
