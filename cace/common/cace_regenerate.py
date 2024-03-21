@@ -918,7 +918,10 @@ def set_xschem_paths(dsheet, symbolpath, tclstr=None):
                         dependency['path'], dependency['name']
                     )
                     if not os.path.isdir(dependdir):
-                        print('Error:  Cannot find xschem library in ' + dependency['name'])
+                        print(
+                            'Error:  Cannot find xschem library in '
+                            + dependency['name']
+                        )
                         print('Current directory is: ' + os.getcwd())
                         print('Dependdir is: ' + dependdir)
                         dependdir = None
