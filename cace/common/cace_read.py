@@ -73,6 +73,7 @@ def cace_read(filename, debug=False):
     listkeys = [
         'conditions',
         'default_conditions',
+        'dependencies',
         'variables',
         'pins',
         'measure',
