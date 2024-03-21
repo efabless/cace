@@ -492,14 +492,41 @@ def cace_makeplot(dsheet, param, parent=None):
                 label=pdict['sdata'],
                 stacked=True,
             )
+        elif plottype == 'semilogx':
+            for i in traces:
+                aname = 'ydata' + str(i)
+                alabl = 'ylabel' + str(i)
+                ax.semilogx(
+                    xdata,
+                    pdict[aname],
+                    label=pdict['sdata'],
+                )
+        elif plottype == 'semilogy':
+            for i in traces:
+                aname = 'ydata' + str(i)
+                alabl = 'ylabel' + str(i)
+                ax.semilogy(
+                    xdata,
+                    pdict[aname],
+                    label=pdict['sdata'],
+                )
+        elif plottype == 'loglog':
+            for i in traces:
+                aname = 'ydata' + str(i)
+                alabl = 'ylabel' + str(i)
+                ax.loglog(
+                    xdata,
+                    pdict[aname],
+                    label=pdict['sdata'],
+                )
         else:
+            # plottype is 'xyplot'
             for i in traces:
                 aname = 'ydata' + str(i)
                 alabl = 'ylabel' + str(i)
                 ax.plot(
                     xdata,
                     pdict[aname],
-                    # label=pdict[alabl] + ' ' + pdict['sdata'],
                     label=pdict['sdata'],
                 )
 
