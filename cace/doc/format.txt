@@ -546,6 +546,12 @@ Plots
 	Plots are done with python matplotlib, so it must be a format
 	known to matplotlib.
 
+	type: <string>
+	The type of plot to make.  If this record is missing from the
+	dictionary, then plot type "xyplot" is assumed by default.
+	Otherwise, the value should be one of "xyplot", "histogram",
+	"semilogx", "semilogy", or "loglog".
+
 	xaxis: <name>
 	Condition to be plotted on the graph X axis, as determined
 	from the condition related to <name> in the "variables"
