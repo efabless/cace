@@ -913,7 +913,20 @@ def set_xschem_paths(dsheet, symbolpath, tclstr=None):
                 dependdir = os.path.join(
                     dependency['path'], dependency['name'], 'xschem'
                 )
-                tcllist.append('append XSCHEM_LIBRARY_PATH :' + dependdir)
+                if not os.path.isdir(dependdir):
+                    dependdir = os.path.join(
+                        dependency['path'], dependency['name']
+                    )
+                    if not os.path.isdir(dependdir):
+                        print(
+                            'Error:  Cannot find xschem library in '
+                            + dependency['name']
+                        )
+                        print('Current directory is: ' + os.getcwd())
+                        print('Dependdir is: ' + dependdir)
+                        dependdir = None
+                if dependdir:
+                    tcllist.append('append XSCHEM_LIBRARY_PATH :' + dependdir)
 
     return ' ; '.join(tcllist)
 
