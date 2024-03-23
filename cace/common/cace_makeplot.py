@@ -157,12 +157,15 @@ def cace_makeplot(dsheet, param, parent=None):
                 else:
                     condstr += cond[2]
             thistb['condstr'] = condstr
+            newtbresults = []
             for result in tbresults:
                 if isinstance(result, list):
                     newresult = result
                 else:
                     newresult = [result]
                 newresult.append(condvalue)
+                newtbresults.append(newresult)
+            thistb['results'] = newtbresults
 
         # For each testbench, find all other testbenches that have the same
         # conditions *except* for the x-axis condition, and combine them
