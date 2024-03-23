@@ -2053,7 +2053,7 @@ def gui():
         else:
             arguments.append(item)
 
-    if os.name != "nt":
+    if os.name != 'nt':
         signal.signal(signal.SIGUSR1, signal.SIG_IGN)
     root = tkinter.Tk()
     app = CACECharacterize(root)
