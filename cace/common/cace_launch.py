@@ -317,7 +317,11 @@ def cace_launch(dsheet, param):
 
             for result in results:
                 try:
-                    presult = result.get(timeout=300)
+                    # Note:  Previously used result.get(timeout=300).
+                    # This was intended to prevent hung simulations from
+                    # hanging CACE.  But with multiprocessing, the timeout
+                    # itself causes CACE to hang, making it less than useless.
+                    presult = result.get()
                 except Exception as e:
                     print('simulate_and_measure failed with exception:')
                     print(e)
