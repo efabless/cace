@@ -19,6 +19,7 @@ import os
 import sys
 import json
 import signal
+import argparse
 
 from .common.cace_read import *
 from .common.cace_compat import *
@@ -359,7 +360,7 @@ def cace_run_all_pparams(datasheet):
 # -----------------------------------------------------------------
 
 
-def cace_run(datasheet, paramname=None):
+def cace_run(datasheet, paramnames=None):
 
     if 'runtime_options' in datasheet:
         runtime_options = datasheet['runtime_options']
@@ -414,93 +415,103 @@ def cace_run(datasheet, paramname=None):
         runtime_options['status'] = 'failed'
         return datasheet
 
-    # Generate testbench netlists if needed
-    result = regenerate_testbenches(datasheet, paramname)
-    if result == 1:
-        print('Failed to regenerate testbench netlists;  stopping.')
-        runtime_options['status'] = 'failed'
-        return datasheet
+    if not paramnames:
 
-    # Handle a single parameter specified on the
+        # From this point:  Running characterization on the entire datasheet
+        # (all electrical and physical parameters)
 
-    if paramname:
-        # Special option paramname = "check" is used to run the
-        # proceeding code to regenerate DUT and testbench netlists,
-        # and then return.
-        if paramname == 'check':
-            runtime_options['status'] = 'passed'
+        # Generate testbench netlists if needed
+        result = regenerate_testbenches(datasheet, paramnames)
+        if result == 1:
+            print('Failed to regenerate testbench netlists;  stopping.')
+            runtime_options['status'] = 'failed'
             return datasheet
 
-        # Scan the names of electrical and physical parameters to
-        # see whether the indicated parameter to check is an
-        # electrical or physical parameter, and call the appropriate
-        # routine to handle it.
+        if sequential:
+            cace_run_all_eparams(datasheet)
+            cace_run_all_pparams(datasheet)
+        else:
+            poolresult = []
+            with NestablePool() as top_pool:
+                results = []
+                # Note:  datasheet must be cast as a list if it is a single argument.
+                results.append(
+                    top_pool.apply_async(
+                        cace_run_all_eparams,
+                        [datasheet],
+                    )
+                )
+                results.append(
+                    top_pool.apply_async(
+                        cace_run_all_pparams,
+                        [datasheet],
+                    )
+                )
 
-        found = False
-        if 'electrical_parameters' in datasheet:
-            for eparam in datasheet['electrical_parameters']:
-                if eparam['name'] == paramname:
-                    cace_run_eparam(datasheet, eparam)
-                    found = True
-                    break
-        if 'physical_parameters' in datasheet:
-            for pparam in datasheet['physical_parameters']:
-                if pparam['name'] == paramname:
-                    cace_run_pparam(datasheet, pparam)
-                    found = True
-                    break
+                for result in results:
+                    try:
+                        presult = result.get(timeout=300)
+                    except Exception as e:
+                        print('cace_run_all_[e|p]param failed with exception:')
+                        print(e)
+                        presult = None
+                    poolresult.append(presult)
 
-        if not found:
-            print('\nError:  No parameter named ' + paramname + ' found!')
-            print('Valid electrical parameter names are:')
-            for eparam in datasheet['electrical_parameters']:
-                print('   ' + eparam['name'])
-            print('Valid physical parameter names are:')
-            for pparam in datasheet['physical_parameters']:
-                print('   ' + pparam['name'])
+            # The pool results may arrive in either order, so arrange them properly.
+            if poolresult[0]:
+                idx0 = poolresult[0][0]
+                datasheet['electrical_parameters'] = poolresult[idx0][1:]
+            if poolresult[1]:
+                idx1 = poolresult[1][0]
+                datasheet['physical_parameters'] = poolresult[idx1][1:]
 
-        return datasheet
-
-    # From this point:  Running characterization on the entire datasheet
-    # (all electrical and physical parameters)
-
-    if sequential:
-        cace_run_all_eparams(datasheet)
-        cace_run_all_pparams(datasheet)
     else:
-        poolresult = []
-        with NestablePool() as top_pool:
-            results = []
-            # Note:  datasheet must be cast as a list if it is a single argument.
-            results.append(
-                top_pool.apply_async(
-                    cace_run_all_eparams,
-                    [datasheet],
-                )
-            )
-            results.append(
-                top_pool.apply_async(
-                    cace_run_all_pparams,
-                    [datasheet],
-                )
-            )
 
-            for result in results:
-                try:
-                    presult = result.get(timeout=300)
-                except Exception as e:
-                    print('cace_run_all_[e|p]param failed with exception:')
-                    print(e)
-                    presult = None
-                poolresult.append(presult)
+        for paramname in paramnames:
 
-        # The pool results may arrive in either order, so arrange them properly.
-        if poolresult[0]:
-            idx0 = poolresult[0][0]
-            datasheet['electrical_parameters'] = poolresult[idx0][1:]
-        if poolresult[1]:
-            idx1 = poolresult[1][0]
-            datasheet['physical_parameters'] = poolresult[idx1][1:]
+            # Generate testbench netlists if needed
+            result = regenerate_testbenches(datasheet, paramname)
+            if result == 1:
+                print('Failed to regenerate testbench netlists;  stopping.')
+                runtime_options['status'] = 'failed'
+                return datasheet
+
+            # Handle a single parameter
+
+            # Special option paramname = "check" is used to run the
+            # proceeding code to regenerate DUT and testbench netlists,
+            # and then return.
+            if paramname == 'check':
+                runtime_options['status'] = 'passed'
+                return datasheet
+
+            # Scan the names of electrical and physical parameters to
+            # see whether the indicated parameter to check is an
+            # electrical or physical parameter, and call the appropriate
+            # routine to handle it.
+
+            found = False
+            if 'electrical_parameters' in datasheet:
+                for eparam in datasheet['electrical_parameters']:
+                    if eparam['name'] == paramname:
+                        cace_run_eparam(datasheet, eparam)
+                        found = True
+                        break
+            if 'physical_parameters' in datasheet:
+                for pparam in datasheet['physical_parameters']:
+                    if pparam['name'] == paramname:
+                        cace_run_pparam(datasheet, pparam)
+                        found = True
+                        break
+
+            if not found:
+                print('\nError:  No parameter named ' + paramname + ' found!')
+                print('Valid electrical parameter names are:')
+                for eparam in datasheet['electrical_parameters']:
+                    print('   ' + eparam['name'])
+                print('Valid physical parameter names are:')
+                for pparam in datasheet['physical_parameters']:
+                    print('   ' + pparam['name'])
 
     return datasheet
 
@@ -568,159 +579,164 @@ def usage():
 
 
 def cli():
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item)
-        else:
-            arguments.append(item)
+    parser = argparse.ArgumentParser(
+        prog='cace',
+        description="""This program parses the CACE characterization 
+        file, runs simulations, and can output a modified file annotated with 
+        characterization results.""",
+        epilog='Online documentation at: https://cace.readthedocs.io/',
+    )
 
-    debug = False
-    dojson = False
-    doforce = False
-    dokeep = False
-    noplot = False
-    nosim = False
-    dosequential = False
-    dosummary = False
-    source = 'best'
-    paramname = None
+    # positional argument
+    parser.add_argument('datasheet', help='format 4.0 ASCII CACE file')
 
-    for item in options.copy():
-        if item == '-debug':
-            debug = True
-            options.remove(item)
-        elif item == '-json':
-            dojson = True
-            options.remove(item)
-        elif item == '-force':
-            doforce = True
-            options.remove(item)
-        elif item == '-keep':
-            dokeep = True
-            options.remove(item)
-        elif item == '-noplot':
-            noplot = True
-            options.remove(item)
-        elif item == '-nosim':
-            nosim = True
-            options.remove(item)
-        elif item == '-summary':
-            dosummary = True
-            options.remove(item)
-        elif item == '-sequential':
-            dosequential = True
-            options.remove(item)
-        elif item == '-help':
-            options.remove(item)
-            usage()
-            sys.exit(0)
-        elif item.startswith('-source'):
-            optargs = item.split('=')
-            source = optargs[1]
-            options.remove(item)
-            # Accept a few alternative names
-            if source == 'schem':
-                source = 'schematic'
-            elif source == 'lvs':
-                source = 'layout'
-        elif item.startswith('-param'):
-            optargs = item.split('=')
-            paramname = optargs[1]
-            options.remove(item)
+    # positional argument, optional
+    parser.add_argument('outfile', nargs='?', help='name of the file to write')
 
-    result = 0
-    if len(arguments) == 2 and len(options) == 0:
-        filename = arguments[0]
-        outfile = arguments[1]
+    parser.add_argument(
+        '-s',
+        '--source',
+        type=str,
+        choices=['schematic', 'layout', 'rcx', 'all', 'best'],
+        default='best',
+        help="""restricts characterization to the
+        specific netlist source, which is either schematic capture
+        layout extracted, or full R-C parasitic extracted.  If not
+        specified, then characterization is run on the full R-C
+        parasitic extracted layout netlist if available, and the
+        schematic captured netlist if not (option "best")""",
+    )
+    parser.add_argument(
+        '-p',
+        '--parameter',
+        nargs='+',
+        default=None,
+        help='runs simulations on only the named electrical or physical parameters, by default it runs all parameters',
+    )
+    parser.add_argument(
+        '-f',
+        '--force',
+        action='store_true',
+        help='forces new regeneration of all netlists',
+    )
+    parser.add_argument(
+        '-j',
+        '--json',
+        action='store_true',
+        help='generates an output file in JSON format',
+    )
+    parser.add_argument(
+        '-k',
+        '--keep',
+        action='store_true',
+        help='retains files generated for characterization',
+    )
+    parser.add_argument(
+        '--no-plot', action='store_true', help='do not generate any graphs'
+    )
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='generates additional diagnostic output',
+    )
+    parser.add_argument(
+        '--sequential',
+        action='store_true',
+        help='runs simulations sequentially',
+    )
+    parser.add_argument(
+        '--no-simulation',
+        action='store_true',
+        help="""does not re-run simulations if the output file exists.
+    (Warning: Does not check if simulations are out of date)""",
+    )
+    parser.add_argument(
+        '--summary',
+        action='store_true',
+        help='prints a summary of results at the end',
+    )
 
-        # If the file is a JSON file, read it with json.load
-        if os.path.splitext(filename)[1] == '.json':
-            with open(filename, 'r') as ifile:
-                dataset = json.load(ifile)
-                if 'data-sheet' in dataset:
-                    dataset = dataset['data-sheet']
-                    # Attempt to upgrade this to format 4.0
-                    dataset = cace_compat(dataset, debug)
-        else:
-            dataset = cace_read(filename, debug)
+    # Parse arguments
+    args = parser.parse_args()
 
-        if dataset == {}:
-            result = 1
-        else:
-            # If there is a "paths" dictionary in dataset and it does
-            # not have an entry for "root", then find the name of the
-            # directory where "filename" exists and set that to root.
-            filepath = os.path.split(os.path.realpath(filename))[0]
-            if 'paths' in dataset:
-                paths = dataset['paths']
-                if 'root' not in paths:
-                    paths['root'] = filepath
-
-            # Set the current working directory to the root by first
-            # setting the current working directory to the path of
-            # the testbench file and then setting it to root (assuming
-            # root is a relative path, although it could be an absolute
-            # path).
-            os.chdir(filepath)
-            os.chdir(paths['root'])
-            paths['root'] = os.getcwd()
-            if debug:
-                print(
-                    'Working directory set to project root at ' + paths['root']
-                )
-
-            # All run-time options are dropped into a dictionary,
-            # passed to all routines, and removed at the end.
-            runtime_options = {}
-            runtime_options['debug'] = debug
-            runtime_options['force'] = doforce
-            runtime_options['json'] = dojson
-            runtime_options['keep'] = dokeep
-            runtime_options['noplot'] = noplot
-            runtime_options['nosim'] = nosim
-            runtime_options['sequential'] = dosequential
-            runtime_options['netlist_source'] = source
-
-            # Add the name of the file to the top-level dictionary
-            runtime_options['filename'] = os.path.split(filename)[1]
-
-            dataset['runtime_options'] = runtime_options
-
-            # Run CACE.  Use only as directed.
-            charresult = cace_run(dataset, paramname)
-            if debug:
-                print('Done with CACE simulations and evaluations.')
-
-        if charresult == {}:
-            result = 1
-        else:
-            if debug:
-                print('Writing final output file ' + outfile)
-            if dojson:
-                # Dump the result as a JSON file
-                jsonfile = os.path.splitext(outfile)[0] + '_debug.json'
-                with open(jsonfile, 'w') as ofile:
-                    json.dump(charresult, ofile, indent=4)
-            else:
-                # Write the result in CACE ASCII format version 4.0
-                cace_write(charresult, outfile, doruntime=False)
-
-            if dosummary:
-                print('')
-                print('CACE Summary of results:')
-                print('------------------------')
-                cace_summary(charresult, paramname)
-
+    # If the file is a JSON file, read it with json.load
+    if os.path.splitext(args.datasheet)[1] == '.json':
+        with open(args.datasheet, 'r') as ifile:
+            dataset = json.load(ifile)
+            if 'data-sheet' in dataset:
+                dataset = dataset['data-sheet']
+                # Attempt to upgrade this to format 4.0
+                dataset = cace_compat(dataset, args.debug)
     else:
-        if debug:
-            print('arguments = ' + ' '.join(arguments))
-            print('options = ' + ' '.join(options))
-        usage()
+        dataset = cace_read(args.datasheet, args.debug)
+
+    if dataset == {}:
+        print('No dataset was returned.')
         sys.exit(1)
 
-    sys.exit(result)
+    # If there is a "paths" dictionary in dataset and it does
+    # not have an entry for "root", then find the name of the
+    # directory where "filename" exists and set that to root.
+    filepath = os.path.split(os.path.realpath(args.datasheet))[0]
+    if 'paths' in dataset:
+        paths = dataset['paths']
+        if 'root' not in paths:
+            paths['root'] = filepath
+
+    # Set the current working directory to the root by first
+    # setting the current working directory to the path of
+    # the testbench file and then setting it to root (assuming
+    # root is a relative path, although it could be an absolute
+    # path).
+    os.chdir(filepath)
+    os.chdir(paths['root'])
+    paths['root'] = os.getcwd()
+    if args.debug:
+        print('Working directory set to project root at ' + paths['root'])
+
+    # All run-time options are dropped into a dictionary,
+    # passed to all routines, and removed at the end.
+    runtime_options = {}
+    runtime_options['debug'] = args.debug
+    runtime_options['force'] = args.force
+    runtime_options['json'] = args.json
+    runtime_options['keep'] = args.keep
+    runtime_options['noplot'] = args.no_plot
+    runtime_options['nosim'] = args.no_simulation
+    runtime_options['sequential'] = args.sequential
+    runtime_options['netlist_source'] = args.source
+
+    # Add the name of the file to the top-level dictionary
+    runtime_options['filename'] = os.path.split(args.datasheet)[1]
+
+    dataset['runtime_options'] = runtime_options
+
+    # Run CACE. Use only as directed.
+    charresult = cace_run(dataset, args.parameter)
+    if args.debug:
+        print('Done with CACE simulations and evaluations.')
+
+    if charresult == {}:
+        print('No results were returned.')
+        sys.exit(1)
+
+    if args.outfile:
+        if args.debug:
+            print('Writing final output file ' + args.outfile)
+        if dojson:
+            # Dump the result as a JSON file
+            jsonfile = os.path.splitext(args.outfile)[0] + '_debug.json'
+            with open(jsonfile, 'w') as ofile:
+                json.dump(charresult, ofile, indent=4)
+        else:
+            # Write the result in CACE ASCII format version 4.0
+            cace_write(charresult, args.outfile, doruntime=False)
+
+    if args.summary:
+        print('')
+        print('CACE Summary of results:')
+        print('------------------------')
+        cace_summary(charresult, args.parameter)
 
 
 if __name__ == '__main__':
