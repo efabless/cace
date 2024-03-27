@@ -292,16 +292,6 @@ class CACECharacterize(ttk.Frame):
         # Create the help window
         self.help = HelpWindow(self, fontsize=fontsize)
 
-        # with io.StringIO() as buf, contextlib.redirect_stdout(buf):
-        helpfile = os.path.join(apps_path, 'doc', 'characterize_help.txt')
-        self.help.add_pages_from_file(helpfile)
-        helpfile = os.path.join(apps_path, 'doc', 'format.txt')
-        self.help.add_pages_from_file(helpfile)
-        # message = buf.getvalue()
-
-        # Set the help display to the first page
-        self.help.page(0)
-
         # Create the failure report window
         self.failreport = FailReport(self, fontsize=fontsize)
 
