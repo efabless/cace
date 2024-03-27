@@ -54,7 +54,7 @@ jobs:
           make install
       - name: Run CACE
         run: |
-          cace -help
+          cace --help
 
   docs:
     runs-on: ubuntu-22.04
