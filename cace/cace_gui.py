@@ -40,6 +40,7 @@ import json
 import time
 import signal
 import select
+import argparse
 import datetime
 import contextlib
 import subprocess
@@ -291,12 +292,12 @@ class CACECharacterize(ttk.Frame):
         # Create the help window
         self.help = HelpWindow(self, fontsize=fontsize)
 
-        with io.StringIO() as buf, contextlib.redirect_stdout(buf):
-            helpfile = os.path.join(apps_path, 'doc', 'characterize_help.txt')
-            self.help.add_pages_from_file(helpfile)
-            helpfile = os.path.join(apps_path, 'doc', 'format.txt')
-            self.help.add_pages_from_file(helpfile)
-            message = buf.getvalue()
+        # with io.StringIO() as buf, contextlib.redirect_stdout(buf):
+        helpfile = os.path.join(apps_path, 'doc', 'characterize_help.txt')
+        self.help.add_pages_from_file(helpfile)
+        helpfile = os.path.join(apps_path, 'doc', 'format.txt')
+        self.help.add_pages_from_file(helpfile)
+        # message = buf.getvalue()
 
         # Set the help display to the first page
         self.help.page(0)
@@ -580,15 +581,12 @@ class CACECharacterize(ttk.Frame):
         # output file timestamp.
         self.starttime = time.time()
 
-        # Redirect stdout and stderr to the console as the last thing to do. . .
-        # Otherwise errors in the GUI get sucked into the void.
+    def capture_output(self):
+        # Redirect stdout and stderr to the gui console
         self.stdout = sys.stdout
         self.stderr = sys.stderr
         sys.stdout = ConsoleText.StdoutRedirector(self.text_box)
         sys.stderr = ConsoleText.StderrRedirector(self.text_box)
-
-        if message:
-            print(message)
 
     def frame_configure(self, event):
         self.update_idletasks()
@@ -651,23 +649,23 @@ class CACECharacterize(ttk.Frame):
             + ')'
         )
 
-    def set_datasheet(self, datasheet):
+    def set_datasheet(self, datasheet_path):
         if self.logfile:
             self.logprint('end of log.')
             self.logprint('-------------------------', doflush=True)
             self.logfile.close()
             self.logfile = None
 
-        if not os.path.isfile(datasheet):
-            print('Error:  File ' + datasheet + ' not found.')
+        if not os.path.isfile(datasheet_path):
+            print('Error:  File ' + datasheet_path + ' not found.')
             return
 
         debug = self.settings.get_debug()
 
-        [dspath, dsname] = os.path.split(datasheet)
+        [dspath, dsname] = os.path.split(datasheet_path)
         # Read the datasheet
-        if os.path.splitext(datasheet)[1] == '.json':
-            with open(datasheet) as ifile:
+        if os.path.splitext(datasheet_path)[1] == '.json':
+            with open(datasheet_path) as ifile:
                 try:
                     # "data-sheet" as a sub-entry of the input file is deprecated.
                     datatop = json.load(ifile)
@@ -676,22 +674,22 @@ class CACECharacterize(ttk.Frame):
                 except json.decoder.JSONDecodeError as e:
                     print(
                         'Error:  Parse error reading JSON file '
-                        + datasheet
+                        + datasheet_path
                         + ':'
                     )
                     print(str(e))
                     return
         else:
-            datatop = cace_read(datasheet, debug)
+            datatop = cace_read(datasheet_path, debug)
 
         # Ensure that datasheet complies with CACE version 4.0 format
         dsheet = cace_compat(datatop, debug)
 
-        self.filename = datasheet
+        self.filename = datasheet_path
         self.datasheet = dsheet
         self.create_datasheet_view()
         self.toppane.title_frame.datasheet_select.configure(text=dsname)
-        self.toppane.title_frame.path_label.configure(text=datasheet)
+        self.toppane.title_frame.path_label.configure(text=datasheet_path)
 
         # Attempt to set the datasheet viewer width to the interior width
         # but do not set it larger than the available desktop.
@@ -741,6 +739,65 @@ class CACECharacterize(ttk.Frame):
         )
         if datasheet != '':
             self.set_datasheet(datasheet)
+
+    def find_datasheet(self, curdir):
+        # Check the curdir directory and determine if there
+        # is a .txt or .json file with the name of the directory, which
+        # is assumed to have the same name as the project circuit.  Also
+        # check subdirectories one level down.
+        dirname = os.path.split(curdir)[1]
+        dirlist = os.listdir(curdir)
+
+        # Look through all directories for a '.txt' file
+        for item in dirlist:
+            if os.path.isfile(item):
+                fileext = os.path.splitext(item)[1]
+                basename = os.path.splitext(item)[0]
+                if fileext == '.txt':
+                    if basename == dirname:
+                        print('Setting datasheet to ' + item)
+                        self.set_datasheet(item)
+                        return
+
+            elif os.path.isdir(item):
+                subdirlist = os.listdir(item)
+                for subitem in subdirlist:
+                    subitemref = os.path.join(item, subitem)
+                    if os.path.isfile(subitemref):
+                        fileext = os.path.splitext(subitem)[1]
+                        basename = os.path.splitext(subitem)[0]
+                        if fileext == '.txt':
+                            if basename == dirname:
+                                print('Setting datasheet to ' + subitemref)
+                                self.set_datasheet(subitemref)
+                                return
+
+        # Look through all directories for a '.json' file
+        # ('.txt') is preferred to ('.json')
+        for item in dirlist:
+            if os.path.isfile(item):
+                fileext = os.path.splitext(item)[1]
+                basename = os.path.splitext(item)[0]
+                if fileext == '.json':
+                    if basename == dirname:
+                        print('Setting datasheet to ' + item)
+                        self.set_datasheet(item)
+                        return
+
+            elif os.path.isdir(item):
+                subdirlist = os.listdir(item)
+                for subitem in subdirlist:
+                    subitemref = os.path.join(item, subitem)
+                    if os.path.isfile(subitemref):
+                        fileext = os.path.splitext(subitem)[1]
+                        basename = os.path.splitext(subitem)[0]
+                        if fileext == '.json':
+                            if basename == dirname:
+                                print('Setting datasheet to ' + subitemref)
+                                self.set_datasheet(subitemref)
+                                return
+
+        print('No datasheet found in local project (JSON or text file).')
 
     def topfilter(self, line):
         # Check output for ubiquitous "Reference value" lines and remove them.
@@ -2012,129 +2069,49 @@ class CACECharacterize(ttk.Frame):
 
 
 # --------------------------------------------------------------------------
-# Print usage information for cace_gui.py
-# --------------------------------------------------------------------------
-
-
-def usage():
-    print('')
-    print('CACE GUI')
-    print(
-        '   Graphical interface for the Circuit Automatic Characterization Engine,'
-    )
-    print('   an analog and mixed-signal design flow system.')
-    print('')
-    print('Usage:')
-    print('   cace_gui.py [characterization_file] [option]')
-    print('')
-    print('where:')
-    print('   characterization_file is a text or JSON file with the')
-    print('       specification of the circuit.')
-    print('')
-    print('and valid options are:')
-    print('   -term')
-    print('       Generate all output to the terminal, not the window.')
-    print('   -help')
-    print('       Print this help text.')
-    print('')
-
-
-# --------------------------------------------------------------------------
 # Main entry point for cace_gui.py
 # --------------------------------------------------------------------------
 
 
 def gui():
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item.strip('-'))
-        else:
-            arguments.append(item)
+    parser = argparse.ArgumentParser(
+        prog='cace-gui',
+        description="""Graphical interface for the Circuit Automatic Characterization Engine,
+        an analog and mixed-signal design flow system.""",
+        epilog='Online documentation at: https://cace.readthedocs.io/',
+    )
+
+    # positional argument, optional
+    parser.add_argument(
+        'datasheet',
+        nargs='?',
+        help='text or JSON file with the specification of the circuit',
+    )
+
+    # on/off flag, optional
+    parser.add_argument(
+        '-t',
+        '--terminal',
+        action='store_true',
+        help='generate all output to the terminal, not the window',
+    )
+
+    # Parse arguments
+    args = parser.parse_args()
 
     if os.name != 'nt':
         signal.signal(signal.SIGUSR1, signal.SIG_IGN)
     root = tkinter.Tk()
     app = CACECharacterize(root)
 
-    if 'term' in options or 'help' in options:
-        # Revert output to the terminal
-        sys.stdout = app.stdout
-        sys.stderr = app.stderr
+    if not args.terminal:
+        app.capture_output()
 
-    if 'help' in options:
-        usage()
-        sys.exit(0)
-
-    if arguments:
-        print('Setting datasheet to ' + arguments[0])
-        app.set_datasheet(arguments[0])
+    if args.datasheet:
+        print('Setting datasheet to ' + args.datasheet)
+        app.set_datasheet(args.datasheet)
     else:
-        # Check the current working directory and determine if there
-        # is a .txt or .json file with the name of the directory, which
-        # is assumed to have the same name as the project circuit.  Also
-        # check subdirectories one level down.
-        curdir = os.getcwd()
-        dirname = os.path.split(curdir)[1]
-        dirlist = os.listdir(curdir)
-
-        # Look through all directories for a '.txt' file
-        found = False
-        for item in dirlist:
-            if os.path.isfile(item):
-                fileext = os.path.splitext(item)[1]
-                basename = os.path.splitext(item)[0]
-                if fileext == '.txt':
-                    if basename == dirname:
-                        print('Setting datasheet to ' + item)
-                        app.set_datasheet(item)
-                        found = True
-                        break
-            elif os.path.isdir(item):
-                subdirlist = os.listdir(item)
-                for subitem in subdirlist:
-                    subitemref = os.path.join(item, subitem)
-                    if os.path.isfile(subitemref):
-                        fileext = os.path.splitext(subitem)[1]
-                        basename = os.path.splitext(subitem)[0]
-                        if fileext == '.txt':
-                            if basename == dirname:
-                                print('Setting datasheet to ' + subitemref)
-                                app.set_datasheet(subitemref)
-                                found = True
-                                break
-
-        # Look through all directories for a '.json' file
-        # ('.txt') is preferred to ('.json')
-
-        if not found:
-            for item in dirlist:
-                if os.path.isfile(item):
-                    fileext = os.path.splitext(item)[1]
-                    basename = os.path.splitext(item)[0]
-                    if fileext == '.json':
-                        if basename == dirname:
-                            print('Setting datasheet to ' + item)
-                            app.set_datasheet(item)
-                            found = True
-                            break
-                elif os.path.isdir(item):
-                    subdirlist = os.listdir(item)
-                    for subitem in subdirlist:
-                        subitemref = os.path.join(item, subitem)
-                        if os.path.isfile(subitemref):
-                            fileext = os.path.splitext(subitem)[1]
-                            basename = os.path.splitext(subitem)[0]
-                            if fileext == '.json':
-                                if basename == dirname:
-                                    print('Setting datasheet to ' + subitemref)
-                                    app.set_datasheet(subitemref)
-                                    found = True
-                                    break
-
-        if not found:
-            print('No datasheet found in local project (JSON or text file).')
+        app.find_datasheet(os.getcwd())
 
     root.mainloop()
 

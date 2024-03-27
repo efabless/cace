@@ -850,7 +850,7 @@ def cace_generate_html(datasheet, filename=None, debug=False):
 
 def cace_summarize_result(param, result):
     spec = param['spec']
-    unit = param['unit']
+    unit = param['unit'] if 'unit' in param else ''
 
     keys = ['minimum', 'typical', 'maximum']
 
@@ -886,16 +886,17 @@ def cace_summarize_result(param, result):
 # Print a summary report of results from a datasheet
 #
 # "datasheet" is a CACE characterization dataset
-# "paramname" is the name of a single parameter to summarize,
+# "paramname" is a list of parameters to summarize,
 # 	or if it is None, then all parameters should be output.
 # ---------------------------------------------------------------
 
 
-def cace_summary(datasheet, paramname):
+def cace_summary(datasheet, paramnames):
 
-    if 'electrical_parameters' in datasheet:
-        for eparam in datasheet['electrical_parameters']:
-            if not paramname or paramname == eparam['name']:
+    # Summarize all parameters
+    if not paramnames:
+        if 'electrical_parameters' in datasheet:
+            for eparam in datasheet['electrical_parameters']:
                 print('Electrical parameter ' + eparam['name'])
                 if 'description' in eparam:
                     print('   ' + eparam['description'])
@@ -913,9 +914,8 @@ def cace_summary(datasheet, paramname):
                     else:
                         cace_summarize_result(eparam, results)
 
-    if 'physical_parameters' in datasheet:
-        for pparam in datasheet['physical_parameters']:
-            if not paramname or paramname == pparam['name']:
+        if 'physical_parameters' in datasheet:
+            for pparam in datasheet['physical_parameters']:
                 print('Physical parameter ' + pparam['name'])
                 if 'description' in pparam:
                     print('   ' + pparam['description'])
@@ -932,6 +932,49 @@ def cace_summary(datasheet, paramname):
                             cace_summarize_result(pparam, result)
                     else:
                         cace_summarize_result(pparam, results)
+
+    # Only summarize the parameters in the list
+    else:
+        for paramname in paramnames:
+            if 'electrical_parameters' in datasheet:
+                for eparam in datasheet['electrical_parameters']:
+                    if paramname == eparam['name']:
+                        print('Electrical parameter ' + eparam['name'])
+                        if 'description' in eparam:
+                            print('   ' + eparam['description'])
+                        if 'display' in eparam:
+                            print('   ' + eparam['display'])
+                        if 'spec' not in eparam:
+                            print('   (Parameter does not have a spec)')
+                        elif 'results' not in eparam:
+                            print('   (No results to report)')
+                        else:
+                            results = eparam['results']
+                            if isinstance(results, list):
+                                for result in eparam['results']:
+                                    cace_summarize_result(eparam, result)
+                            else:
+                                cace_summarize_result(eparam, results)
+
+            if 'physical_parameters' in datasheet:
+                for pparam in datasheet['physical_parameters']:
+                    if paramname == pparam['name']:
+                        print('Physical parameter ' + pparam['name'])
+                        if 'description' in pparam:
+                            print('   ' + pparam['description'])
+                        if 'display' in eparam:
+                            print('   ' + eparam['display'])
+                        if 'spec' not in pparam:
+                            print('   (Parameter does not have a spec)')
+                        elif 'results' not in pparam:
+                            print('   (No results to report)')
+                        else:
+                            results = pparam['results']
+                            if isinstance(results, list):
+                                for result in pparam['results']:
+                                    cace_summarize_result(pparam, result)
+                            else:
+                                cace_summarize_result(pparam, results)
 
 
 # ---------------------------------------------------------------
