@@ -76,6 +76,12 @@ To host the docs, run:
 $ make host-docs
 ```
 
+To automatically refresh the docs upon changes, run:
+
+```
+$ make auto-docs
+```
+
 > [!NOTE]
 > The latest documentation can be viewed online at [cace.readthedocs.io](https://cace.readthedocs.io/). 
 
