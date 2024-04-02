@@ -95,11 +95,11 @@ class HelpWindow(tkinter.Toplevel):
         project_frame = ttk.Frame(self)
         project_frame.grid(column=0, row=4, columnspan=2)
 
-        title = ttk.Label(self.project_frame, text='Repository: ')
+        title = ttk.Label(project_frame, text='Repository: ')
         title.grid(column=0, row=0)
 
         url1 = 'https://github.com/efabless/cace'
-        link = LinkButton(self.project_frame, text=url1)
+        link = LinkButton(project_frame, text=url1)
         link.bind('<Button-1>', lambda e: webbrowser.open_new(url1))
         link.grid(column=1, row=0)
 
@@ -107,11 +107,11 @@ class HelpWindow(tkinter.Toplevel):
         docs_frame = ttk.Frame(self)
         docs_frame.grid(column=0, row=5, columnspan=2)
 
-        title = ttk.Label(self.docs_frame, text='Documentation: ')
+        title = ttk.Label(docs_frame, text='Documentation: ')
         title.grid(column=0, row=0)
 
         url2 = 'https://cace.readthedocs.io/'
-        link = LinkButton(self.docs_frame, text=url2)
+        link = LinkButton(docs_frame, text=url2)
         link.bind('<Button-1>', lambda e: webbrowser.open_new(url2))
         link.grid(column=1, row=0)
 
