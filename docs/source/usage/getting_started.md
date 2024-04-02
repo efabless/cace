@@ -73,7 +73,7 @@ $ make docs
 To host the docs, run:
 
 ```
-make host-docs
+$ make host-docs
 ```
 
 > [!NOTE]
