@@ -7,7 +7,7 @@ CACE can be run directly from your command line:
 Where `<filename_in>` is a format 4.0 ASCII CACE file and `<filename_out>` is the name of the file to write.
 Options may be one of:
 
-```
+```console
 --source=schematic|layout|rcx|all|best
 --param=<parameter_name> <parameter_name> ...
 --force
@@ -25,7 +25,7 @@ With option `-source`, restrict characterization to the specific netlist source,
 layout extracted, or full R-C parasitic extracted. If not specified, then characterization is run on the full R-C
 parasitic extracted layout netlist if available, and the schematic captured netlist if not (option "best").
 
-```
+```console
 positional arguments:
   datasheet             format 4.0 ASCII CACE file
   outfile               name of the file to write
