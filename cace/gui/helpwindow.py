@@ -92,32 +92,32 @@ class HelpWindow(tkinter.Toplevel):
         helptext2.grid(column=0, row=3)
 
         # URL repository
-        self.project_frame = ttk.Frame(self)
-        self.project_frame.grid(column=0, row=4, columnspan=2)
+        project_frame = ttk.Frame(self)
+        project_frame.grid(column=0, row=4, columnspan=2)
 
-        self.title = ttk.Label(self.project_frame, text='Repository: ')
-        self.title.grid(column=0, row=0)
+        title = ttk.Label(self.project_frame, text='Repository: ')
+        title.grid(column=0, row=0)
 
         url1 = 'https://github.com/efabless/cace'
-        self.link = LinkButton(self.project_frame, text=url1)
-        self.link.bind('<Button-1>', lambda e: webbrowser.open_new(url1))
-        self.link.grid(column=1, row=0)
+        link = LinkButton(self.project_frame, text=url1)
+        link.bind('<Button-1>', lambda e: webbrowser.open_new(url1))
+        link.grid(column=1, row=0)
 
         # URL documentation
-        self.docs_frame = ttk.Frame(self)
-        self.docs_frame.grid(column=0, row=5, columnspan=2)
+        docs_frame = ttk.Frame(self)
+        docs_frame.grid(column=0, row=5, columnspan=2)
 
-        self.title = ttk.Label(self.docs_frame, text='Documentation: ')
-        self.title.grid(column=0, row=0)
+        title = ttk.Label(self.docs_frame, text='Documentation: ')
+        title.grid(column=0, row=0)
 
         url2 = 'https://cace.readthedocs.io/'
-        self.link = LinkButton(self.docs_frame, text=url2)
-        self.link.bind('<Button-1>', lambda e: webbrowser.open_new(url2))
-        self.link.grid(column=1, row=0)
+        link = LinkButton(self.docs_frame, text=url2)
+        link.bind('<Button-1>', lambda e: webbrowser.open_new(url2))
+        link.grid(column=1, row=0)
 
         # Placeholder
-        self.docs_frame = ttk.Frame(self)
-        self.docs_frame.grid(column=0, row=6, columnspan=1)
+        docs_frame = ttk.Frame(self)
+        docs_frame.grid(column=0, row=6, columnspan=1)
 
     def close(self):
         # pop down help window
