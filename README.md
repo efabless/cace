@@ -87,13 +87,13 @@ $ make docs
 To host the docs, run:
 
 ```
-make host-docs
+$ make host-docs
 ```
 
 To automatically refresh the docs upon changes, run:
 
 ```
-make auto-docs
+$ make auto-docs
 ```
 
 > [!NOTE]
