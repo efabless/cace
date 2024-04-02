@@ -955,7 +955,7 @@ class CACECharacterize(ttk.Frame):
             os.setpgid(os.getpid(), runtime_options['pid'])
             signal.signal(signal.SIGUSR1, child_process_exit)
 
-        charresult = cace_run(datasheet, name)
+        charresult = cace_run(datasheet, [name])
         charresult['simname'] = name
         self.queue.put(charresult)
         sys.stdout.flush()
@@ -1008,7 +1008,7 @@ class CACECharacterize(ttk.Frame):
         if name == 'check':
             # For the special keyword "check", do not multiprocess,
             # and return a pass/fail result according to the runtime status.
-            cace_run(dsheet, name)
+            cace_run(dsheet, [name])
             if 'status' in runtime_options:
                 status = runtime_options['status']
                 runtime_options.pop('status')

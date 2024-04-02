@@ -352,15 +352,15 @@ def cace_run_all_pparams(datasheet):
 # Run CACE on a characterization datasheet.
 #
 # "datasheet" is the CACE characterization dataset
-# "paramname" is an optional parameter name, which if present may
-# 	be the name of either an electrical parameter or a physical
-# 	parameter.  If omitted, then characterization is run on
+# "paramnames" is an optional list of parameter names, which if present may
+# 	be the names of electrical parameters or a physical
+# 	parameters.  If omitted, then characterization is run on
 # 	the full set of electrical and physical parameters in the
 # 	datasheet.
 # -----------------------------------------------------------------
 
 
-def cace_run(datasheet, paramnames=None):
+def cace_run(datasheet, paramnames=[]):
 
     if 'runtime_options' in datasheet:
         runtime_options = datasheet['runtime_options']
