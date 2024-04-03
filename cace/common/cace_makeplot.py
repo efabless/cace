@@ -599,9 +599,18 @@ def cace_makeplot(dsheet, param, parent=None):
         else:
             canvas.print_figure(filename, bbox_inches='tight')
 
-    resultdict = {}
+    # Do not overwrite a result dictionary.  Only add an entry if no result
+    # dictionary exists.
+    netlist_source = runtime_options['netlist_source']
+    results = param['results']
+    if isinstance(results, dict):
+        results = [results]
+    try:
+        resultdict = next(item for item in results if item['name'] == netlist_source)
+    except:
+        resultdict = {}
     resultdict['status'] = 'done'
-    resultdict['name'] = runtime_options['netlist_source']
+    resultdict['name'] = netlist_source
     addnewresult(param, resultdict)
 
     return canvas
