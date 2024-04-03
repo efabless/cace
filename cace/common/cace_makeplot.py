@@ -606,7 +606,9 @@ def cace_makeplot(dsheet, param, parent=None):
     if isinstance(results, dict):
         results = [results]
     try:
-        resultdict = next(item for item in results if item['name'] == netlist_source)
+        resultdict = next(
+            item for item in results if item['name'] == netlist_source
+        )
     except:
         resultdict = {}
     resultdict['status'] = 'done'
