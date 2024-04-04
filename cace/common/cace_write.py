@@ -66,7 +66,7 @@ def generate_svg(datasheet):
             if 'PDK' in datasheet:
                 pdk = datasheet['PDK']
             else:
-                pdk = get_pdk(magicfilename)
+                pdk = get_pdk(None)
 
             newenv = os.environ.copy()
             if pdk_root and 'PDK_ROOT' not in newenv:
@@ -1449,6 +1449,16 @@ def cace_output_dict(itemdict, outlines, indent):
 def cace_write(datasheet, filename, doruntime=False):
     outlines = []
 
+    # Rewrite paths['root'] as the cwd relative to filename.
+    oldroot = None
+    if 'paths' in datasheet:
+        paths = datasheet['paths']
+        if 'root' in paths:
+            oldroot = paths['root']
+            filepath = os.path.split(filename)[0]
+            newroot = os.path.relpath(os.curdir, filepath)
+            paths['root'] = newroot
+
     newline = '#---------------------------------------------------'
     outlines.append(newline)
 
@@ -1463,6 +1473,10 @@ def cace_write(datasheet, filename, doruntime=False):
     outlines = cace_output_known_dict(
         'topmost', datasheet, outlines, doruntime, 0
     )
+
+    # Put back the old value of paths['root'] (should be '.')
+    if oldroot:
+        paths['root'] = oldroot
 
     # If filename is None, then write to stdout.
     if not filename:
