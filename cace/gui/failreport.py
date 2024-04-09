@@ -29,63 +29,6 @@ class FailReport(tkinter.Toplevel):
         """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
-        s = ttk.Style()
-        s.configure('bg.TFrame', background='gray40')
-        s.configure(
-            'italic.TLabel',
-            font=('Helvetica', fontsize, 'italic'),
-            anchor='west',
-        )
-        s.configure(
-            'title.TLabel',
-            font=('Helvetica', fontsize, 'bold italic'),
-            foreground='brown',
-            anchor='center',
-        )
-        s.configure('normal.TLabel', font=('Helvetica', fontsize))
-        s.configure(
-            'red.TLabel', font=('Helvetica', fontsize), foreground='red'
-        )
-        s.configure(
-            'green.TLabel', font=('Helvetica', fontsize), foreground='green4'
-        )
-        s.configure(
-            'blue.TLabel', font=('Helvetica', fontsize), foreground='blue'
-        )
-        s.configure(
-            'brown.TLabel',
-            font=('Helvetica', fontsize, 'italic'),
-            foreground='brown',
-            anchor='center',
-        )
-        s.configure(
-            'normal.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'red.TButton',
-            font=('Helvetica', fontsize),
-            foreground='red',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'green.TButton',
-            font=('Helvetica', fontsize),
-            foreground='green4',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'title.TButton',
-            font=('Helvetica', fontsize, 'bold italic'),
-            foreground='brown',
-            border=0,
-            relief='groove',
-        )
-
         self.withdraw()
         self.title('Local Characterization Report')
         self.root = parent.root

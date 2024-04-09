@@ -44,14 +44,6 @@ class EditParam(tkinter.Toplevel):
         """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
-        s = ttk.Style()
-        s.configure(
-            'normal.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-        )
-        s.configure('bg.TFrame', background='gray40')
         self.parent = parent
         self.withdraw()
         self.title('Electrical parameter editor')

@@ -24,13 +24,6 @@ class TextReport(tkinter.Toplevel):
         """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
-        s = ttk.Style()
-        s.configure(
-            'normal.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-        )
         self.protocol('WM_DELETE_WINDOW', self.close)
 
         self.withdraw()

@@ -31,6 +31,9 @@ class ConsoleText(tkinter.Text):
         def write(self, str):
             self.text_area.write(str, False)
 
+        def flush(self):
+            pass
+
     class StderrRedirector(IORedirector):
         """A class for redirecting stderr to this Text widget."""
 

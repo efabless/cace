@@ -29,6 +29,10 @@ Prerequisite design tools:
 - ngspice: git://git.code.sf.net/p/ngspice/ngspice
 - magic:	 [https://github.com/RTimothyEdwards/magic](https://github.com/RTimothyEdwards/magic)
 
+Some of the measurements require:
+
+- octave: [https://octave.org/](https://octave.org/)
+
 ## Usage
 
 If installed as Python package, CACE can be started from the command line using:

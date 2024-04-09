@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+c  #!/usr/bin/env python3
 # ---------------------------------------------------------------------------
 # cace_simulate.py
 #
@@ -158,6 +158,7 @@ def cace_simulate(param, testbench, pdk, paths, runtime_options):
             pgroup = os.getpgid(spiceproc.pid)
             for line in spiceproc.stdout:
                 print(line, end='')
+                print('hi!')
                 sys.stdout.flush()
                 if 'Simulation interrupted' in line:
                     print('ngspice encountered an error. . . ending.')
