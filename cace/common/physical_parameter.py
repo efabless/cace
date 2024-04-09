@@ -51,7 +51,7 @@ class PhysicalParameter(threading.Thread):
 
     def run(self):
 
-        cancel_point()
+        self.cancel_point()
 
         print(f'Evaluating physical parameter: {self.param["name"]}')
         cace_evaluate(self.datasheet, self.param)
