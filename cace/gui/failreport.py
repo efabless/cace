@@ -29,6 +29,7 @@ class FailReport(tkinter.Toplevel):
         """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
+        self.parent = parent
         self.withdraw()
         self.title('Local Characterization Report')
         self.root = parent.root
@@ -219,7 +220,7 @@ class FailReport(tkinter.Toplevel):
         # Finally, open the window if it was not already open.
         self.open()
 
-    def table_to_plot(self, condition, dsheet, filename):
+    def table_to_plot(self, condition, pname):
         # Switch from a table view to a plot view, using the condname as
         # the X axis variable.
 
@@ -227,7 +228,19 @@ class FailReport(tkinter.Toplevel):
         for widget in self.plotframe.winfo_children():
             widget.destroy()
 
-        param = self.data
+        dsheet = self.parent.simulation_manager.get_datasheet()
+
+        # Find parameter
+        if pname:
+            param = self.parent.simulation_manager.find_parameter(pname)
+        # Reuse the last parameter
+        else:
+            param = self.data
+
+        filename = self.parent.simulation_manager.get_runtime_options(
+            'filename'
+        )
+
         plotrec = {}
         plotrec['xaxis'] = condition
         plotrec['xlabel'] = condition
@@ -258,9 +271,7 @@ class FailReport(tkinter.Toplevel):
             if not condition == 'time':
                 self.bbar.table_button.grid(column=1, row=0, padx=5)
                 self.bbar.table_button.configure(
-                    command=lambda param=param, dsheet=dsheet, filename=filename: self.display(
-                        param, dsheet, filename
-                    )
+                    command=lambda pname=pname: self.display(pname)
                 )
 
             # Finally, open the window if it was not already open.
@@ -269,16 +280,26 @@ class FailReport(tkinter.Toplevel):
             # Plot failed;  revert to the table view
             self.display(param, dsheet, filename)
 
-    def display(self, param=None, dsheet=None, filename=None):
+    def display(self, pname=None):
         # (Diagnostic)
         # print('failure report:  passed parameter ' + str(param))
+
+        dsheet = self.parent.simulation_manager.get_datasheet()
+
+        # Find parameter
+        if pname:
+            param = self.parent.simulation_manager.find_parameter(pname)
+        # Reuse the last parameter
+        else:
+            param = self.data
+
+        filename = self.parent.simulation_manager.get_runtime_options(
+            'filename'
+        )
 
         # Destroy existing contents.
         for widget in self.mainarea.faildisplay.winfo_children():
             widget.destroy()
-
-        if not param:
-            param = self.data
 
         # 'param' is a dictionary pulled in from the annotate datasheet.
         # If the failure display was called, then 'param' should contain
@@ -377,7 +398,7 @@ class FailReport(tkinter.Toplevel):
             # Check for transient simulation
             if 'time' in names:
                 # Transient data are (usually) too numerous to tabulate, so go straight to plot
-                self.table_to_plot('time', dsheet, filename)
+                self.table_to_plot('time', pname)
                 return
 
             # Check for Monte Carlo simulation
@@ -532,9 +553,7 @@ class FailReport(tkinter.Toplevel):
                         body,
                         text=labtext,
                         style='title.TButton',
-                        command=lambda param=param, dsheet=dsheet: self.changesort(
-                            param, dsheet
-                        ),
+                        command=lambda pname=pname: self.changesort(pname),
                     )
                     ToolTip(header, text='Reverse order of results')
                 elif labtext == 'testbench':
@@ -548,8 +567,8 @@ class FailReport(tkinter.Toplevel):
                         body,
                         text=labtext,
                         style='title.TLabel',
-                        command=lambda plottext=plottext, dsheet=dsheet, filename=filename: self.table_to_plot(
-                            plottext, dsheet, filename
+                        command=lambda plottext=plottext, pname=pname: self.table_to_plot(
+                            plottext, pname
                         ),
                     )
                     ToolTip(
@@ -656,9 +675,9 @@ class FailReport(tkinter.Toplevel):
         # Finally, open the window if it was not already open.
         self.open()
 
-    def changesort(self, param, dsheet):
+    def changesort(self, pname):
         self.sortdir = False if self.sortdir == True else True
-        self.display(param, dsheet)
+        self.display(pname)
 
     def close(self):
         # pop down failure report window

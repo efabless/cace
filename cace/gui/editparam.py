@@ -151,7 +151,7 @@ class EditParam(tkinter.Toplevel):
         frame3.canvas.dframe.bind('<Configure>', self.frame_configure)
 
         # Get the parent's datasheet
-        dsheet = self.parent.datasheet
+        dsheet = self.parent.simulation_manager.get_datasheet()
 
         # Get list of methods from testbench folder
         # ("dspath" should be the same as "tbpath"---is there any case

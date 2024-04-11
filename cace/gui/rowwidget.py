@@ -561,11 +561,7 @@ class RowWidget:
                 dframe,
                 text=status_value,
                 style=button_style,
-                command=lambda param=self.param: self.fnc_failreport(
-                    param,
-                    self.simulation_manager.get_datasheet(),  # TODO can we decouple the datasheet from here?
-                    None,
-                ),
+                command=lambda pname=pname: self.fnc_failreport(pname),
             )
         # Physical: LVS
         elif self.testbench_text() == 'cace_lvs':

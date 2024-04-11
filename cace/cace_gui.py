@@ -711,7 +711,9 @@ class CACEGui(ttk.Frame):
                 command=self.stop_sims,
             )
 
-    def edit_param(self, param):
+    def edit_param(self, pname):
+        param = self.simulation_manager.find_parameter(pname)
+
         # Edit the conditions under which the parameter is tested.
         if (
             'editable' in param and param['editable'] == True
@@ -719,7 +721,7 @@ class CACEGui(ttk.Frame):
             self.editparam.populate(param)
             self.editparam.open()
         else:
-            print('Parameter is not editable')
+            print(f'Parameter {pname} is not editable')
 
     def copy_param(self, pname):
         # Make a copy of the parameter (for editing)
