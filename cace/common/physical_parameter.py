@@ -53,6 +53,10 @@ class PhysicalParameter(threading.Thread):
 
         self.cancel_point()
 
+        # TODO Create netlists
+
+        self.cancel_point()
+        
         print(f'Evaluating physical parameter: {self.param["name"]}')
         cace_evaluate(self.datasheet, self.param)
 

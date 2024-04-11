@@ -253,6 +253,9 @@ class SimulationManager:
     def get_runtime_options(self, key):
         return self.datasheet['runtime_options'][key]
 
+    def get_path(self, key):
+        return self.datasheet['paths'][key]
+
     def validate_runtime_options(self):
         """Make sure the runtime options contain valid values"""
 

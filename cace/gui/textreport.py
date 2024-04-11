@@ -92,7 +92,7 @@ class TextReport(tkinter.Toplevel):
         # Remove and replace contents
         self.hframe.textdisplay.page.delete('1.0', 'end')
         self.hframe.textdisplay.page.insert('end', self.text)
-        self.textttitle.configure(text=self.title)
+        self.texttitle.configure(text=self.title)
         self.open()
 
     # Fill the text report from a file.

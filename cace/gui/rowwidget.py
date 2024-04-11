@@ -570,18 +570,11 @@ class RowWidget:
             datasheet = os.path.split(filename)[1]
             dsheet = self.simulation_manager.get_datasheet()
             designname = dsheet['name']
-
-            if self.netlist_source == 'schematic':
-                lvs_file = os.path.abspath(
-                    dsheet['paths']['root'] + '/mag/precheck.log'
-                )
-            else:
-                lvs_file = dsheet['paths']['root'] + '/mag/comp.out'
-            if not os.path.exists(lvs_file):
-                if os.path.exists(dspath + '/mag/precheck.log'):
-                    lvs_file = dsheet['paths']['root'] + '/mag/precheck.log'
-                elif os.path.exists(dspath + '/mag/comp.out'):
-                    lvs_file = dsheet['paths']['root'] + '/mag/comp.out'
+            
+            root_path = self.simulation_manager.get_path('root')
+            reports_path = self.simulation_manager.get_path('reports')
+            
+            lvs_file = os.path.join(root_path, reports_path, f'{designname}_comp.out')
 
             self.status_widget = ttk.Button(
                 dframe,
