@@ -570,11 +570,13 @@ class RowWidget:
             datasheet = os.path.split(filename)[1]
             dsheet = self.simulation_manager.get_datasheet()
             designname = dsheet['name']
-            
+
             root_path = self.simulation_manager.get_path('root')
             reports_path = self.simulation_manager.get_path('reports')
-            
-            lvs_file = os.path.join(root_path, reports_path, f'{designname}_comp.out')
+
+            lvs_file = os.path.join(
+                root_path, reports_path, f'{designname}_comp.out'
+            )
 
             self.status_widget = ttk.Button(
                 dframe,

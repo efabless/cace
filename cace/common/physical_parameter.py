@@ -17,7 +17,8 @@ import re
 import sys
 import threading
 
-from .cace_evaluate import *
+from .cace_evaluate import cace_evaluate
+from .cace_regenerate import regenerate_netlists
 
 
 class PhysicalParameter(threading.Thread):
@@ -53,10 +54,18 @@ class PhysicalParameter(threading.Thread):
 
         self.cancel_point()
 
-        # TODO Create netlists
+        # Start by regenerating the netlists for the circuit-under-test
+        # (This may not be quick but all tests depend on the existence
+        # of the netlist, so it has to be done here and cannot be
+        # parallelized).
+
+        fullnetlistpath = regenerate_netlists(self.datasheet)
+        if not fullnetlistpath:
+            print('Failed to regenerate project netlist;  stopping.')
+            return 1
 
         self.cancel_point()
-        
+
         print(f'Evaluating physical parameter: {self.param["name"]}')
         cace_evaluate(self.datasheet, self.param)
 

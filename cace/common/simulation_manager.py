@@ -24,7 +24,7 @@ from queue import Queue
 
 from .cace_read import cace_read
 from .cace_compat import cace_compat
-from .cace_write import cace_write, cace_summary
+from .cace_write import cace_write, cace_summary, cace_generate_html
 from .physical_parameter import PhysicalParameter
 from .electrical_parameter import ElectricalParameter
 
@@ -188,6 +188,10 @@ class SimulationManager:
 
     def summarize_datasheet(self, pnames=[]):
         cace_summary(self.datasheet, pnames)
+
+    def generate_html(self):
+        debug = self.get_runtime_options('debug')
+        cace_generate_html(self.datasheet, None, debug)
 
     def duplicate_parameter(self, pname):
         param = self.find_parameter(pname)

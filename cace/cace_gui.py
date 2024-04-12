@@ -140,12 +140,10 @@ class CACEGui(ttk.Frame):
         self.root.option_add('*tearOff', 'FALSE')
         self.pack(side='top', fill='both', expand='true')
 
-        pane = tkinter.PanedWindow(
+        self.pane = tkinter.PanedWindow(
             self, orient='vertical', sashrelief='groove', sashwidth=6
         )
-        pane.pack(side='top', fill='both', expand='true')
-        self.toppane = ttk.Frame(pane)
-        self.botpane = ttk.Frame(pane)
+        self.toppane = ttk.Frame(self.pane)
 
         self.toppane.title_frame = ttk.Frame(self.toppane)
         self.toppane.title_frame.grid(column=0, row=2, sticky='nswe')
@@ -236,25 +234,9 @@ class CACEGui(ttk.Frame):
         # ttk.Separator(self, orient='horizontal').grid(column=0, row=5, sticky='ew')
         # ---------------------------------------------
 
-        # Add a text window below the datasheet to capture output.  Redirect
-        # print statements to it.
-
-        self.botpane.console = ttk.Frame(self.botpane)
-        self.botpane.console.pack(side='top', fill='both', expand='true')
-
-        self.text_box = ConsoleText(
-            self.botpane.console, wrap='word', height=4
-        )
-        self.text_box.pack(side='left', fill='both', expand='true')
-        console_scrollbar = ttk.Scrollbar(self.botpane.console)
-        console_scrollbar.pack(side='right', fill='y')
-        # attach console to scrollbar
-        self.text_box.config(yscrollcommand=console_scrollbar.set)
-        console_scrollbar.config(command=self.text_box.yview)
-
         # Add button bar at the bottom of the window
-        self.bbar = ttk.Frame(self.botpane)
-        self.bbar.pack(side='top', fill='x')
+        self.bbar = ttk.Frame(self)
+
         # Progress bar expands with the window, buttons don't
         self.bbar.columnconfigure(7, weight=1)
 
@@ -376,15 +358,48 @@ class CACEGui(ttk.Frame):
         self.datasheet_viewer.dframe.bind('<Configure>', self.frame_configure)
 
         # Add the panes once the internal geometry is known
-        pane.add(self.toppane)
-        pane.add(self.botpane)
-        pane.paneconfig(self.toppane, stretch='first')
+        self.pane.add(self.toppane)
+        self.pane.paneconfig(self.toppane, stretch='first')
+
+        # Pack the frames, bbar first so that it gets shrinked last
+        self.bbar.pack(side='bottom', fill='x', expand='false')
+        self.pane.pack(side='top', fill='both', expand='true')
 
         # Initialize variables
 
         # Capture time of start to compare against the annotated
         # output file timestamp.
         self.starttime = time.time()
+
+    def capture_output(self):
+        """
+        Add a text window below the datasheet to capture output.
+        Redirect print statements to it.
+        """
+
+        self.botpane = ttk.Frame(self.pane)
+
+        self.botpane.console = ttk.Frame(self.botpane)
+        self.botpane.console.pack(side='top', fill='both', expand='true')
+
+        # Add console to GUI
+        self.text_box = ConsoleText(
+            self.botpane.console, wrap='word', height=4
+        )
+        self.text_box.pack(side='left', fill='both', expand='true')
+        console_scrollbar = ttk.Scrollbar(self.botpane.console)
+        console_scrollbar.pack(side='right', fill='y')
+        # attach console to scrollbar
+        self.text_box.config(yscrollcommand=console_scrollbar.set)
+        console_scrollbar.config(command=self.text_box.yview)
+
+        self.pane.add(self.botpane)
+
+        # Redirect stdout and stderr to the gui console
+        self.stdout = sys.stdout
+        self.stderr = sys.stderr
+        sys.stdout = ConsoleText.StdoutRedirector(self.text_box)
+        sys.stderr = ConsoleText.StderrRedirector(self.text_box)
 
     def update_param(self, pname, canceled=False):
         """Update parameter with results, used as callback"""
@@ -447,13 +462,6 @@ class CACEGui(ttk.Frame):
 
         if process:
             self.simulation_manager.run_parameters_async()
-
-    def capture_output(self):
-        # Redirect stdout and stderr to the gui console
-        self.stdout = sys.stdout
-        self.stderr = sys.stderr
-        sys.stdout = ConsoleText.StdoutRedirector(self.text_box)
-        sys.stderr = ConsoleText.StderrRedirector(self.text_box)
 
     def frame_configure(self, event):
         self.update_idletasks()
@@ -949,11 +957,8 @@ class CACEGui(ttk.Frame):
 
             self.create_datasheet_view()
 
-    def generate_html(self, value={}):
-        debug = self.settings.get_debug()
-        cace_generate_html(
-            self.simulation_manager.get_datasheet(), None, debug
-        )   # TODO inside simulation_manager
+    def generate_html(self):
+        self.simulation_manager.generate_html()
 
     def swap_results(self, value={}):
         # This routine just calls self.create_datasheet_view(), but the
