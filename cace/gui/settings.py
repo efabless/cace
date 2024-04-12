@@ -102,16 +102,34 @@ class Settings(tkinter.Toplevel):
         )
         self.sframe.log.pack(side='top', anchor='w')
 
-        parallel_parameters = self.parent.simulation_manager.get_runtime_options('parallel_parameters')
+        parallel_parameters = (
+            self.parent.simulation_manager.get_runtime_options(
+                'parallel_parameters'
+            )
+        )
         self.sframe.ppframe = ttk.Frame(self.sframe)
-        vcmd = (self.register(self.validate), '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
-        self.ppframe_entry = ttk.Entry(self.sframe.ppframe, width=2, validate = 'key', validatecommand = vcmd)
+        vcmd = (
+            self.register(self.validate),
+            '%d',
+            '%i',
+            '%P',
+            '%s',
+            '%S',
+            '%v',
+            '%V',
+            '%W',
+        )
+        self.ppframe_entry = ttk.Entry(
+            self.sframe.ppframe, width=2, validate='key', validatecommand=vcmd
+        )
         self.ppframe_entry.insert(0, parallel_parameters)
-        self.ppframe_label = ttk.Label(self.sframe.ppframe, text='Max parallel parameters')
-        
+        self.ppframe_label = ttk.Label(
+            self.sframe.ppframe, text='Max parallel parameters'
+        )
+
         self.ppframe_entry.grid(column=0, row=0)
         self.ppframe_label.grid(column=1, row=0)
-        
+
         self.sframe.ppframe.pack(side='top', anchor='w')
 
         # self.sframe.sdisplay.sopts(side = 'top', fill = 'x', expand = 'true')
@@ -126,10 +144,19 @@ class Settings(tkinter.Toplevel):
         # Callback-on-close
         self.callback = callback
 
-    def validate(self, action, index, value_if_allowed,
-           prior_value, text, validation_type, trigger_type, widget_name):
+    def validate(
+        self,
+        action,
+        index,
+        value_if_allowed,
+        prior_value,
+        text,
+        validation_type,
+        trigger_type,
+        widget_name,
+    ):
         # action=1 -> insert
-        if(action=='1'):
+        if action == '1':
             if text in '0123456789':
                 try:
                     return int(value_if_allowed) > 0

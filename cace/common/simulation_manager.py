@@ -44,7 +44,7 @@ class SimulationManager:
         self.queue = Queue()
         self.thread = None
         self.threads = []
-        
+
         self.default_runtime_options()
 
     ### datasheet functions ###
@@ -244,7 +244,7 @@ class SimulationManager:
             'debug': False,
             'filename': 'Unknown',
         }
-        
+
         # Make sure runtime options exist
         if not 'runtime_options' in self.datasheet:
             self.datasheet['runtime_options'] = {}
@@ -466,7 +466,7 @@ class SimulationManager:
                 sim_param = self.queue.get()
 
                 print('Starting parameter thread')
-                #sim_param.setDaemon(True) # TODO correct?
+                # sim_param.setDaemon(True) # TODO correct?
                 sim_param.start()
 
                 self.threads.append(sim_param)
@@ -504,10 +504,10 @@ class SimulationManager:
 
         while not self.queue.empty():
             sim_param = self.queue.get()
-            
+
             if not cancel_cb and sim_param.cb:
                 sim_param.cb(sim_param.param['name'])
-        
+
         print('clear_queued_parameters end')
 
     def cancel_running_parameters(self, cancel_cb=False):
