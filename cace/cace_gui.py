@@ -439,6 +439,9 @@ class CACEGui(ttk.Frame):
         self.simulation_manager.set_runtime_options(
             'debug', self.settings.get_debug()
         )
+        self.simulation_manager.set_runtime_options(
+            'parallel_parameters', self.settings.get_parallel_parameters()
+        )
 
         # From the GUI, simulation is forced, so clear any "skip" status.
         # TO DO:  "gray out" entries marked as "skip" and require entry to
@@ -632,8 +635,8 @@ class CACEGui(ttk.Frame):
     def sim_all(self):
         # Make sure no simulation is running
         if (
-            self.simulation_manager.num_queued_simulations()
-            + self.simulation_manager.num_running_simulations()
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
             > 0
         ):
             print('Simulation in progress must finish first.')
@@ -658,6 +661,9 @@ class CACEGui(ttk.Frame):
         self.simulation_manager.set_runtime_options(
             'debug', self.settings.get_debug()
         )
+        self.simulation_manager.set_runtime_options(
+            'parallel_parameters', self.settings.get_parallel_parameters()
+        )
 
         # Queue all of the parameters
         for pname in self.simulation_manager.get_all_pnames():
@@ -671,8 +677,8 @@ class CACEGui(ttk.Frame):
     def stop_sims(self):
         # Check whether simulations are running
         if (
-            self.simulation_manager.num_queued_simulations()
-            + self.simulation_manager.num_running_simulations()
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
             == 0
         ):
             print('No simulation running.')
@@ -683,13 +689,13 @@ class CACEGui(ttk.Frame):
             # self.simulation_manager.join_parameters() # TODO deadlock because of GUI cb
 
             if (
-                self.simulation_manager.num_queued_simulations()
-                + self.simulation_manager.num_running_simulations()
+                self.simulation_manager.num_queued_parameters()
+                + self.simulation_manager.num_running_parameters()
                 == 0
             ):
                 print('All simulations have stopped.')
             else:
-                print('Hey! Not all simulations have stopped.')
+                print('Not all simulations have stopped yet.')
 
         self.update_simulate_all_button()
 
@@ -698,12 +704,12 @@ class CACEGui(ttk.Frame):
         # if the function call comes from a callback,
         # only one simulation is running
         if (
-            self.simulation_manager.num_queued_simulations()
-            + self.simulation_manager.num_running_simulations()
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
             == 0
             or from_callback
-            and self.simulation_manager.num_queued_simulations()
-            + self.simulation_manager.num_running_simulations()
+            and self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
             == 1
         ):
             self.allsimbutton.configure(
@@ -1064,6 +1070,8 @@ class CACEGui(ttk.Frame):
         for widget in dframe.winfo_children():
             widget.destroy()
 
+        self.parameter_widgets = {}
+
         dsheet = self.simulation_manager.get_datasheet()
 
         # Update netlist source
@@ -1131,8 +1139,8 @@ class CACEGui(ttk.Frame):
 
         # Check whether simulations are running
         if (
-            self.simulation_manager.num_queued_simulations()
-            + self.simulation_manager.num_running_simulations()
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
             > 0
         ):
             self.allsimbutton = ttk.Button(
@@ -1170,7 +1178,6 @@ class CACEGui(ttk.Frame):
         else:
             isschem = False
 
-        self.parameter_widgets = {}
         for param in paramstodo:
             self.add_param_to_list(param, n, isschem)
             n += 1

@@ -102,6 +102,18 @@ class Settings(tkinter.Toplevel):
         )
         self.sframe.log.pack(side='top', anchor='w')
 
+        parallel_parameters = self.parent.simulation_manager.get_runtime_options('parallel_parameters')
+        self.sframe.ppframe = ttk.Frame(self.sframe)
+        vcmd = (self.register(self.validate), '%d', '%i', '%P', '%s', '%S', '%v', '%V', '%W')
+        self.ppframe_entry = ttk.Entry(self.sframe.ppframe, width=2, validate = 'key', validatecommand = vcmd)
+        self.ppframe_entry.insert(0, parallel_parameters)
+        self.ppframe_label = ttk.Label(self.sframe.ppframe, text='Max parallel parameters')
+        
+        self.ppframe_entry.grid(column=0, row=0)
+        self.ppframe_label.grid(column=1, row=0)
+        
+        self.sframe.ppframe.pack(side='top', anchor='w')
+
         # self.sframe.sdisplay.sopts(side = 'top', fill = 'x', expand = 'true')
 
         self.bbar = ttk.Frame(self)
@@ -113,6 +125,20 @@ class Settings(tkinter.Toplevel):
 
         # Callback-on-close
         self.callback = callback
+
+    def validate(self, action, index, value_if_allowed,
+           prior_value, text, validation_type, trigger_type, widget_name):
+        # action=1 -> insert
+        if(action=='1'):
+            if text in '0123456789':
+                try:
+                    return int(value_if_allowed) > 0
+                except ValueError:
+                    return False
+            else:
+                return False
+        else:
+            return True
 
     def grid_configure(self, padx, pady):
         pass
@@ -151,6 +177,13 @@ class Settings(tkinter.Toplevel):
     def get_log(self):
         # return the state of the "log simulation output" checkbox
         return False if self.dolog.get() == 0 else True
+
+    def get_parallel_parameters(self):
+        # return the maximum number of parallel parameters
+        if self.ppframe_entry.get():
+            return int(self.ppframe_entry.get())
+        else:
+            return 1
 
     def close(self):
         # pop down settings window

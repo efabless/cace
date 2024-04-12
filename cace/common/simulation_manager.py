@@ -44,6 +44,8 @@ class SimulationManager:
         self.queue = Queue()
         self.thread = None
         self.threads = []
+        
+        self.default_runtime_options()
 
     ### datasheet functions ###
 
@@ -242,6 +244,10 @@ class SimulationManager:
             'debug': False,
             'filename': 'Unknown',
         }
+        
+        # Make sure runtime options exist
+        if not 'runtime_options' in self.datasheet:
+            self.datasheet['runtime_options'] = {}
 
         # Init with default value if key does not exist
         for key, value in default_options.items():
@@ -420,13 +426,13 @@ class SimulationManager:
 
         return None
 
-    def num_queued_simulations(self):
-        """Get the number of queued simulations"""
+    def num_queued_parameters(self):
+        """Get the number of queued parameters"""
 
         return self.queue.qsize()
 
-    def num_running_simulations(self):
-        """Get the number of running simulations"""
+    def num_running_parameters(self):
+        """Get the number of running parameters"""
 
         # TODO Remove completed threads
         self.threads = [t for t in self.threads if t.is_alive()]
@@ -453,17 +459,18 @@ class SimulationManager:
         while not self.queue.empty():
             # Check whether we can start another parameter in parallel
             if (
-                self.num_running_simulations()
+                self.num_running_parameters()
                 < self.datasheet['runtime_options']['parallel_parameters']
             ):
 
                 sim_param = self.queue.get()
 
-                print('Starting simulation thread')
-                # sim_param.setDaemon(True) # TODO correct?
+                print('Starting parameter thread')
+                #sim_param.setDaemon(True) # TODO correct?
                 sim_param.start()
 
                 self.threads.append(sim_param)
+                time.sleep(0.1)
             # Else wait until another parameter has completed
             else:
                 time.sleep(0.1)
@@ -489,7 +496,7 @@ class SimulationManager:
         while not self.queue.empty():
             sim_param = self.queue.get()
 
-            print('Starting simulation')
+            print('Starting parameter')
             sim_param.run()
 
     def clear_queued_parameters(self, cancel_cb=False):
@@ -497,10 +504,11 @@ class SimulationManager:
 
         while not self.queue.empty():
             sim_param = self.queue.get()
-
-            print('Cancel queued simulation')
-            sim_param.cancel(cancel_cb)
-            sim_param.run()
+            
+            if not cancel_cb and sim_param.cb:
+                sim_param.cb(sim_param.param['name'])
+        
+        print('clear_queued_parameters end')
 
     def cancel_running_parameters(self, cancel_cb=False):
         """Cancel all running parameters"""
@@ -524,4 +532,4 @@ class SimulationManager:
                 thread.cancel(cancel_cb)
 
         if not found:
-            print(f'Error: Could not cancel simulation: {pname} not found')
+            print(f'Error: Could not cancel parameter: {pname} not found')

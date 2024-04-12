@@ -83,5 +83,6 @@ class PhysicalParameter(threading.Thread):
         """If canceled, call the cb and exit the thread"""
 
         if self.canceled:
-            self.cb(self.param['name'], True)
+            if self.cb:
+                self.cb(self.param['name'], True)
             sys.exit()
