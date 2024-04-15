@@ -774,6 +774,8 @@ class CACEGui(ttk.Frame):
             return 'schematic'
 
     def clear_results(self, dsheet):
+        # TODO do in SimulationManager
+
         # Remove results from the window by clearing parameter results
         paramstodo = []
         if 'electrical_parameters' in dsheet:

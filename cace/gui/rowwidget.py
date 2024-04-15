@@ -155,7 +155,6 @@ class RowWidget:
     def status_text(self):
 
         status_value = '(not checked)'
-        status_style = self.normlabel
         button_style = self.normbutton
 
         if self.is_plot:
@@ -189,16 +188,13 @@ class RowWidget:
 
                 if score:
                     if score != 'fail':
-                        status_style = self.greenlabel
                         if status_value != 'fail':
                             status_value = 'pass'
                     else:
-                        status_style = self.redlabel
                         status_value = 'fail'
                 if value:
                     if value == 'failure' or value == 'fail':
                         status_value = '(not checked)'
-                        status_style = self.redlabel
 
             if 'typical' in specdict:
                 (value, score) = self.get_typ_results()
@@ -207,32 +203,26 @@ class RowWidget:
                     # Note:  You can't fail a "typ" score, but there is only one "Status",
                     # so if it is a "fail", it must remain a "fail".
                     if score != 'fail':
-                        status_style = self.greenlabel
                         if status_value != 'fail':
                             status_value = 'pass'
                     else:
-                        status_style = self.redlabel
                         status_value = 'fail'
                 if value:
                     if value == 'failure' or value == 'fail':
                         status_value = '(not checked)'
-                        status_style = self.redlabel
 
             if 'maximum' in specdict:
                 (value, score) = self.get_max_results()
 
                 if score:
                     if score != 'fail':
-                        status_style = self.greenlabel
                         if status_value != 'fail':
                             status_value = 'pass'
                     else:
-                        status_style = self.redlabel
                         status_value = 'fail'
                 if value:
                     if value == 'failure' or value == 'fail':
                         status_value = '(not checked)'
-                        status_style = self.redlabel
 
         # Button style
         if status_value == 'fail' or status_value == 'failure':
@@ -240,7 +230,7 @@ class RowWidget:
         else:
             button_style = self.greenbutton
 
-        return (status_value, status_style, button_style)
+        return (status_value, button_style)
 
     def get_resultdict(self):
 
@@ -316,19 +306,27 @@ class RowWidget:
     def min_value_text(self):
 
         min_value = ' '
+        min_status_style = self.normlabel
 
         (value, score) = self.get_min_results()
+
+        if score:
+            if score != 'fail':
+                min_status_style = self.greenlabel
+            else:
+                min_status_style = self.redlabel
 
         if value:
             if value == 'failure' or value == 'fail':
                 valuetext = value
+                min_status_style = self.redlabel
             elif 'unit' in self.param and not binrex.match(self.param['unit']):
                 valuetext = value + ' ' + self.param['unit']
             else:
                 valuetext = value
             min_value = valuetext
 
-        return min_value
+        return (min_value, min_status_style)
 
     def get_typ_results(self):
         # Grab the electrical parameter's 'spec' dictionary
@@ -390,19 +388,27 @@ class RowWidget:
     def typ_value_text(self):
 
         typ_value = ' '
+        typ_status_style = self.normlabel
 
         (value, score) = self.get_typ_results()
+
+        if score:
+            if score != 'fail':
+                typ_status_style = self.greenlabel
+            else:
+                typ_status_style = self.redlabel
 
         if value:
             if value == 'failure' or value == 'fail':
                 valuetext = value
+                typ_status_style = self.redlabel
             elif 'unit' in self.param and not binrex.match(self.param['unit']):
                 valuetext = value + ' ' + self.param['unit']
             else:
                 valuetext = value
             typ_value = valuetext
 
-        return typ_value
+        return (typ_value, typ_status_style)
 
     def get_max_results(self):
         # Grab the electrical parameter's 'spec' dictionary
@@ -464,19 +470,27 @@ class RowWidget:
     def max_value_text(self):
 
         max_value = ' '
+        max_status_style = self.normlabel
 
         (value, score) = self.get_max_results()
+
+        if score:
+            if score != 'fail':
+                max_status_style = self.greenlabel
+            else:
+                max_status_style = self.redlabel
 
         if value:
             if value == 'failure' or value == 'fail':
                 valuetext = value
+                max_status_style = self.redlabel
             elif 'unit' in self.param and not binrex.match(self.param['unit']):
                 valuetext = value + ' ' + self.param['unit']
             else:
                 valuetext = value
             max_value = valuetext
 
-        return max_value
+        return (max_value, max_status_style)
 
     def simulate_text(self):
 
@@ -507,7 +521,7 @@ class RowWidget:
         self.testbench_widget.grid(column=1, row=n, sticky='ewns')
 
         # Get the status of the last simulation
-        (status_value, status_style, button_style) = self.status_text()
+        (status_value, button_style) = self.status_text()
 
         if self.is_plot:
 
@@ -526,8 +540,9 @@ class RowWidget:
             )
             self.min_limit_widget.grid(column=2, row=n, sticky='ewns')
 
+            (min_value, min_status_style) = self.min_value_text()
             self.min_value_widget = ttk.Label(
-                dframe, text=self.min_value_text(), style=status_style
+                dframe, text=min_value, style=min_status_style
             )
             self.min_value_widget.grid(column=3, row=n, sticky='ewns')
 
@@ -537,8 +552,9 @@ class RowWidget:
             )
             self.typ_limit_widget.grid(column=4, row=n, sticky='ewns')
 
+            (typ_value, typ_status_style) = self.typ_value_text()
             self.typ_value_widget = ttk.Label(
-                dframe, text=self.typ_value_text(), style=status_style
+                dframe, text=typ_value, style=typ_status_style
             )
             self.typ_value_widget.grid(column=5, row=n, sticky='ewns')
 
@@ -548,8 +564,9 @@ class RowWidget:
             )
             self.max_limit_widget.grid(column=6, row=n, sticky='ewns')
 
+            (max_value, max_status_style) = self.max_value_text()
             self.max_value_widget = ttk.Label(
-                dframe, text=self.max_value_text(), style=status_style
+                dframe, text=max_value, style=max_status_style
             )
             self.max_value_widget.grid(column=7, row=n, sticky='ewns')
 
@@ -683,7 +700,7 @@ class RowWidget:
         self.testbench_widget.configure(text=self.testbench_text())
 
         # Get the status of the last simulation
-        (status_value, status_style, button_style) = self.status_text()
+        (status_value, button_style) = self.status_text()
 
         if self.is_plot:
             # Plot text
@@ -691,20 +708,23 @@ class RowWidget:
         else:
             # Minimum widgets
             self.min_limit_widget.configure(text=self.min_limit_text())
+            (min_value, min_status_style) = self.min_value_text()
             self.min_value_widget.configure(
-                text=self.min_value_text(), style=status_style
+                text=min_value, style=min_status_style
             )
 
             # Typical widgets
             self.typ_limit_widget.configure(text=self.typ_limit_text())
+            (typ_value, typ_status_style) = self.typ_value_text()
             self.typ_value_widget.configure(
-                text=self.typ_value_text(), style=status_style
+                text=typ_value, style=typ_status_style
             )
 
             # Maximum widgets
             self.max_limit_widget.configure(text=self.max_limit_text())
+            (max_value, max_status_style) = self.max_value_text()
             self.max_value_widget.configure(
-                text=self.max_value_text(), style=status_style
+                text=max_value, style=max_status_style
             )
 
         # Status Widget
