@@ -61,19 +61,21 @@ class PhysicalParameter(threading.Thread):
 
         fullnetlistpath = regenerate_netlists(self.datasheet)
         if not fullnetlistpath:
-            print('Failed to regenerate project netlist;  stopping.')
+            print(
+                f'{self.param["name"]}: Failed to regenerate project netlist; stopping.'
+            )
             return 1
 
         self.cancel_point()
 
-        print(f'Evaluating physical parameter: {self.param["name"]}')
+        print(f'{self.param["name"]}: Evaluating physical parameter')
         cace_evaluate(self.datasheet, self.param)
 
         if self.cb:
             self.cb(self.param['name'])
 
     def cancel(self, cancel_cb):
-        print(f'Cancel physical parameter: {self.param["name"]}')
+        print(f'{self.param["name"]}: Cancel physical parameter')
         self.canceled = True
 
         if cancel_cb:

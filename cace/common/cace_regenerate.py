@@ -1127,7 +1127,6 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
             netlist_file, source_file, debug
         )
 
-    print(need_testbench_netlist)
     if not need_testbench_netlist:
         # Testbench exists and is up-to-date;  nothing to do
         return 0

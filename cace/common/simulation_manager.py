@@ -45,6 +45,19 @@ class SimulationManager:
         self.thread = None
         self.threads = []
 
+        self.default_options = {
+            'netlist_source': 'schematic',
+            'force': False,
+            'keep': False,
+            'nosim': False,
+            'json': False,
+            'sequential': False,  # TODO implement
+            'noplot': False,  # TODO test
+            'parallel_parameters': 4,
+            'debug': False,
+            'filename': 'Unknown',
+        }
+
         self.default_runtime_options()
 
     ### datasheet functions ###
@@ -232,25 +245,12 @@ class SimulationManager:
     def default_runtime_options(self):
         """Sane default values"""
 
-        default_options = {
-            'netlist_source': 'schematic',
-            'force': False,
-            'keep': False,
-            'nosim': False,
-            'json': False,
-            'sequential': False,  # TODO implement
-            'noplot': False,  # TODO test
-            'parallel_parameters': 4,  # TODO test
-            'debug': False,
-            'filename': 'Unknown',
-        }
-
         # Make sure runtime options exist
         if not 'runtime_options' in self.datasheet:
             self.datasheet['runtime_options'] = {}
 
         # Init with default value if key does not exist
-        for key, value in default_options.items():
+        for key, value in self.default_options.items():
             if not key in self.datasheet['runtime_options']:
                 self.datasheet['runtime_options'][key] = value
 
@@ -261,9 +261,22 @@ class SimulationManager:
         self.validate_runtime_options()
 
     def get_runtime_options(self, key):
+        if not key in self.datasheet['runtime_options']:
+            print(f'Warning: Runtime option "{key}" not in runtime_options')
+            if key in self.default_options:
+                print(f'Setting runtime option "{key}" to default value')
+                self.datasheet['runtime_options'][key] = self.default_options[
+                    key
+                ]
+
         return self.datasheet['runtime_options'][key]
 
     def get_path(self, key):
+        if not key in self.datasheet['paths']:
+            print(f'Warning: Path "{key}" not in paths')
+            print(f'Setting path "{key}" to "{key}"')
+            self.datasheet['paths'][key] = key
+
         return self.datasheet['paths'][key]
 
     def validate_runtime_options(self):
@@ -371,13 +384,13 @@ class SimulationManager:
                             )
                             return
 
-                    print('Creating ElectricalParameter')
-
                     new_sim_param = ElectricalParameter(
                         param, self.datasheet, pdk, paths, runtime_options, cb
                     )
 
-                    print('Inserting into queue')
+                    print(
+                        f'Inserting electrical parameter {param["name"]} into queue'
+                    )
                     self.queue.put(new_sim_param)
 
                     # TODO return number of simulations for this parameter
@@ -401,13 +414,13 @@ class SimulationManager:
                             )
                             return
 
-                    print('Creating PhysicalParameter')
-
                     new_sim_param = PhysicalParameter(
                         param, self.datasheet, pdk, paths, runtime_options, cb
                     )
 
-                    print('Inserting into queue')
+                    print(
+                        f'Inserting physical parameter {param["name"]} into queue'
+                    )
                     self.queue.put(new_sim_param)
 
                     # TODO return number of simulations for this parameter
@@ -434,15 +447,13 @@ class SimulationManager:
     def num_running_parameters(self):
         """Get the number of running parameters"""
 
-        # TODO Remove completed threads
+        # Remove completed threads
         self.threads = [t for t in self.threads if t.is_alive()]
 
         return len(self.threads)
 
     def run_parameters_async(self):
         """Start a thread to start parameter threads"""
-
-        print('Starting threads async')
 
         # Wait until previous run completed
         if self.thread:
@@ -464,13 +475,11 @@ class SimulationManager:
             ):
 
                 sim_param = self.queue.get()
-
-                print('Starting parameter thread')
+                print(f'Running parameter {sim_param.param["name"]}')
                 # sim_param.setDaemon(True) # TODO correct?
                 sim_param.start()
 
                 self.threads.append(sim_param)
-                time.sleep(0.1)
             # Else wait until another parameter has completed
             else:
                 time.sleep(0.1)
@@ -495,8 +504,6 @@ class SimulationManager:
 
         while not self.queue.empty():
             sim_param = self.queue.get()
-
-            print('Starting parameter')
             sim_param.run()
 
     def clear_queued_parameters(self, cancel_cb=False):
@@ -507,8 +514,6 @@ class SimulationManager:
 
             if not cancel_cb and sim_param.cb:
                 sim_param.cb(sim_param.param['name'])
-
-        print('clear_queued_parameters end')
 
     def cancel_running_parameters(self, cancel_cb=False):
         """Cancel all running parameters"""

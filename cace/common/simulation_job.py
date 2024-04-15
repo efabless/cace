@@ -41,7 +41,7 @@ class SimulationJob(threading.Thread):
         super().__init__(*args, **kwargs)
 
     def cancel(self, cancel_cb):
-        print(f'Cancel simulation: {self.param["name"]} {self.testbenchlist}')
+        print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
         self.canceled = True
 
         if cancel_cb:
@@ -69,12 +69,9 @@ class SimulationJob(threading.Thread):
             else False
         )
 
-        print(f'simresult: {simresult}')
-
         simdict = self.param['simulate']
         if 'collate' in simdict:
             collnames = simdict['collate']
-            print('collate_after_simulation!')
             self.collate_after_simulation(
                 self.param, collnames, self.testbenchlist, debug
             )
@@ -341,7 +338,7 @@ class SimulationJob(threading.Thread):
                     print('ngspice encountered an error. . . ending.')
                     self.spiceproc.kill()
 
-            # self.spiceproc.stdout.close() TODO
+            # self.spiceproc.stdout.close() TODO needed?
             return_code = self.spiceproc.wait()
 
             if self.canceled:

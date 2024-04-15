@@ -419,8 +419,6 @@ class CACEGui(ttk.Frame):
     def simulate_param(self, pname, process=True):
         """Simulate a single parameter"""
 
-        print(f'GUI: Simulating param {pname}')
-
         self.simulation_manager.set_runtime_options(
             'netlist_source', self.get_netlist_source()
         )

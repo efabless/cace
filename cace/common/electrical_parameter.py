@@ -54,7 +54,7 @@ class ElectricalParameter(threading.Thread):
         self.runtime_options = runtime_options
 
         self.queued_jobs = []
-
+        self.new_testbenches = []
         self.canceled = False
 
         super().__init__(*args, **kwargs)
@@ -93,7 +93,7 @@ class ElectricalParameter(threading.Thread):
             # Start the jobs
             jobs = []
             for sim in self.queued_jobs:
-                print(f'Thread {self.param["name"]}: starting task')
+                print(f'{self.param["name"]}: Starting task')
                 jobs.append(mypool.apply_async(sim.run, callback=self.cb_sims))
 
             # Wait for completion
@@ -102,7 +102,7 @@ class ElectricalParameter(threading.Thread):
 
                 # Check if all tasks have completed
                 if all([job.ready() for job in jobs]):
-                    print(f'Thread {self.param["name"]}: tasks done')
+                    print(f'{self.param["name"]}: All tasks done')
                     break
 
                 time.sleep(0.1)
@@ -122,7 +122,9 @@ class ElectricalParameter(threading.Thread):
         # Check whether testbenches are valid
         for testbench in self.new_testbenches:
             if not testbench:
-                print('Error: At least one testbench is invalid')
+                print(
+                    f'{self.param["name"]}: Error: At least one testbench is invalid'
+                )
                 self.cb(self.param['name'])
                 return
 
@@ -135,7 +137,7 @@ class ElectricalParameter(threading.Thread):
         if self.cb:
             self.cb(self.param['name'])
 
-        print(f'Thread {self.param["name"]}: done')
+        print(f'{self.param["name"]}: Completed')
 
     def add_simulation_job(self, job):
         self.queued_jobs.append(job)
@@ -201,7 +203,6 @@ class ElectricalParameter(threading.Thread):
 
         testbenches = self.param['testbenches']
         paramname = self.param['name']
-        print(f'Files to simulate method {paramname}: {len(testbenches)}')
 
         alltestbenches = []
         results = []
