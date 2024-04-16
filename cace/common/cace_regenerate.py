@@ -1,12 +1,21 @@
-#!/usr/bin/env python3
-# -----------------------------------------------------------------------
-# cace_regenerate.py
-# -----------------------------------------------------------------------
+# Copyright 2024 Efabless Corporation
 #
-# These procedures are used by cace_gensim to check if netlists need
-# to be automatically regenerated, and to run schematic capture or
-# layout extraction as needed.
-# -----------------------------------------------------------------------
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+These procedures are used by cace_gensim to check if netlists need
+to be automatically regenerated, and to run schematic capture or
+layout extraction as needed.
+"""
 
 import os
 import sys
@@ -15,14 +24,9 @@ import shutil
 from datetime import date as datetime
 import subprocess
 
-# ----------------------------------------------------------------------
-# printwarn
-#
-# Print warnings output from a file run using the subprocess package
-# ----------------------------------------------------------------------
-
 
 def printwarn(output):
+    """Print warnings output from a file run using the subprocess package"""
     # Check output for warning or error
     if not output:
         return 0
@@ -54,14 +58,9 @@ def printwarn(output):
     return errors
 
 
-# ----------------------------------------------------------------------
-# printall
-#
-# Print all output from a file run using the subprocess package
-# ----------------------------------------------------------------------
-
-
 def printall(output):
+    """Print all output from a file run using the subprocess package"""
+
     # Check output for warning or error
     if not output:
         return 0
@@ -71,16 +70,14 @@ def printall(output):
         print(line)
 
 
-# -----------------------------------------------------------------------
-# get_pdk_root
-#
-# Get a value for PDK_ROOT, either from an environment variable, or
-# from several standard locations (open_pdks install and IIC-tools
-# install and volare install).
-# -----------------------------------------------------------------------
-
-
 def get_pdk_root():
+    """
+    Get a value for PDK_ROOT, either from an environment variable, or
+    from several standard locations (open_pdks install and IIC-tools
+    install and volare install).
+    If found, set the environment variable PDK_ROOT.
+    """
+
     try:
         pdk_root = os.environ['PDK_ROOT']
     except KeyError:
@@ -94,22 +91,24 @@ def get_pdk_root():
                     pdk_root = os.path.join(os.path.expanduser('~'), '.volare')
                     if not os.path.isdir(pdk_root):
                         pdk_root = None
+
+        if pdk_root:
+            os.environ['PDK_ROOT'] = pdk_root
+        else:
+            print('Could not locate PDK_ROOT!')
+
     return pdk_root
 
 
-# -----------------------------------------------------------------------
-# get_pdk
-#
-# Get a value for the PDK, either from the second line of a .mag file,
-# or from the environment as environment variable "PDK".
-#
-# NOTE:  Normally the PDK is provided as part of the datasheet, as
-# a project does not necessarily have a .mag file;  so there is no
-# source for automatically determining the project PDK.
-# -----------------------------------------------------------------------
-
-
 def get_pdk(magicfilename):
+    """
+    Get a value for the PDK, either from the second line of a .mag file,
+    or from the environment as environment variable "PDK".
+
+    NOTE:  Normally the PDK is provided as part of the datasheet, as
+    a project does not necessarily have a .mag file;  so there is no
+    source for automatically determining the project PDK.
+    """
     if magicfilename and os.path.isfile(magicfilename):
         with open(magicfilename, 'r') as ifile:
             for line in ifile.readlines():
@@ -129,16 +128,14 @@ def get_pdk(magicfilename):
     return pdk
 
 
-# -----------------------------------------------------------------------
-# Get the path and filename of the magic startup script corresponding
-# to the PDK.
-#
-# Returns a string containing the full path and filename of the startup
-# script (.magicrc file).
-# -----------------------------------------------------------------------
-
-
 def get_magic_rcfile(dsheet, magicfilename=None):
+    """
+    Get the path and filename of the magic startup script corresponding
+    to the PDK.
+
+    Returns a string containing the full path and filename of the startup
+    script (.magicrc file).
+    """
 
     if 'PDK_ROOT' in dsheet:
         pdk_root = dsheet['PDK_ROOT']
@@ -166,16 +163,14 @@ def get_magic_rcfile(dsheet, magicfilename=None):
     return rcfile
 
 
-# -----------------------------------------------------------------------
-# Get the path and filename of the netgen setup script corresponding
-# to the PDK.
-#
-# Returns a string containing the full path and filename of the setup
-# script (.tcl file).
-# -----------------------------------------------------------------------
-
-
 def get_netgen_setupfile(dsheet):
+    """
+    Get the path and filename of the netgen setup script corresponding
+    to the PDK.
+
+    Returns a string containing the full path and filename of the setup
+    script (.tcl file).
+    """
 
     if 'PDK_ROOT' in dsheet:
         pdk_root = dsheet['PDK_ROOT']
@@ -201,21 +196,18 @@ def get_netgen_setupfile(dsheet):
     return setupfile
 
 
-# -----------------------------------------------------------------------
-# check_simulation_out_of_date
-#
-# Check if a simulation result is out-of-date relative to both the
-# testbench and the DUT.  It can be assumed that the DUT netlist and
-# testbench have already been checked against their respective
-# schematics, only the netlists need to be compared.
-#
-# "simpath" is the path to simulation result (usually in root_path/ngspice)
-# "tbpath" is the path to testbench netlist (usually in root_path/cace)
-# "dutpath" is the path to the design netlist (depends on source setting)
-# -----------------------------------------------------------------------
-
-
 def check_simulation_out_of_date(simpath, tbpath, dutpath, debug=False):
+    """
+    Check if a simulation result is out-of-date relative to both the
+    testbench and the DUT.  It can be assumed that the DUT netlist and
+    testbench have already been checked against their respective
+    schematics, only the netlists need to be compared.
+
+    "simpath" is the path to simulation result (usually in root_path/ngspice)
+    "tbpath" is the path to testbench netlist (usually in root_path/cace)
+    "dutpath" is the path to the design netlist (depends on source setting)
+    """
+
     need_resimulate = False
     if not os.path.isfile(simpath):
         if debug:
@@ -260,12 +252,16 @@ def check_simulation_out_of_date(simpath, tbpath, dutpath, debug=False):
 # -----------------------------------------------------------------------
 # check_layout_out_of_date
 #
-# Check if a netlist (spicepath) is out-of-date relative to the layouts
-# (layoutpath).  Need to read the netlist and check all of the subcells.
+
 # -----------------------------------------------------------------------
 
 
 def check_layout_out_of_date(spicepath, layoutpath, debug=False):
+    """
+    Check if a netlist (spicepath) is out-of-date relative to the layouts
+    (layoutpath).  Need to read the netlist and check all of the subcells.
+    """
+
     need_capture = False
     if not os.path.isfile(spicepath):
         if debug:
@@ -327,19 +323,17 @@ def check_layout_out_of_date(spicepath, layoutpath, debug=False):
     return need_capture
 
 
-# -----------------------------------------------------------------------
-# check_schematic_out_of_date
-#
-# Check if a netlist (spicepath) is out-of-date relative to the schematics
-# (schempath).  Need to read the netlist and check all of the subcells.
-#
-# This routine can also be used to determine if a testbench netlist is
-# up-to-date with respect to its schematic.
-# -----------------------------------------------------------------------
-
-
 def check_schematic_out_of_date(spicepath, schempath, debug=False):
+    """
+    Check if a netlist (spicepath) is out-of-date relative to the schematics
+    (schempath).  Need to read the netlist and check all of the subcells.
+
+    This routine can also be used to determine if a testbench netlist is
+    up-to-date with respect to its schematic.
+    """
+
     need_capture = False
+
     if not os.path.isfile(spicepath):
         if debug:
             print(
@@ -421,15 +415,8 @@ def check_schematic_out_of_date(spicepath, schempath, debug=False):
     return need_capture
 
 
-# -----------------------------------------------------------------------
-# regenerate_rcx_netlist
-#
-# Regenerate the R-C parasitic extracted netlist if out-of-date or if
-# forced.
-# -----------------------------------------------------------------------
-
-
 def regenerate_rcx_netlist(dsheet):
+    """Regenerate the R-C parasitic extracted netlist if out-of-date or if forced."""
 
     runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
@@ -599,16 +586,12 @@ def regenerate_rcx_netlist(dsheet):
     return rcx_netlist
 
 
-# -----------------------------------------------------------------------
-# regenerate_lvs_netlist
-#
-# Regenerate the layout-extracted netlist if out-of-date or if forced.
-# If argument "pex" is True, then generate parasitic capacitances in
-# the output.
-# -----------------------------------------------------------------------
-
-
 def regenerate_lvs_netlist(dsheet, pex=False):
+    """
+    Regenerate the layout-extracted netlist if out-of-date or if forced.
+    If argument "pex" is True, then generate parasitic capacitances in
+    the output.
+    """
 
     runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
@@ -765,24 +748,21 @@ def regenerate_lvs_netlist(dsheet, pex=False):
     return lvs_netlist
 
 
-# -----------------------------------------------------------------------
-# check_dependencies --
-#
-# Check the datasheet for listed dependencies and make sure they exist.
-# If not, and the dependency entry lists a repository, then clone the
-# dependency.
-#
-# Returns True if a dependency was cloned, and False if nothing needed
-# to be done.
-#
-# To do:  For each dependency, find a CACE datasheet and read the path
-# information to find the path to schematics, so this can be used to
-# add the correct search path to the xschemrc file.  For now, it is
-# assumed that the path name is 'xschem'.
-# -----------------------------------------------------------------------
-
-
 def check_dependencies(dsheet, debug=False):
+    """
+    Check the datasheet for listed dependencies and make sure they exist.
+    If not, and the dependency entry lists a repository, then clone the
+    dependency.
+
+    Returns True if a dependency was cloned, and False if nothing needed
+    to be done.
+
+    To do:  For each dependency, find a CACE datasheet and read the path
+    information to find the path to schematics, so this can be used to
+    add the correct search path to the xschemrc file.  For now, it is
+    assumed that the path name is 'xschem'.
+    """
+
     dependencies = []
     if 'dependencies' in dsheet:
         # If there is only one dependency it may be a dictionary and not a
@@ -841,29 +821,25 @@ def check_dependencies(dsheet, debug=False):
     return False
 
 
-# -----------------------------------------------------------------------
-# set_xschem_paths ---
-#
-# 	Put together a set of Tcl commands that sets the search
-# 	path for xschem.
-#
-# 	If tclstr is not None, then it is assumed to be a valid
-# 	Tcl command, and the rest of the Tcl command string is
-# 	appended to it, with independent commands separated by
-# 	semicolons.
-#
-# 	Return the final Tcl command string.
-#
-# 	Note that this is used only when regenerating the schematic
-# 	netlist.  The testbenches are assumed to call the symbol as
-# 	a primitive, and rely on an include file to pull in the
-# 	netlist (either schematic or layout) from the appropriate
-# 	netlist directory.
-#
-# -----------------------------------------------------------------------
-
-
 def set_xschem_paths(dsheet, symbolpath, tclstr=None):
+    """
+    Put together a set of Tcl commands that sets the search
+    path for xschem.
+
+    If tclstr is not None, then it is assumed to be a valid
+    Tcl command, and the rest of the Tcl command string is
+    appended to it, with independent commands separated by
+    semicolons.
+
+    Return the final Tcl command string.
+
+    Note that this is used only when regenerating the schematic
+    netlist. The testbenches are assumed to call the symbol as
+    a primitive, and rely on an include file to pull in the
+    netlist (either schematic or layout) from the appropriate
+    netlist directory.
+    """
+
     paths = dsheet['paths']
 
     # Root path
@@ -931,14 +907,8 @@ def set_xschem_paths(dsheet, symbolpath, tclstr=None):
     return ' ; '.join(tcllist)
 
 
-# -----------------------------------------------------------------------
-# regenerate_schematic_netlist
-#
-# Regenerate the schematic-captured netlist if out-of-date or if forced.
-# -----------------------------------------------------------------------
-
-
 def regenerate_schematic_netlist(dsheet):
+    """Regenerate the schematic-captured netlist if out-of-date or if forced."""
 
     runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
@@ -1128,14 +1098,8 @@ def regenerate_schematic_netlist(dsheet):
     return schem_netlist
 
 
-# -----------------------------------------------------------------------
-# regenerate_testbench
-#
-# Regenerate a testbench template (create SPICE from .sch)
-# -----------------------------------------------------------------------
-
-
 def regenerate_testbench(dsheet, testbenchpath, testbench):
+    """Regenerate a testbench template (create SPICE from .sch)"""
 
     runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
@@ -1255,12 +1219,8 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     return 0
 
 
-# -----------------------------------------------------------------------
-# Regenerate all netlists as needed when out of date.
-# -----------------------------------------------------------------------
-
-
 def regenerate_netlists(dsheet):
+    """Regenerate all netlists as needed when out of date."""
 
     # 'netlist_source' determines whether to use the layout extracted netlist
     # or the schematic captured netlist.  Also, regenerate the netlist only if
@@ -1310,16 +1270,14 @@ def regenerate_netlists(dsheet):
     return result
 
 
-# -----------------------------------------------------------------------
-# Copy the schematic symbol to the testbench directory and remark its
-# type from 'schematic' to 'primitive', so that testbench netlists will
-# write an instance call but not the schematic itself.  That way, the
-# schematic can be brought in from an include file that can be set to
-# any one of schematic-captured or layout-extracted netlists.
-# -----------------------------------------------------------------------
-
-
 def make_symbol_primitive(dsheet):
+    """
+    Copy the schematic symbol to the testbench directory and remark its
+    type from 'schematic' to 'primitive', so that testbench netlists will
+    write an instance call but not the schematic itself.  That way, the
+    schematic can be brought in from an include file that can be set to
+    any one of schematic-captured or layout-extracted netlists.
+    """
 
     dname = dsheet['name']
     xschemname = dname + '.sym'
@@ -1354,15 +1312,11 @@ def make_symbol_primitive(dsheet):
         ofile.write(primdata)
 
 
-# -----------------------------------------------------------------------
-# Regenerate all testbenches.
-#
-# If paramname is passed to regenerate_testbenches and is not None, then
-# only generate testbenches required by the specified parameter.
-# -----------------------------------------------------------------------
-
-
 def regenerate_testbenches(dsheet, paramname=None):
+    """
+    If paramname is passed to regenerate_testbenches and is not None, then
+    only generate testbenches required by the specified parameter.
+    """
 
     paths = dsheet['paths']
     if 'testbench' in paths:
@@ -1401,6 +1355,3 @@ def regenerate_testbenches(dsheet, paramname=None):
             return result
 
     return 0
-
-
-# -----------------------------------------------------------------------

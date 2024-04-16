@@ -44,14 +44,6 @@ class EditParam(tkinter.Toplevel):
         """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
-        s = ttk.Style()
-        s.configure(
-            'normal.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-        )
-        s.configure('bg.TFrame', background='gray40')
         self.parent = parent
         self.withdraw()
         self.title('Electrical parameter editor')
@@ -159,7 +151,7 @@ class EditParam(tkinter.Toplevel):
         frame3.canvas.dframe.bind('<Configure>', self.frame_configure)
 
         # Get the parent's datasheet
-        dsheet = self.parent.datasheet
+        dsheet = self.parent.simulation_manager.get_datasheet()
 
         # Get list of methods from testbench folder
         # ("dspath" should be the same as "tbpath"---is there any case
@@ -705,10 +697,11 @@ class EditParam(tkinter.Toplevel):
 
         targmin = self.minrec.target.get()
         if not (targmin == '(none)' or targmin == ''):
-            pmin = []
-            pmin.append(targmin)
+            pmin = targmin
             pen = self.minrec.penalty.get()
             if not (pen == '(none)' or pen == ''):
+                pmin = []
+                pmin.append(targmin)
                 pmin.append(pen)
             cmin = self.minrec.calc.get()
             if not (cmin == '(none)' or cmin == ''):
@@ -717,13 +710,15 @@ class EditParam(tkinter.Toplevel):
                     pmin.append(cmin + '-' + lmin)
                 else:
                     pmin.append(cmin)
-            self.param['minimum'] = pmin
+            spec['minimum'] = pmin
+
         targtyp = self.typrec.target.get()
         if not (targtyp == '(none)' or targtyp == ''):
-            ptyp = []
-            ptyp.append(targtyp)
+            ptyp = targtyp
             pen = self.typrec.penalty.get()
             if not (pen == '(none)' or pen == ''):
+                ptyp = []
+                ptyp.append(targtyp)
                 ptyp.append(pen)
             ctyp = self.typrec.calc.get()
             if not (ctyp == '(none)' or ctyp == ''):
@@ -732,13 +727,15 @@ class EditParam(tkinter.Toplevel):
                     ptyp.append(ctyp + '-' + ltyp)
                 else:
                     ptyp.append(ctyp)
-            self.param['typical'] = ptyp
+            spec['typical'] = ptyp
+
         targmax = self.maxrec.target.get()
         if not (targmax == '(none)' or targmax == ''):
-            pmax = []
-            pmax.append(targmax)
+            pmax = targmax
             pen = self.maxrec.penalty.get()
             if not (pen == '(none)' or pen == ''):
+                pmax = []
+                pmax.append(targmax)
                 pmax.append(pen)
             cmax = self.maxrec.calc.get()
             if not (cmax == '(none)' or cmax == ''):
@@ -747,7 +744,7 @@ class EditParam(tkinter.Toplevel):
                     pmax.append(cmax + '-' + lmax)
                 else:
                     pmax.append(cmax)
-            self.param['maximum'] = pmax
+            spec['maximum'] = pmax
 
         condlist = []
         for crec in self.cond:

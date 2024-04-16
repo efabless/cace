@@ -1,38 +1,25 @@
-#!/usr/bin/env python3
+# Copyright 2024 Efabless Corporation
 #
-# --------------------------------------------------------
-# cace_gui.py
-# Project Manager GUI.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# This is a Python tkinter script that handles local
-# project management.  Much of this involves the
-# running of ng-spice for characterization, allowing
-# the user to determine where a circuit is failing
-# characterization.
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-# --------------------------------------------------------
-# Written by Tim Edwards
-# Efabless Corporation
-# Created September 9, 2016
-# 	Version 1.0
-# 	System running on the Efabless Open Galaxy
-# 	servers.
-#
-# (Some intermediate versions were not recorded)
-#
-# Updated March 14, 2023
-# 	Version 3.0
-# 	Ported from the Efabless Open Galaxy servers
-# 	to open_pdks.
-#
-# Updated November 22, 2023
-# 	Version 4.0
-# 	Ported from open_pdks to a standalone repository
-# 	renamed from cace.py to cace_gui.py
-# --------------------------------------------------------
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+"""
+This is a Python tkinter script that handles local
+project management.  Much of this involves the
+running of ng-spice for characterization, allowing
+the user to determine where a circuit is failing
+characterization.
+"""
 
 import io
-import re
 import os
 import sys
 import copy
@@ -42,14 +29,12 @@ import signal
 import select
 import argparse
 import datetime
-import contextlib
-import subprocess
-import multiprocessing
 
 import tkinter
 from tkinter import ttk
 from tkinter import filedialog
 
+from .gui.style import init_style
 from .gui.tksimpledialog import *
 from .gui.tooltip import *
 from .gui.consoletext import ConsoleText
@@ -59,24 +44,20 @@ from .gui.textreport import TextReport
 from .gui.editparam import EditParam
 from .gui.settings import Settings
 from .gui.simhints import SimHints
+from .gui.rowwidget import RowWidget
 
 from .common.cace_read import *
 from .common.cace_compat import *
 from .common.cace_write import *
-from .cace_cli import *
-
-# User preferences file (if it exists)
-prefsfile = '~/design/.profile/prefs.json'
+from .common.simulation_manager import SimulationManager
 
 # Application path (path where this script is located)
 apps_path = os.path.realpath(os.path.dirname(__file__))
 
-# ------------------------------------------------------
-# Simple dialog for confirming quit
-# ------------------------------------------------------
-
 
 class ConfirmDialog(Dialog):
+    """Simple dialog for confirming quit"""
+
     def body(self, master, warning, seed):
         ttk.Label(master, text=warning, wraplength=500).grid(
             row=0, columnspan=2, sticky='wns'
@@ -87,57 +68,13 @@ class ConfirmDialog(Dialog):
         return 'okay'
 
 
-# ------------------------------------------------------
-# Simple dialog with no "OK" button (can only cancel)
-# ------------------------------------------------------
-
-
-class PuntDialog(Dialog):
-    def body(self, master, warning, seed):
-        if warning:
-            ttk.Label(master, text=warning, wraplength=500).grid(
-                row=0, columnspan=2, sticky='wns'
-            )
-        return self
-
-    def buttonbox(self):
-        # Add button box with "Cancel" only.
-        box = ttk.Frame(self.obox)
-        w = ttk.Button(box, text='Cancel', width=10, command=self.cancel)
-        w.pack(side='left', padx=5, pady=5)
-        self.bind('<Escape>', self.cancel)
-        box.pack(fill='x', expand='true')
-
-    def apply(self):
-        return 'okay'
-
-
-# ---------------------------------------------------------
-# Routine for a child process to capture signal SIGUSR1
-# and exit gracefully.
-# ---------------------------------------------------------
-
-
-def child_process_exit(signum, frame):
-    print('CACE GUI:  Received forced stop.')
-    try:
-        multiprocessing.current_process().terminate()
-    except AttributeError:
-        print('Terminate failed; Child PID is ' + str(os.getpid()))
-        print('Waiting on process to finish.')
-
-
-# ------------------------------------------------------
-# Main class for this application
-# ------------------------------------------------------
-
-
-class CACECharacterize(ttk.Frame):
-    """local characterization GUI."""
+class CACEGui(ttk.Frame):
+    """Main class for this application"""
 
     def __init__(self, parent, *args, **kwargs):
         ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.root = parent
+        self.simulation_manager = SimulationManager()
         self.init_gui()
         parent.protocol('WM_DELETE_WINDOW', self.on_quit)
 
@@ -149,9 +86,17 @@ class CACECharacterize(ttk.Frame):
             if not confirm == 'okay':
                 print('Quit canceled.')
                 return
+
+        # Cancel all queued and running simulations and join
+        print('Stopping all simulations for shutdown.')
+        self.simulation_manager.clear_queued_parameters(cancel_cb=True)
+        self.simulation_manager.cancel_running_parameters(cancel_cb=True)
+        self.simulation_manager.join_parameters()
+
         if self.logfile:
             self.logfile.close()
-        quit()
+
+        self.quit()
 
     def on_mousewheel(self, event):
         if event.num == 5:
@@ -161,133 +106,9 @@ class CACECharacterize(ttk.Frame):
 
     def init_gui(self):
         """Builds GUI."""
-        global prefsfile
 
-        message = []
-        fontsize = 11
-
-        # Read user preferences file, get default font size from it.
-        prefspath = os.path.expanduser(prefsfile)
-        if os.path.exists(prefspath):
-            with open(prefspath, 'r') as f:
-                self.prefs = json.load(f)
-            if 'fontsize' in self.prefs:
-                fontsize = self.prefs['fontsize']
-        else:
-            self.prefs = {}
-
-        s = ttk.Style()
-
-        available_themes = s.theme_names()
-        s.theme_use(available_themes[0])
-
-        s.configure('bg.TFrame', background='gray40')
-        s.configure('italic.TLabel', font=('Helvetica', fontsize, 'italic'))
-        s.configure(
-            'title.TLabel',
-            font=('Helvetica', fontsize, 'bold italic'),
-            foreground='brown',
-            anchor='center',
-        )
-        s.configure('normal.TLabel', font=('Helvetica', fontsize))
-        s.configure(
-            'red.TLabel', font=('Helvetica', fontsize), foreground='red'
-        )
-        s.configure(
-            'green.TLabel', font=('Helvetica', fontsize), foreground='green3'
-        )
-        s.configure(
-            'blue.TLabel', font=('Helvetica', fontsize), foreground='blue'
-        )
-        s.configure(
-            'hlight.TLabel', font=('Helvetica', fontsize), background='gray93'
-        )
-        s.configure(
-            'rhlight.TLabel',
-            font=('Helvetica', fontsize),
-            foreground='red',
-            background='gray93',
-        )
-        s.configure(
-            'ghlight.TLabel',
-            font=('Helvetica', fontsize),
-            foreground='green3',
-            background='gray93',
-        )
-        s.configure(
-            'blue.TLabel', font=('Helvetica', fontsize), foreground='blue'
-        )
-        s.configure(
-            'blue.TMenubutton',
-            font=('Helvetica', fontsize),
-            foreground='blue',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'normal.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'red.TButton',
-            font=('Helvetica', fontsize),
-            foreground='red',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'green.TButton',
-            font=('Helvetica', fontsize),
-            foreground='green3',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'hlight.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-            background='gray93',
-        )
-        s.configure(
-            'rhlight.TButton',
-            font=('Helvetica', fontsize),
-            foreground='red',
-            border=3,
-            relief='raised',
-            background='gray93',
-        )
-        s.configure(
-            'ghlight.TButton',
-            font=('Helvetica', fontsize),
-            foreground='green3',
-            border=3,
-            relief='raised',
-            background='gray93',
-        )
-        s.configure(
-            'blue.TButton',
-            font=('Helvetica', fontsize),
-            foreground='blue',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'redtitle.TButton',
-            font=('Helvetica', fontsize, 'bold italic'),
-            foreground='red',
-            border=3,
-            relief='raised',
-        )
-        s.configure(
-            'bluetitle.TButton',
-            font=('Helvetica', fontsize, 'bold italic'),
-            foreground='blue',
-            border=3,
-            relief='raised',
-        )
+        # Initialize the global style
+        fontsize = init_style()
 
         # Create the help window
         self.help = HelpWindow(self, fontsize=fontsize)
@@ -311,26 +132,18 @@ class CACECharacterize(ttk.Frame):
         self.origin = tkinter.StringVar(self)
         self.cur_project = tkinter.StringVar(self)
         self.filename = '(no selection)'
-        self.datasheet = {}
-        self.status = {}
-        self.procs_pending = {}
         self.logfile = None
-
-        # Create a multiprocessing data queue for passing information between
-        # the parent and child processes (cace_run)
-        self.queue = multiprocessing.Queue()
+        self.parameter_widgets = {}
 
         # Root window title
-        self.root.title('Characterization')
+        self.root.title('CACE')
         self.root.option_add('*tearOff', 'FALSE')
         self.pack(side='top', fill='both', expand='true')
 
-        pane = tkinter.PanedWindow(
+        self.pane = tkinter.PanedWindow(
             self, orient='vertical', sashrelief='groove', sashwidth=6
         )
-        pane.pack(side='top', fill='both', expand='true')
-        self.toppane = ttk.Frame(pane)
-        self.botpane = ttk.Frame(pane)
+        self.toppane = ttk.Frame(self.pane)
 
         self.toppane.title_frame = ttk.Frame(self.toppane)
         self.toppane.title_frame.grid(column=0, row=2, sticky='nswe')
@@ -421,25 +234,9 @@ class CACECharacterize(ttk.Frame):
         # ttk.Separator(self, orient='horizontal').grid(column=0, row=5, sticky='ew')
         # ---------------------------------------------
 
-        # Add a text window below the datasheet to capture output.  Redirect
-        # print statements to it.
-
-        self.botpane.console = ttk.Frame(self.botpane)
-        self.botpane.console.pack(side='top', fill='both', expand='true')
-
-        self.text_box = ConsoleText(
-            self.botpane.console, wrap='word', height=4
-        )
-        self.text_box.pack(side='left', fill='both', expand='true')
-        console_scrollbar = ttk.Scrollbar(self.botpane.console)
-        console_scrollbar.pack(side='right', fill='y')
-        # attach console to scrollbar
-        self.text_box.config(yscrollcommand=console_scrollbar.set)
-        console_scrollbar.config(command=self.text_box.yview)
-
         # Add button bar at the bottom of the window
-        self.bbar = ttk.Frame(self.botpane)
-        self.bbar.pack(side='top', fill='x')
+        self.bbar = ttk.Frame(self)
+
         # Progress bar expands with the window, buttons don't
         self.bbar.columnconfigure(7, weight=1)
 
@@ -561,9 +358,12 @@ class CACECharacterize(ttk.Frame):
         self.datasheet_viewer.dframe.bind('<Configure>', self.frame_configure)
 
         # Add the panes once the internal geometry is known
-        pane.add(self.toppane)
-        pane.add(self.botpane)
-        pane.paneconfig(self.toppane, stretch='first')
+        self.pane.add(self.toppane)
+        self.pane.paneconfig(self.toppane, stretch='first')
+
+        # Pack the frames, bbar first so that it gets shrinked last
+        self.bbar.pack(side='bottom', fill='x', expand='false')
+        self.pane.pack(side='top', fill='both', expand='true')
 
         # Initialize variables
 
@@ -572,11 +372,97 @@ class CACECharacterize(ttk.Frame):
         self.starttime = time.time()
 
     def capture_output(self):
+        """
+        Add a text window below the datasheet to capture output.
+        Redirect print statements to it.
+        """
+
+        self.botpane = ttk.Frame(self.pane)
+
+        self.botpane.console = ttk.Frame(self.botpane)
+        self.botpane.console.pack(side='top', fill='both', expand='true')
+
+        # Add console to GUI
+        self.text_box = ConsoleText(
+            self.botpane.console, wrap='word', height=4
+        )
+        self.text_box.pack(side='left', fill='both', expand='true')
+        console_scrollbar = ttk.Scrollbar(self.botpane.console)
+        console_scrollbar.pack(side='right', fill='y')
+        # attach console to scrollbar
+        self.text_box.config(yscrollcommand=console_scrollbar.set)
+        console_scrollbar.config(command=self.text_box.yview)
+
+        self.pane.add(self.botpane)
+
         # Redirect stdout and stderr to the gui console
         self.stdout = sys.stdout
         self.stderr = sys.stderr
         sys.stdout = ConsoleText.StdoutRedirector(self.text_box)
         sys.stderr = ConsoleText.StderrRedirector(self.text_box)
+
+    def update_param(self, pname, canceled=False):
+        """Update parameter with results, used as callback"""
+
+        if canceled:
+            print(f'Simulation of {pname} has been canceled.')
+        else:
+            print(f'Simulation of {pname} has completed.')
+
+        self.parameter_widgets[pname].update_param(
+            self.simulation_manager.find_parameter(pname)
+        )
+        self.parameter_widgets[pname].update_widgets()
+
+        self.update_simulate_all_button(from_callback=True)
+
+    def simulate_param(self, pname, process=True):
+        """Simulate a single parameter"""
+
+        self.simulation_manager.set_runtime_options(
+            'netlist_source', self.get_netlist_source()
+        )
+        self.simulation_manager.set_runtime_options(
+            'force', self.settings.get_force()
+        )
+        self.simulation_manager.set_runtime_options(
+            'keep', self.settings.get_keep()
+        )
+        self.simulation_manager.set_runtime_options(
+            'sequential', self.settings.get_sequential()
+        )
+        self.simulation_manager.set_runtime_options(
+            'noplot', self.settings.get_noplot()
+        )
+        self.simulation_manager.set_runtime_options(
+            'debug', self.settings.get_debug()
+        )
+        self.simulation_manager.set_runtime_options(
+            'parallel_parameters', self.settings.get_parallel_parameters()
+        )
+
+        # From the GUI, simulation is forced, so clear any "skip" status.
+        # TO DO:  "gray out" entries marked as "skip" and require entry to
+        # be set to "active" before simulating.
+        self.simulation_manager.param_set_status(pname, 'active')
+
+        num_sims = self.simulation_manager.queue_parameter(
+            pname, cb=self.update_param
+        )
+
+        if not num_sims:
+            print("Can't simulate parameter")
+            return
+
+        # Set the "Simulate" button to say "in progress"
+        self.parameter_widgets[pname].simulate_widget.configure(
+            text='(in progress)'
+        )
+
+        self.update_simulate_all_button()
+
+        if process:
+            self.simulation_manager.run_parameters_async()
 
     def frame_configure(self, event):
         self.update_idletasks()
@@ -614,30 +500,12 @@ class CACECharacterize(ttk.Frame):
             if doflush:
                 self.logfile.flush()
 
-    def set_working_directory(self, datasheet):
-        # CACE should be run from the location of the datasheet's root
-        # directory.  Typically, the datasheet is in the "cace" subdirectory
-        # and "root" is "..".
-
-        rootpath = None
-        if 'paths' in datasheet:
-            paths = datasheet['paths']
-            if 'root' in paths:
-                rootpath = paths['root']
-
-        dspath = os.path.split(self.filename)[0]
-        if rootpath:
-            dspath = os.path.join(dspath, rootpath)
-            paths['root'] = '.'
-
-        os.chdir(dspath)
-        print(
-            'Working directory set to '
-            + dspath
-            + ' ('
-            + os.path.abspath(dspath)
-            + ')'
-        )
+    def find_datasheet(self, search_dir):
+        debug = self.settings.get_debug()
+        self.simulation_manager.find_datasheet(search_dir, debug)
+        self.update_filename()
+        self.adjust_datasheet_viewer_size()
+        self.create_datasheet_view()
 
     def set_datasheet(self, datasheet_path):
         if self.logfile:
@@ -646,40 +514,28 @@ class CACECharacterize(ttk.Frame):
             self.logfile.close()
             self.logfile = None
 
-        if not os.path.isfile(datasheet_path):
-            print('Error:  File ' + datasheet_path + ' not found.')
-            return
-
         debug = self.settings.get_debug()
 
-        [dspath, dsname] = os.path.split(datasheet_path)
-        # Read the datasheet
-        if os.path.splitext(datasheet_path)[1] == '.json':
-            with open(datasheet_path) as ifile:
-                try:
-                    # "data-sheet" as a sub-entry of the input file is deprecated.
-                    datatop = json.load(ifile)
-                    if 'data-sheet' in datatop:
-                        datatop = datatop['data-sheet']
-                except json.decoder.JSONDecodeError as e:
-                    print(
-                        'Error:  Parse error reading JSON file '
-                        + datasheet_path
-                        + ':'
-                    )
-                    print(str(e))
-                    return
-        else:
-            datatop = cace_read(datasheet_path, debug)
-
-        # Ensure that datasheet complies with CACE version 4.0 format
-        dsheet = cace_compat(datatop, debug)
-
-        self.filename = datasheet_path
-        self.datasheet = dsheet
+        # Load the new datasheet
+        self.simulation_manager.load_datasheet(datasheet_path, debug)
+        self.update_filename()
+        self.adjust_datasheet_viewer_size()
         self.create_datasheet_view()
-        self.toppane.title_frame.datasheet_select.configure(text=dsname)
-        self.toppane.title_frame.path_label.configure(text=datasheet_path)
+
+    def update_filename(self):
+
+        self.filename = self.simulation_manager.get_runtime_options('filename')
+
+        if not self.filename:
+            print('Error: Filename for datasheet not set!')
+
+        self.toppane.title_frame.datasheet_select.configure(
+            text=os.path.split(self.filename)[1]
+        )
+        self.toppane.title_frame.path_label.configure(text=self.filename)
+
+    def adjust_datasheet_viewer_size(self):
+        """Fit datasheet viewer width to desktop"""
 
         # Attempt to set the datasheet viewer width to the interior width
         # but do not set it larger than the available desktop.
@@ -711,11 +567,6 @@ class CACECharacterize(ttk.Frame):
         elif heightnow > height:
             self.datasheet_viewer.configure(height=height)
 
-        # Set the current working directory from the datasheet's "path"
-        # dictionary, then reset the root path to the current working
-        # directory.
-        self.set_working_directory(dsheet)
-
     def choose_datasheet(self):
         datasheet = filedialog.askopenfilename(
             multiple=False,
@@ -729,65 +580,6 @@ class CACECharacterize(ttk.Frame):
         )
         if datasheet != '':
             self.set_datasheet(datasheet)
-
-    def find_datasheet(self, curdir):
-        # Check the curdir directory and determine if there
-        # is a .txt or .json file with the name of the directory, which
-        # is assumed to have the same name as the project circuit.  Also
-        # check subdirectories one level down.
-        dirname = os.path.split(curdir)[1]
-        dirlist = os.listdir(curdir)
-
-        # Look through all directories for a '.txt' file
-        for item in dirlist:
-            if os.path.isfile(item):
-                fileext = os.path.splitext(item)[1]
-                basename = os.path.splitext(item)[0]
-                if fileext == '.txt':
-                    if basename == dirname:
-                        print('Setting datasheet to ' + item)
-                        self.set_datasheet(item)
-                        return
-
-            elif os.path.isdir(item):
-                subdirlist = os.listdir(item)
-                for subitem in subdirlist:
-                    subitemref = os.path.join(item, subitem)
-                    if os.path.isfile(subitemref):
-                        fileext = os.path.splitext(subitem)[1]
-                        basename = os.path.splitext(subitem)[0]
-                        if fileext == '.txt':
-                            if basename == dirname:
-                                print('Setting datasheet to ' + subitemref)
-                                self.set_datasheet(subitemref)
-                                return
-
-        # Look through all directories for a '.json' file
-        # ('.txt') is preferred to ('.json')
-        for item in dirlist:
-            if os.path.isfile(item):
-                fileext = os.path.splitext(item)[1]
-                basename = os.path.splitext(item)[0]
-                if fileext == '.json':
-                    if basename == dirname:
-                        print('Setting datasheet to ' + item)
-                        self.set_datasheet(item)
-                        return
-
-            elif os.path.isdir(item):
-                subdirlist = os.listdir(item)
-                for subitem in subdirlist:
-                    subitemref = os.path.join(item, subitem)
-                    if os.path.isfile(subitemref):
-                        fileext = os.path.splitext(subitem)[1]
-                        basename = os.path.splitext(subitem)[0]
-                        if fileext == '.json':
-                            if basename == dirname:
-                                print('Setting datasheet to ' + subitemref)
-                                self.set_datasheet(subitemref)
-                                return
-
-        print('No datasheet found in local project (JSON or text file).')
 
     def topfilter(self, line):
         # Check output for ubiquitous "Reference value" lines and remove them.
@@ -839,60 +631,101 @@ class CACECharacterize(ttk.Frame):
         return errors
 
     def sim_all(self):
-        if self.procs_pending != {}:
-            # Failsafe
+        # Make sure no simulation is running
+        if (
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
+            > 0
+        ):
             print('Simulation in progress must finish first.')
             return
 
-        # Create netlist if necessary, check for valid result
-        if self.sim_param('check') == False:
-            return
-
-        # Simulate all of the electrical parameters in turn.  These
-        # are multiprocessed.
-        for pname in self.status:
-            self.sim_param(pname)
-
-        # Button now stops the simulations
-        self.allsimbutton.configure(
-            style='redtitle.TButton',
-            text='Stop Simulations',
-            command=self.stop_sims,
+        # TODO set at startup and only change directly if necessary
+        self.simulation_manager.set_runtime_options(
+            'netlist_source', self.get_netlist_source()
         )
+        self.simulation_manager.set_runtime_options(
+            'force', self.settings.get_force()
+        )
+        self.simulation_manager.set_runtime_options(
+            'keep', self.settings.get_keep()
+        )
+        self.simulation_manager.set_runtime_options(
+            'sequential', self.settings.get_sequential()
+        )
+        self.simulation_manager.set_runtime_options(
+            'noplot', self.settings.get_noplot()
+        )
+        self.simulation_manager.set_runtime_options(
+            'debug', self.settings.get_debug()
+        )
+        self.simulation_manager.set_runtime_options(
+            'parallel_parameters', self.settings.get_parallel_parameters()
+        )
+
+        # Queue all of the parameters
+        for pname in self.simulation_manager.get_all_pnames():
+            self.simulate_param(pname, False)
+
+        # Now simulate all parameters
+        self.simulation_manager.run_parameters_async()
+
+        self.update_simulate_all_button()
 
     def stop_sims(self):
-        # Make sure there will be no more simulations
-
-        if self.procs_pending == {}:
+        # Check whether simulations are running
+        if (
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
+            == 0
+        ):
             print('No simulation running.')
-            return
+        else:
+            # Cancel all queued and running simulations
+            self.simulation_manager.clear_queued_parameters()
+            self.simulation_manager.cancel_running_parameters()
+            # self.simulation_manager.join_parameters() # TODO deadlock because of GUI cb
 
-        # Force termination of threads and wait for them to exit.
-        # NOTE:  The processes are nested, so do *not* use "terminate".
-        # Instead, have each process set the same process group and then
-        # send all process groups the SIGUSR1 signal.  Each child will
-        # catch the SIGUSR1 and then terminate itself.
+            if (
+                self.simulation_manager.num_queued_parameters()
+                + self.simulation_manager.num_running_parameters()
+                == 0
+            ):
+                print('All simulations have stopped.')
+            else:
+                print('Not all simulations have stopped yet.')
 
-        os.killpg(os.getpid(), signal.SIGUSR1)
-        print('Waiting for all processes to stop.')
-        for procname in self.procs_pending.copy().keys():
-            proc = self.procs_pending[procname]
-            proc.join()
-            self.procs_pending.pop(procname)
+        self.update_simulate_all_button()
 
-        print('All processes have stopped.')
-        self.allsimbutton.configure(
-            style='bluetitle.TButton',
-            text='Simulate All',
-            command=self.sim_all,
-        )
+    def update_simulate_all_button(self, from_callback=False):
+        # Check whether no simulations are running, or
+        # if the function call comes from a callback,
+        # only one simulation is running
+        if (
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
+            == 0
+            or from_callback
+            and self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
+            == 1
+        ):
+            self.allsimbutton.configure(
+                style='bluetitle.TButton',
+                text='Simulate All',
+                command=self.sim_all,
+            )
+        else:
+            # Button now stops the simulations
+            self.allsimbutton.configure(
+                style='redtitle.TButton',
+                text='Stop Simulations',
+                command=self.stop_sims,
+            )
 
-        # Return all individual "Simulate" buttons to normal text
-        for simbname in self.simbuttons.keys():
-            simbutton = self.simbuttons[simbname]
-            simbutton.configure(text='Simulate')
+    def edit_param(self, pname):
+        param = self.simulation_manager.find_parameter(pname)
 
-    def edit_param(self, param):
         # Edit the conditions under which the parameter is tested.
         if (
             'editable' in param and param['editable'] == True
@@ -900,30 +733,20 @@ class CACECharacterize(ttk.Frame):
             self.editparam.populate(param)
             self.editparam.open()
         else:
-            print('Parameter is not editable')
+            print(f'Parameter {pname} is not editable')
 
-    def copy_param(self, param):
+    def copy_param(self, pname):
         # Make a copy of the parameter (for editing)
-        newparam = param.copy()
-        # Make the copied parameter editable
-        newparam['editable'] = True
-        # Append this to the electrical parameter list after the item being copied
-        if 'display' in param:
-            newparam['display'] = param['display'] + ' (copy)'
-        dsheet = self.datasheet
-        eparams = dsheet['electrical_parameters']
-        eidx = eparams.index(param)
-        eparams.insert(eidx + 1, newparam)
+        self.simulation_manager.duplicate_parameter(pname)
+
         self.create_datasheet_view()
 
-    def delete_param(self, param):
+    def delete_param(self, pname):
         # Remove an electrical parameter from the datasheet.  This is only
         # allowed if the parameter has been copied from another and so does
         # not belong to the original set of parameters.
-        dsheet = self.datasheet
-        eparams = dsheet['electrical_parameters']
-        eidx = eparams.index(param)
-        eparams.pop(eidx)
+        self.simulation_manager.delete_parameter(pname)
+
         self.create_datasheet_view()
 
     def add_hints(self, param, simbutton):
@@ -931,25 +754,6 @@ class CACECharacterize(ttk.Frame):
         # Fill in any existing hints.
         self.simhints.populate(param, simbutton)
         self.simhints.open()
-
-    # Run cace_run and drop output onto the indicated queue
-    def cace_process(self, datasheet, name):
-        # Restore output, as the I/O redirection does not work inside
-        # the child process (to do:  fix this?)
-        sys.stdout = self.stdout
-        sys.stderr = self.stderr
-
-        # Set group ID for signaling.  Use the parent process ID as the group ID
-        runtime_options = datasheet['runtime_options']
-        if 'pid' in runtime_options:
-            os.setpgid(os.getpid(), runtime_options['pid'])
-            signal.signal(signal.SIGUSR1, child_process_exit)
-
-        charresult = cace_run(datasheet, [name])
-        charresult['simname'] = name
-        self.queue.put(charresult)
-        sys.stdout.flush()
-        sys.stderr.flush()
 
     # Get the value for runtime options['netlist_source']
     def get_netlist_source(self):
@@ -967,215 +771,9 @@ class CACECharacterize(ttk.Frame):
             print('Reverting to schematic.')
             return 'schematic'
 
-    # Simulate a parameter (or run a physical parameter evaluation)
-    def sim_param(self, name):
-        dsheet = self.datasheet
-
-        if 'runtime_options' in dsheet:
-            runtime_options = dsheet['runtime_options']
-        else:
-            runtime_options = {}
-            dsheet['runtime_options'] = runtime_options
-
-        runtime_options['netlist_source'] = self.get_netlist_source()
-        runtime_options['force'] = self.settings.get_force()
-        runtime_options['keep'] = self.settings.get_keep()
-        runtime_options['sequential'] = self.settings.get_sequential()
-        runtime_options['noplot'] = self.settings.get_noplot()
-        runtime_options['debug'] = self.settings.get_debug()
-
-        if (
-            'electrical_parameters' not in dsheet
-            and 'physical_parameters' not in dsheet
-        ):
-            print('Error running parameter check on ' + name)
-            print('No parameters found in datasheet')
-            print('Datasheet entries are:')
-            for key in dsheet.keys():
-                print(key)
-            return
-
-        if name == 'check':
-            # For the special keyword "check", do not multiprocess,
-            # and return a pass/fail result according to the runtime status.
-            cace_run(dsheet, [name])
-            if 'status' in runtime_options:
-                status = runtime_options['status']
-                runtime_options.pop('status')
-                if status == 'failed':
-                    return False
-            return True
-
-        try:
-            eparam = next(
-                item
-                for item in dsheet['electrical_parameters']
-                if item['name'] == name
-            )
-        except:
-            try:
-                pparam = next(
-                    item
-                    for item in dsheet['physical_parameters']
-                    if item['name'] == name
-                )
-            except:
-                print('Unknown parameter "' + name + '"')
-                if 'electrical_parameters' in dsheet:
-                    print('Known electrical parameters are:')
-                    for eparam in dsheet['electrical_parameters']:
-                        print(eparam['name'])
-                if 'physical_parameters' in dsheet:
-                    print('Known physical parameters are:')
-                    for pparam in dsheet['physical_parameters']:
-                        print(pparam['name'])
-                return
-            else:
-                param = pparam
-        else:
-            param = eparam
-
-        if name in self.procs_pending:
-            print(
-                'Process already running. . . Cancel process before re-running'
-            )
-            return
-
-        # From the GUI, simulation is forced, so clear any "skip" status.
-        # TO DO:  "gray out" entries marked as "skip" and require entry to
-        # be set to "active" before simulating.
-        if 'status' in param:
-            if param['status'] == 'skip':
-                print(
-                    'Note: Parameter status changed from "skip" to "active".'
-                )
-                param['status'] = 'active'
-
-        # Set the "Simulate" button to say "in progress"
-        simbutton = self.simbuttons[name]
-        simbutton.configure(text='(in progress)')
-
-        # Diagnostic
-        print('Simulating parameter ' + name)
-        # NOTE: Commenting out the following line prevents the use of
-        # the process ID to set a common group ID that can be used to
-        # stop simulations by sending a kill signal to all threads.
-        # The method is not working, and on some systems os.setpgid()
-        # will not run.
-        #
-        # runtime_options['pid'] = os.getpid()
-        p = multiprocessing.Process(
-            target=self.cace_process,
-            args=(
-                dsheet,
-                name,
-            ),
-        )
-        # Save process pointer so it can be joined after it finishes.
-        self.procs_pending[name] = p
-        p.start()
-
-        # Call watchproc() to start periodically watching the queue for
-        # simulation results.
-        self.watchproc()
-
-    def watchproc(self):
-        # Routine which is turned on when a cace_run
-        # process is spawned, and periodically checks to see if a result
-        # is available on the queue.  If so, then it pulls the datasheet
-        # result from the queue, merges it back into the datasheet, joins
-        # the spawned process, and removes the process from the list of
-        # pending processes.  If the list of pending processes is not empty,
-        # then watchproc() sets a timer to repeat itself.
-
-        # If nothing is pending then return immediately and do not set a
-        # repeat check.
-        if self.procs_pending == {}:
-            return
-
-        # Check queue, non-blocking
-        debug = self.settings.get_debug()
-        try:
-            charresult = self.queue.get(block=False)
-        except:
-            if debug:
-                print(
-                    'Watchproc found nothing in the queue; will wait longer.'
-                )
-            # Set watchproc to repeat after 1/2 second
-            self.after(500, lambda: self.watchproc())
-            return
-        else:
-            newparam = None
-            iseparam = True
-            pname = charresult['simname']
-
-            # Return "Simulate" button to original text
-            simbutton = self.simbuttons[pname]
-            simbutton.configure(text='Simulate')
-
-            print('Simulation of ' + pname + ' has completed.')
-            if 'electrical_parameters' in charresult:
-                eparams = charresult['electrical_parameters']
-                for param in eparams:
-                    if param['name'] == pname:
-                        newparam = param
-                        break
-            if newparam == None and 'physical_parameters' in charresult:
-                pparams = charresult['physical_parameters']
-                for param in pparams:
-                    if param['name'] == pname:
-                        newparam = param
-                        iseparam = False
-                        break
-            if newparam == None:
-                print('Simulation failure on ' + pname + '.')
-                return
-
-            if not param:
-                print('Error:  parameter ' + pname + ' not found in results!')
-                return
-
-            if pname in self.procs_pending:
-                p = self.procs_pending[pname]
-                self.procs_pending.pop(pname)
-                if debug:
-                    print('Now waiting to join process')
-                p.join()
-                if self.procs_pending == {}:
-                    self.allsimbutton.configure(
-                        style='bluetitle.TButton',
-                        text='Simulate All',
-                        command=self.sim_all,
-                    )
-            else:
-                print(
-                    'Error:  Parameter '
-                    + pname
-                    + ' has results but no process!'
-                )
-
-            # Replace the parameter in the master datasheet
-            if 'electrical_parameters' in charresult and iseparam:
-                eparamlist = self.datasheet['electrical_parameters']
-                for i in range(0, len(eparamlist)):
-                    checkparam = eparamlist[i]
-                    if checkparam['name'] == pname:
-                        eparamlist[i] = newparam
-                        break
-
-            if 'physical_parameters' in charresult and not iseparam:
-                pparamlist = self.datasheet['physical_parameters']
-                for i in range(0, len(pparamlist)):
-                    checkparam = pparamlist[i]
-                    if checkparam['name'] == pname:
-                        pparamlist[i] = newparam
-                        break
-
-            # Regenerate datasheet view with parameter results
-            self.create_datasheet_view()
-
     def clear_results(self, dsheet):
+        # TODO do in SimulationManager
+
         # Remove results from the window by clearing parameter results
         paramstodo = []
         if 'electrical_parameters' in dsheet:
@@ -1238,10 +836,10 @@ class CACECharacterize(ttk.Frame):
                 print('Error in simulation, no results.', file=sys.stderr)
             elif os.path.splitext(anno)[1] == '.json':
                 with open(anno, 'r') as file:
-                    self.datasheet = json.load(file)
+                    self.simulation_manager.set_datasheet(json.load(file))
             else:
                 debug = self.settings.get_debug()
-                self.datasheet = cace_read(file, debug)
+                self.simulation_manager.set_datasheet(cace_read(file, debug))
         else:
             print(
                 'Error in simulation, no update to results.', file=sys.stderr
@@ -1258,7 +856,7 @@ class CACECharacterize(ttk.Frame):
         dspath = os.path.split(self.filename)[0]
 
         # Save to simulation directory (may want to change this)
-        dsheet = self.datasheet
+        dsheet = self.simulation_manager.get_datasheet()
         paths = dsheet['paths']
         dsdir = os.path.join(dspath, paths['root'], paths['simulation'])
 
@@ -1273,10 +871,12 @@ class CACECharacterize(ttk.Frame):
 
         if dfileext == '.json':
             with open(doutfile, 'w') as ofile:
-                json.dump(self.datasheet, ofile, indent=4)
+                json.dump(
+                    dsheet, ofile, indent=4
+                )   # TODO inside simulation_manager
         else:
             # NOTE:  This file contains the run-time settings dictionary
-            cace_write(self.datasheet, doutfile)
+            cace_write(dsheet, doutfile)   # TODO inside simulation_manager
 
         self.last_save = os.path.getmtime(doutfile)
 
@@ -1321,11 +921,10 @@ class CACECharacterize(ttk.Frame):
             return True
 
     def save_manual(self, value={}):
-        dspath = self.filename
         # Set initialdir to the project where datasheet is located
-        dsparent = os.path.split(dspath)[0]
+        dsparent = os.path.split(self.filename)[0]
 
-        datasheet = filedialog.asksaveasfilename(
+        datasheet_path = filedialog.asksaveasfilename(
             initialdir=dsparent,
             confirmoverwrite=True,
             defaultextension='.txt',
@@ -1334,22 +933,18 @@ class CACECharacterize(ttk.Frame):
                 ('JSON File', '*.json'),
                 ('All Files', '*.*'),
             ),
-            title='Select filename for saved datasheet.',
+            title='Select filename for saved datasheet',
         )
 
-        if isinstance(datasheet, str):
-            if os.path.splitext(datasheet)[1] == '.json':
-                with open(datasheet, 'w') as ofile:
-                    json.dump(self.datasheet, ofile, indent=4)
-            else:
-                cace_write(self.datasheet, datasheet)
+        # Save the datasheet
+        self.simulation_manager.save_datasheet(datasheet_path)
 
     def load_manual(self, value={}):
         dspath = self.filename
         # Set initialdir to the project where datasheet is located
         dsparent = os.path.split(dspath)[0]
 
-        datasheet = filedialog.askopenfilename(
+        datasheet_path = filedialog.askopenfilename(
             multiple=False,
             initialdir=dsparent,
             filetypes=(
@@ -1357,38 +952,19 @@ class CACECharacterize(ttk.Frame):
                 ('JSON File', '*.json'),
                 ('All Files', '*.*'),
             ),
-            title='Find a datasheet.',
+            title='Find a datasheet',
         )
-        if datasheet != '':
-            print('Reading file ' + datasheet)
-            if os.path.splitext(datasheet)[1] == '.json':
-                with open(datasheet, 'r') as file:
-                    try:
-                        self.datasheet = json.load(file)
-                    except:
-                        print(
-                            'Error in file, no update to results.',
-                            file=sys.stderr,
-                        )
-                    else:
-                        # Regenerate datasheet view
-                        self.create_datasheet_view()
-            else:
-                debug = self.settings.get_debug()
-                try:
-                    self.datasheet = cace_read(datasheet, debug)
-                except:
-                    print(
-                        'Error in file, no update to results.', file=sys.stderr
-                    )
-                else:
-                    # Regenerate datasheet view
-                    self.set_working_directory(self.datasheet)
-                    self.create_datasheet_view()
+        if datasheet_path:
+            print('Reading file ' + datasheet_path)
 
-    def generate_html(self, value={}):
-        debug = self.settings.get_debug()
-        cace_generate_html(self.datasheet, None, debug)
+            self.simulation_manager.load_datasheet(datasheet_path, debug)
+
+            # self.set_working_directory()
+
+            self.create_datasheet_view()
+
+    def generate_html(self):
+        self.simulation_manager.generate_html()
 
     def swap_results(self, value={}):
         # This routine just calls self.create_datasheet_view(), but the
@@ -1405,7 +981,7 @@ class CACECharacterize(ttk.Frame):
 
         [dspath, dsname] = os.path.split(self.filename)
         try:
-            dsheet = self.datasheet
+            dsheet = self.simulation_manager.get_datasheet()   # TODO ?
         except KeyError:
             return
 
@@ -1486,21 +1062,22 @@ class CACECharacterize(ttk.Frame):
                 os.remove(savefile)
 
     def create_datasheet_view(self):
+        """Create the datasheet view from scratch"""
+
         dframe = self.datasheet_viewer.dframe
 
         # Destroy the existing datasheet frame contents (if any)
         for widget in dframe.winfo_children():
             widget.destroy()
-        self.status = {}  	# Clear dictionary
 
-        dsheet = self.datasheet
-        if 'runtime_options' in dsheet:
-            runtime_options = dsheet['runtime_options']
-        else:
-            runtime_options = {}
-            dsheet['runtime_options'] = runtime_options
+        self.parameter_widgets = {}
 
-        runtime_options['netlist_source'] = self.get_netlist_source()
+        dsheet = self.simulation_manager.get_datasheet()
+
+        # Update netlist source
+        self.simulation_manager.set_runtime_options(
+            'netlist_source', self.get_netlist_source()
+        )
 
         # Add basic information at the top
 
@@ -1560,20 +1137,26 @@ class CACECharacterize(ttk.Frame):
         )
         dframe.stat_title.grid(column=8, row=n, sticky='ewns')
 
-        if self.procs_pending == {}:
-            self.allsimbutton = ttk.Button(
-                dframe,
-                text='Simulate All',
-                style='bluetitle.TButton',
-                command=self.sim_all,
-            )
-        else:
+        # Check whether simulations are running
+        if (
+            self.simulation_manager.num_queued_parameters()
+            + self.simulation_manager.num_running_parameters()
+            > 0
+        ):
             self.allsimbutton = ttk.Button(
                 dframe,
                 text='Stop Simulations',
                 style='redtitle.TButton',
                 command=self.stop_sims,
             )
+        else:
+            self.allsimbutton = ttk.Button(
+                dframe,
+                style='bluetitle.TButton',
+                text='Simulate All',
+                command=self.sim_all,
+            )
+
         self.allsimbutton.grid(column=9, row=n, sticky='ewns')
 
         ToolTip(self.allsimbutton, text='Simulate all electrical parameters')
@@ -1584,7 +1167,6 @@ class CACECharacterize(ttk.Frame):
 
         # Parse the file for electrical parameters
         n += 1
-        binrex = re.compile(r'([0-9]*)\'([bodh])', re.IGNORECASE)
         paramstodo = []
         if 'electrical_parameters' in dsheet:
             paramstodo.extend(dsheet['electrical_parameters'])
@@ -1596,474 +1178,42 @@ class CACECharacterize(ttk.Frame):
         else:
             isschem = False
 
-        # Track the "Simulate" buttons by parameter name (dictionary)
-        self.simbuttons = {}
-
         for param in paramstodo:
-            pname = param['name']
-            # Fill frame with electrical parameter information
-            if 'simulate' in param:
-                mdict = param['simulate']
-                p = mdict['template']
-                if pname in self.status:
-                    # This method was used before, so give it a unique identifier
-                    j = 1
-                    while True:
-                        pname = p + '.' + str(j)
-                        if pname not in self.status:
-                            break
-                        else:
-                            j += 1
-                else:
-                    j = 0
-                paramtype = 'electrical'
-            elif 'evaluate' in param:
-                paramtype = 'physical'
-                mdict = param['evaluate']
-                p = mdict['tool']
-                if isinstance(p, list):
-                    p = p[0]
-                j = 0
-            else:
-                p = 'none'
-                paramtype = 'unknown'
-                print('Parameter ' + pname + ' unknown type.')
-
-            if 'editable' in param and param['editable'] == True:
-                normlabel = 'hlight.TLabel'
-                redlabel = 'rhlight.TLabel'
-                greenlabel = 'ghlight.TLabel'
-                normbutton = 'hlight.TButton'
-                redbutton = 'rhlight.TButton'
-                greenbutton = 'ghlight.TButton'
-            else:
-                normlabel = 'normal.TLabel'
-                redlabel = 'red.TLabel'
-                greenlabel = 'green.TLabel'
-                normbutton = 'normal.TButton'
-                redbutton = 'red.TButton'
-                greenbutton = 'green.TButton'
-
-            if 'display' in param:
-                dtext = param['display']
-            else:
-                dtext = p
-
-            # Special handling:  Change LVS_errors to "device check" when using
-            # schematic netlist.
-            if paramtype == 'physical':
-                if isschem:
-                    if p == 'cace_lvs':
-                        dtext = 'Invalid device check'
-                    if p == 'cace_area':
-                        dtext = 'Area estimate'
-
-            dframe.description = ttk.Label(dframe, text=dtext, style=normlabel)
-
-            dframe.description.grid(column=0, row=n, sticky='ewns')
-            dframe.method = ttk.Label(dframe, text=p, style=normlabel)
-            dframe.method.grid(column=1, row=n, sticky='ewns')
-            if 'plot' in param:
-                # For plots, the status still comes from the 'results' dictionary
-                status_style = normlabel
-                dframe.plots = ttk.Frame(dframe)
-                dframe.plots.grid(column=2, row=n, columnspan=6, sticky='ewns')
-                status_value = '(not checked)'
-
-                if 'results' in param:
-                    reslist = param['results']
-                    if 'netlist_source' in runtime_options:
-                        netlist_source = runtime_options['netlist_source']
-                    if isinstance(reslist, list):
-                        try:
-                            resdict = next(
-                                item
-                                for item in reslist
-                                if item['name'] == netlist_source
-                            )
-                        except:
-                            resdict = None
-                    elif reslist['name'] == netlist_source:
-                        resdict = reslist
-                    else:
-                        resdict = None
-
-                    if resdict:
-                        if 'status' in resdict:
-                            status_value = resdict['status']
-
-                plotrec = param['plot']
-                if 'filename' in plotrec:
-                    plottext = plotrec['filename']
-                elif 'type' in plotrec:
-                    plottext = plotrec['type']
-                else:
-                    plottext = 'plot'
-                dframe_plot = ttk.Label(
-                    dframe.plots, text=plottext, style=normlabel
-                )
-                dframe_plot.grid(column=j, row=n, sticky='ewns')
-            else:
-                # For schematic capture, mark physical parameters that can't and won't be
-                # checked as "not applicable".
-                status_value = '(not checked)'
-                if paramtype == 'physical':
-                    if isschem:
-                        if (
-                            p == 'cace_width'
-                            or p == 'cace_height'
-                            or p == 'cace_drc'
-                        ):
-                            status_value = '(N/A)'
-
-                # Grab the electrical parameter's 'spec' and 'result' dictionaries
-                if 'spec' in param:
-                    specdict = param['spec']
-                else:
-                    specdict = {}
-
-                # Which information is provided depends on which origin is
-                # selected.
-
-                valid = False
-                if 'results' in param:
-                    resultlist = param['results']
-                    if not isinstance(resultlist, list):
-                        resultlist = [resultlist]
-
-                    if self.origin.get() == 'R-C Extracted':
-                        for resultdict in resultlist:
-                            if resultdict['name'] == 'rcx':
-                                valid = True
-                                break
-                    elif self.origin.get() == 'C Extracted':
-                        for resultdict in resultlist:
-                            if resultdict['name'] == 'pex':
-                                valid = True
-                                break
-                    elif self.origin.get() == 'Layout Extracted':
-                        for resultdict in resultlist:
-                            if resultdict['name'] == 'layout':
-                                valid = True
-                                break
-                    else:  	# Schematic capture
-                        for resultdict in resultlist:
-                            if resultdict['name'] == 'schematic':
-                                valid = True
-                                break
-
-                if valid == False:
-                    # No result dictionary exists for this netlist origin type
-                    resultdict = {}
-
-                # Fill in information for the spec minimum and result
-                if 'minimum' in specdict:
-                    status_style = normlabel
-                    pmin = specdict['minimum']
-                    if isinstance(pmin, list):
-                        penalty = pmin[1]
-                        pmin = pmin[0]
-                    else:
-                        penalty = None
-
-                    if 'minimum' in resultdict:
-                        value = resultdict['minimum']
-                        if isinstance(value, list):
-                            score = value[1]
-                            value = value[0]
-                        else:
-                            score = None
-                    else:
-                        value = None
-                        score = None
-
-                    if pmin == 'any':
-                        dframe.min = ttk.Label(
-                            dframe, text='(no limit)', style=normlabel
-                        )
-                    else:
-                        if 'unit' in param and not binrex.match(param['unit']):
-                            targettext = pmin + ' ' + param['unit']
-                        else:
-                            targettext = pmin
-                        dframe.min = ttk.Label(
-                            dframe, text=targettext, style=normlabel
-                        )
-
-                    if score:
-                        if score != 'fail':
-                            status_style = greenlabel
-                            if status_value != 'fail':
-                                status_value = 'pass'
-                        else:
-                            status_style = redlabel
-                            status_value = 'fail'
-                    if value:
-                        if value == 'failure' or value == 'fail':
-                            status_value = '(not checked)'
-                            status_style = redlabel
-                            valuetext = value
-                        elif 'unit' in param and not binrex.match(
-                            param['unit']
-                        ):
-                            valuetext = value + ' ' + param['unit']
-                        else:
-                            valuetext = value
-                        dframe.value = ttk.Label(
-                            dframe, text=valuetext, style=status_style
-                        )
-                        dframe.value.grid(column=3, row=n, sticky='ewns')
-                else:
-                    dframe.min = ttk.Label(
-                        dframe, text='(no limit)', style=normlabel
-                    )
-
-                dframe.min.grid(column=2, row=n, sticky='ewns')
-
-                # Fill in information for the spec typical and result
-                if 'typical' in specdict:
-                    status_style = normlabel
-                    ptyp = specdict['typical']
-                    if isinstance(ptyp, list):
-                        penalty = ptyp[1]
-                        ptyp = ptyp[0]
-                    else:
-                        penalty = None
-
-                    if 'typical' in resultdict:
-                        value = resultdict['typical']
-                        if isinstance(value, list):
-                            score = value[1]
-                            value = value[0]
-                        else:
-                            score = None
-                    else:
-                        value = None
-                        score = None
-
-                    if ptyp == 'any':
-                        dframe.typ = ttk.Label(
-                            dframe, text='(no target)', style=normlabel
-                        )
-                    else:
-                        if 'unit' in param and not binrex.match(param['unit']):
-                            targettext = ptyp + ' ' + param['unit']
-                        else:
-                            targettext = ptyp
-                        dframe.typ = ttk.Label(
-                            dframe, text=targettext, style=normlabel
-                        )
-
-                    if score:
-                        # Note:  You can't fail a "typ" score, but there is only one "Status",
-                        # so if it is a "fail", it must remain a "fail".
-                        if score != 'fail':
-                            status_style = greenlabel
-                            if status_value != 'fail':
-                                status_value = 'pass'
-                        else:
-                            status_style = redlabel
-                            status_value = 'fail'
-                    if value:
-                        if value == 'failure' or value == 'fail':
-                            status_value = '(not checked)'
-                            status_style = redlabel
-                            valuetext = value
-                        elif 'unit' in param and not binrex.match(
-                            param['unit']
-                        ):
-                            valuetext = value + ' ' + param['unit']
-                        else:
-                            valuetext = value
-                        dframe.value = ttk.Label(
-                            dframe, text=valuetext, style=status_style
-                        )
-                        dframe.value.grid(column=5, row=n, sticky='ewns')
-                else:
-                    dframe.typ = ttk.Label(
-                        dframe, text='(no target)', style=normlabel
-                    )
-                dframe.typ.grid(column=4, row=n, sticky='ewns')
-
-                # Fill in information for the spec maximum and result
-                if 'maximum' in specdict:
-                    status_style = normlabel
-                    pmax = specdict['maximum']
-                    if isinstance(pmax, list):
-                        penalty = pmax[1]
-                        pmax = pmax[0]
-                    else:
-                        penalty = None
-
-                    if 'maximum' in resultdict:
-                        value = resultdict['maximum']
-                        if isinstance(value, list):
-                            score = value[1]
-                            value = value[0]
-                        else:
-                            score = None
-                    else:
-                        value = None
-                        score = None
-
-                    if pmax == 'any':
-                        dframe.max = ttk.Label(
-                            dframe, text='(no limit)', style=normlabel
-                        )
-                    else:
-                        if 'unit' in param and not binrex.match(param['unit']):
-                            targettext = pmax + ' ' + param['unit']
-                        else:
-                            targettext = pmax
-                        dframe.max = ttk.Label(
-                            dframe, text=targettext, style=normlabel
-                        )
-
-                    if score:
-                        if score != 'fail':
-                            status_style = greenlabel
-                            if status_value != 'fail':
-                                status_value = 'pass'
-                        else:
-                            status_style = redlabel
-                            status_value = 'fail'
-                    if value:
-                        if value == 'failure' or value == 'fail':
-                            status_value = '(not checked)'
-                            status_style = redlabel
-                            valuetext = value
-                        elif 'unit' in param and not binrex.match(
-                            param['unit']
-                        ):
-                            valuetext = value + ' ' + param['unit']
-                        else:
-                            valuetext = value
-                        dframe.value = ttk.Label(
-                            dframe, text=valuetext, style=status_style
-                        )
-                        dframe.value.grid(column=7, row=n, sticky='ewns')
-                else:
-                    dframe.max = ttk.Label(
-                        dframe, text='(no limit)', style=normlabel
-                    )
-                dframe.max.grid(column=6, row=n, sticky='ewns')
-
-            if paramtype == 'electrical':
-                if 'hints' in param:
-                    simtext = '\u2022Simulate'
-                else:
-                    simtext = 'Simulate'
-            else:
-                simtext = 'Check'
-
-            if self.procs_pending:
-                if pname in self.procs_pending:
-                    simtext = '(in progress)'
-
-            simbutton = ttk.Menubutton(dframe, text=simtext, style=normbutton)
-            self.simbuttons[pname] = simbutton
-
-            # Generate pull-down menu on Simulate button.  Most items apply
-            # only to electrical parameters (at least for now)
-            simmenu = tkinter.Menu(simbutton)
-            simmenu.add_command(
-                label='Run', command=lambda pname=pname: self.sim_param(pname)
-            )
-            simmenu.add_command(label='Stop', command=self.stop_sims)
-            if paramtype == 'electrical':
-                # simmenu.add_command(label='Hints',
-                # 	command = lambda param=param, simbutton=simbutton: self.add_hints(param, simbutton))
-                simmenu.add_command(
-                    label='Edit',
-                    command=lambda param=param: self.edit_param(param),
-                )
-                simmenu.add_command(
-                    label='Copy',
-                    command=lambda param=param: self.copy_param(param),
-                )
-                if 'editable' in param and param['editable'] == True:
-                    simmenu.add_command(
-                        label='Delete',
-                        command=lambda param=param: self.delete_param(param),
-                    )
-
-            # Attach the menu to the button
-            simbutton.config(menu=simmenu)
-
-            # simbutton = ttk.Button(dframe, text=simtext, style = normbutton)
-            # 		command = lambda pname=pname: self.sim_param(pname))
-
-            simbutton.grid(column=9, row=n, sticky='ewns')
-
-            if paramtype == 'electrical':
-                ToolTip(simbutton, text='Simulate one electrical parameter')
-            else:
-                ToolTip(simbutton, text='Check one physical parameter')
-
-            # If 'pass', then just display message.  If 'fail', then create a button that
-            # opens and configures the failure report window.
-            if status_value == '(not checked)':
-                bstyle = normbutton
-                stat_label = ttk.Label(dframe, text=status_value, style=bstyle)
-            else:
-                if status_value == 'fail' or status_value == 'failure':
-                    bstyle = redbutton
-                else:
-                    bstyle = greenbutton
-                if paramtype == 'electrical':
-                    stat_label = ttk.Button(
-                        dframe,
-                        text=status_value,
-                        style=bstyle,
-                        command=lambda param=param, dsheet=dsheet: self.failreport.display(
-                            param, dsheet, self.datasheet
-                        ),
-                    )
-                elif p == 'LVS_errors':
-                    dspath = os.path.split(self.filename)[0]
-                    datasheet = os.path.split(self.filename)[1]
-                    dsheet = self.datasheet
-                    designname = dsheet['name']
-                    if self.origin.get() == 'Schematic Capture':
-                        lvs_file = dspath + '/mag/precheck.log'
-                    else:
-                        lvs_file = dspath + '/mag/comp.out'
-                    if not os.path.exists(lvs_file):
-                        if os.path.exists(dspath + '/mag/precheck.log'):
-                            lvs_file = dspath + '/mag/precheck.log'
-                        elif os.path.exists(dspath + '/mag/comp.out'):
-                            lvs_file = dspath + '/mag/comp.out'
-
-                    stat_label = ttk.Button(
-                        dframe,
-                        text=status_value,
-                        style=bstyle,
-                        command=lambda lvs_file=lvs_file: self.textreport.display(
-                            lvs_file
-                        ),
-                    )
-                else:
-                    stat_label = ttk.Label(
-                        dframe, text=status_value, style=bstyle
-                    )
-                ToolTip(
-                    stat_label,
-                    text='Show detail view of simulation conditions and results',
-                )
-            stat_label.grid(column=8, row=n, sticky='ewns')
-            self.status[pname] = stat_label
+            self.add_param_to_list(param, n, isschem)
             n += 1
 
         for child in dframe.winfo_children():
             child.grid_configure(ipadx=5, ipady=1, padx=2, pady=2)
 
+    def add_param_to_list(self, param, n, isschem):
+        """Add a row of widgets to the datasheet viewer"""
 
-# --------------------------------------------------------------------------
-# Main entry point for cace_gui.py
-# --------------------------------------------------------------------------
+        dframe = self.datasheet_viewer.dframe
+        pname = param['name']
+
+        # Create widgets
+        self.parameter_widgets[pname] = RowWidget(
+            param,
+            dframe,
+            self.simulation_manager.get_runtime_options('netlist_source'),
+            n,
+            self.simulation_manager,
+        )
+
+        # Set functions
+        self.parameter_widgets[pname].set_functions(
+            self.simulate_param,
+            self.simulation_manager.cancel_running_parameter,
+            self.edit_param,
+            self.copy_param,
+            self.delete_param,
+            self.failreport.display,
+            self.textreport.display,
+        )
 
 
 def gui():
+    """Main entry point"""
     parser = argparse.ArgumentParser(
         prog='cace-gui',
         description="""Graphical interface for the Circuit Automatic Characterization Engine,
@@ -2089,10 +1239,9 @@ def gui():
     # Parse arguments
     args = parser.parse_args()
 
-    if os.name != 'nt':
-        signal.signal(signal.SIGUSR1, signal.SIG_IGN)
-    root = tkinter.Tk()
-    app = CACECharacterize(root)
+    # Create tkinter root
+    root = tkinter.Tk(className='CACE')
+    app = CACEGui(root)
 
     if not args.terminal:
         app.capture_output()
@@ -2103,7 +1252,11 @@ def gui():
     else:
         app.find_datasheet(os.getcwd())
 
+    # Start the main loop
     root.mainloop()
+
+    # Clean up
+    root.destroy()
 
 
 if __name__ == '__main__':

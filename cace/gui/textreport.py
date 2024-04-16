@@ -24,13 +24,6 @@ class TextReport(tkinter.Toplevel):
         """See the __init__ for Tkinter.Toplevel."""
         tkinter.Toplevel.__init__(self, parent, *args, **kwargs)
 
-        s = ttk.Style()
-        s.configure(
-            'normal.TButton',
-            font=('Helvetica', fontsize),
-            border=3,
-            relief='raised',
-        )
         self.protocol('WM_DELETE_WINDOW', self.close)
 
         self.withdraw()
@@ -99,7 +92,7 @@ class TextReport(tkinter.Toplevel):
         # Remove and replace contents
         self.hframe.textdisplay.page.delete('1.0', 'end')
         self.hframe.textdisplay.page.insert('end', self.text)
-        self.textttitle.configure(text=self.title)
+        self.texttitle.configure(text=self.title)
         self.open()
 
     # Fill the text report from a file.

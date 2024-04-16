@@ -44,7 +44,7 @@ def get_magic_namespace(dsheet):
         ['magic', '-dnull', '-noconsole', '-rcfile', rcfilename],
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
-        universal_newlines=True,
+        text=True,
     )
     mproc.stdin.write(
         'if {[catch {puts namespace=$PDKNAMESPACE}]} {puts namespace=$PDKPATH}\n'
@@ -89,7 +89,7 @@ def run_magic_geometry(dsheet, layout_filename):
         stdin=subprocess.PIPE,
         stdout=subprocess.PIPE,
         cwd=layout_path,
-        universal_newlines=True,
+        text=True,
     )
     if is_mag:
         areaproc.stdin.write('load ' + layout_cellname + '\n')
@@ -324,7 +324,7 @@ def cace_drc(datasheet, param, toolargs=None):
         stdout=subprocess.PIPE,
         env=newenv,
         cwd=layout_path,
-        universal_newlines=True,
+        text=True,
     )
 
     if is_mag:
