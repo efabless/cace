@@ -502,7 +502,9 @@ class CACEGui(ttk.Frame):
 
     def find_datasheet(self, search_dir):
         debug = self.settings.get_debug()
-        self.simulation_manager.find_datasheet(search_dir, debug)
+        if self.simulation_manager.find_datasheet(search_dir, debug):
+            # Could not find a datasheet
+            return 1
         self.update_filename()
         self.adjust_datasheet_viewer_size()
         self.create_datasheet_view()
@@ -1250,7 +1252,8 @@ def gui():
         print('Setting datasheet to ' + args.datasheet)
         app.set_datasheet(args.datasheet)
     else:
-        app.find_datasheet(os.getcwd())
+        if app.find_datasheet(os.getcwd()):
+            sys.exit(0)
 
     # Start the main loop
     root.mainloop()

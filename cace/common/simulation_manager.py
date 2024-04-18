@@ -122,10 +122,14 @@ class SimulationManager:
         self.default_runtime_options()
 
     def find_datasheet(self, search_dir, debug):
-        # Check the search_dir directory and determine if there
-        # is a .txt or .json file with the name of the directory, which
-        # is assumed to have the same name as the project circuit.  Also
-        # check subdirectories one level down.
+        """
+        Check the search_dir directory and determine if there
+        is a .txt or .json file with the name of the directory, which
+        is assumed to have the same name as the project circuit.  Also
+        check subdirectories one level down.
+        Returns 0 on success and 1 on failure.
+        """
+
         dirname = os.path.split(search_dir)[1]
         dirlist = os.listdir(search_dir)
 
@@ -138,7 +142,7 @@ class SimulationManager:
                     if basename == dirname:
                         print(f'Loading datasheet from {item}')
                         self.load_datasheet(item, debug)
-                        return
+                        return 0
 
             elif os.path.isdir(item):
                 subdirlist = os.listdir(item)
@@ -151,7 +155,7 @@ class SimulationManager:
                             if basename == dirname:
                                 print(f'Loading datasheet from {subitemref}')
                                 self.load_datasheet(subitemref, debug)
-                                return
+                                return 0
 
         # Look through all directories for a '.json' file
         # ('.txt') is preferred to ('.json')
@@ -163,7 +167,7 @@ class SimulationManager:
                     if basename == dirname:
                         print(f'Loading datasheet from {item}')
                         self.load_datasheet(item, debug)
-                        return
+                        return 0
 
             elif os.path.isdir(item):
                 subdirlist = os.listdir(item)
@@ -176,9 +180,10 @@ class SimulationManager:
                             if basename == dirname:
                                 print(f'Loading datasheet from {subitemref}')
                                 self.load_datasheet(subitemref, debug)
-                                return
+                                return 0
 
         print('No datasheet found in local project (JSON or text file).')
+        return 1
 
     def save_datasheet(self, path):
         if self.datasheet['runtime_options']['debug']:
