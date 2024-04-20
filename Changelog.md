@@ -1,3 +1,9 @@
+# 2.0.1
+
+## GUI
+
+- Don't crash if no datasheet is found
+
 # 2.2.0
 
 ## CLI
