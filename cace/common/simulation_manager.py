@@ -370,7 +370,7 @@ class SimulationManager:
 
         paths = self.datasheet['paths']
         runtime_options = self.datasheet['runtime_options']
-        pdk = self.datasheet['PDK']
+        pdk = self.datasheet.get('PDK', None)
 
         if 'electrical_parameters' in self.datasheet:
             for param in self.datasheet['electrical_parameters']:
