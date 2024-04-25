@@ -20,8 +20,6 @@ import shutil
 import signal
 import threading
 
-from queue import Queue
-
 from .cace_read import cace_read
 from .cace_compat import cace_compat
 from .cace_write import cace_write, cace_summary, cace_generate_html
@@ -40,10 +38,14 @@ class SimulationManager:
     def __init__(self, datasheet={}):
         """Initialize the object with a datasheet"""
         self.datasheet = datasheet
-        self.threads = []
-        self.queue = Queue()
-        self.thread = None
-        self.threads = []
+
+        self.worker_thread = None
+
+        self.queued_threads = []
+        self.queued_lock = threading.Lock()
+
+        self.running_threads = []
+        self.running_lock = threading.Lock()
 
         self.default_options = {
             'netlist_source': 'schematic',
@@ -396,7 +398,9 @@ class SimulationManager:
                     print(
                         f'Inserting electrical parameter {param["name"]} into queue'
                     )
-                    self.queue.put(new_sim_param)
+
+                    with self.queued_lock:
+                        self.queued_threads.insert(0, new_sim_param)
 
                     # TODO return number of simulations for this parameter
                     #      needed for progress bars etc.
@@ -426,7 +430,9 @@ class SimulationManager:
                     print(
                         f'Inserting physical parameter {param["name"]} into queue'
                     )
-                    self.queue.put(new_sim_param)
+
+                    with self.queued_lock:
+                        self.queued_threads.insert(0, new_sim_param)
 
                     # TODO return number of simulations for this parameter
                     #      needed for progress bars etc.
@@ -444,47 +450,86 @@ class SimulationManager:
 
         return None
 
+    def prune_running_threads(self):
+        """Remove threads that are either marked as done or have been canceled"""
+
+        needs_unlock = False
+        if not self.running_lock.locked():
+            self.running_lock.lock()
+            needs_unlock = True
+
+        # Remove completed threads
+        self.running_threads = [
+            t
+            for t in self.running_threads
+            if t.is_alive() or (not t.done and not t.canceled)
+        ]
+
+        if needs_unlock:
+            self.running_lock.unlock()
+
+    def num_parameters(self):
+        """Get the number of queued or running parameters"""
+
+        return self.num_queued_parameters() + self.num_running_parameters()
+
     def num_queued_parameters(self):
         """Get the number of queued parameters"""
 
-        return self.queue.qsize()
+        return len(self.queued_threads)
 
     def num_running_parameters(self):
         """Get the number of running parameters"""
 
-        # Remove completed threads
-        self.threads = [t for t in self.threads if t.is_alive()]
+        with self.running_lock:
+            self.prune_running_threads()
 
-        return len(self.threads)
+            # Count the parameter threads that are not yet done
+            num_running = sum(
+                1
+                for t in self.running_threads
+                if not t.done and not t.canceled
+            )
+
+        return num_running
 
     def run_parameters_async(self):
-        """Start a thread to start parameter threads"""
+        """Start a worker thread to start parameter threads"""
 
-        # Wait until previous run completed
-        if self.thread:
-            self.thread.join()
-        self.thread = None
-
-        # Start new thread to start parameter threads
-        self.thread = threading.Thread(target=self.run_parameters_thread)
-        self.thread.start()
+        # Only start a new worker thread, if
+        # the previous one hasn't completed yet
+        if not self.worker_thread or not self.worker_thread.is_alive():
+            # Start new worker thread to start parameter threads
+            self.worker_thread = threading.Thread(
+                target=self.run_parameters_thread
+            )
+            self.worker_thread.start()
 
     def run_parameters_thread(self):
-        """A thread starts the thread of queued parameters"""
+        """Called as a thread, starts the threads of queued parameters"""
 
-        while not self.queue.empty():
+        while self.queued_threads:
+
             # Check whether we can start another parameter in parallel
             if (
                 self.num_running_parameters()
                 < self.datasheet['runtime_options']['parallel_parameters']
             ):
+                param_thread = None
 
-                sim_param = self.queue.get()
-                print(f'Running parameter {sim_param.param["name"]}')
-                # sim_param.setDaemon(True) # TODO correct?
-                sim_param.start()
+                # Holding both locks, move a parameter
+                # from queued to running
+                with self.running_lock:
+                    with self.queued_lock:
+                        # Could have been cancelled meanhwile
+                        if self.queued_threads:
+                            param_thread = self.queued_threads.pop()
+                            self.running_threads.append(param_thread)
 
-                self.threads.append(sim_param)
+                if param_thread and not param_thread.canceled:
+                    print(f'Running parameter {param_thread.param["name"]}')
+                    param_thread.start()
+
             # Else wait until another parameter has completed
             else:
                 time.sleep(0.1)
@@ -492,54 +537,92 @@ class SimulationManager:
     def join_parameters(self):
         """Join all running parameter threads"""
 
-        # Wait until previous run completed
-        if self.thread:
-            self.thread.join()
-        self.thread = None
+        # Wait until all parameters are running
+        if self.worker_thread:
+            self.worker_thread.join()
+        self.worker_thread = None
 
-        # Wait until thread is complete
-        for thread in self.threads:
-            thread.join()
+        # Wait until all parameters are complete
+        with self.running_lock:
+            for param_thread in self.running_threads:
+                param_thread.join()
 
-        # Remove completed threads
-        self.threads = [t for t in self.threads if t.is_alive()]
+            # Remove completed threads
+            self.prune_running_threads()
 
     def run_parameters(self):
         """Run parameters sequentially, note that simulations can still be parallelized"""
 
-        while not self.queue.empty():
-            sim_param = self.queue.get()
-            sim_param.run()
+        with self.queued_lock:
+            while self.queued_threads:
+                param_thread = self.queued_threads.pop()
+                param_thread.run()
 
-    def clear_queued_parameters(self, cancel_cb=False):
-        """Clear all queued parameters"""
+    def cancel_parameters(self, cancel_cb=False):
+        """Cancel all parameters"""
 
-        while not self.queue.empty():
-            sim_param = self.queue.get()
+        self.cancel_queued_parameters(cancel_cb)
+        self.cancel_running_parameters(cancel_cb)
 
-            if not cancel_cb and sim_param.cb:
-                sim_param.cb(sim_param.param['name'])
+    def cancel_queued_parameters(self, cancel_cb=False):
+        """Cancel all queued parameters"""
+
+        with self.queued_lock:
+            while self.queued_threads:
+                param_thread = self.queued_threads.pop()
+
+                # Cancel the thread and start it
+                # so that it directly calls its callback
+                param_thread.cancel(cancel_cb)
+                param_thread.start()
 
     def cancel_running_parameters(self, cancel_cb=False):
         """Cancel all running parameters"""
 
-        # Remove completed threads
-        self.threads = [t for t in self.threads if t.is_alive()]
+        with self.running_lock:
 
-        for thread in self.threads:
-            thread.cancel(cancel_cb)
+            # Remove completed threads
+            self.prune_running_threads()
+
+            for param_thread in self.running_threads:
+                param_thread.cancel(cancel_cb)
+
+    def cancel_parameter(self, pname, cancel_cb=False):
+        """Cancel a single parameter"""
+
+        self.cancel_queued_parameter(pname, cancel_cb)
+        self.cancel_running_parameter(pname, cancel_cb)
+
+    def cancel_queued_parameter(self, pname, cancel_cb=False):
+        """Cancel a single running parameter"""
+
+        with self.queued_lock:
+
+            # Get all threads that should be canceled
+            # Maybe there are multiple threads with the same name
+            cancel_threads = [
+                t for t in self.queued_threads if t.param['name'] == pname
+            ]
+
+            for param_thread in cancel_threads:
+
+                # Remove the thread from the queued list
+                self.queued_threads.remove(param_thread)
+
+                # Cancel the thread and start it
+                # so that it directly calls its callback
+                param_thread.cancel(cancel_cb)
+                param_thread.start()
 
     def cancel_running_parameter(self, pname, cancel_cb=False):
         """Cancel a single running parameter"""
 
-        # Remove completed threads
-        self.threads = [t for t in self.threads if t.is_alive()]
+        with self.running_lock:
 
-        found = False
-        for thread in self.threads:
-            if thread.param['name'] == pname:
-                found = True
-                thread.cancel(cancel_cb)
+            # Remove completed threads
+            self.prune_running_threads()
 
-        if not found:
-            print(f'Error: Could not cancel parameter: {pname} not found')
+            for param_thread in self.running_threads:
+                # TODO also check source
+                if param_thread.param['name'] == pname:
+                    param_thread.cancel(cancel_cb)

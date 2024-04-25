@@ -87,10 +87,9 @@ class CACEGui(ttk.Frame):
                 print('Quit canceled.')
                 return
 
-        # Cancel all queued and running simulations and join
+        # Cancel all queued and running parameters and join them
         print('Stopping all simulations for shutdown.')
-        self.simulation_manager.clear_queued_parameters(cancel_cb=True)
-        self.simulation_manager.cancel_running_parameters(cancel_cb=True)
+        self.simulation_manager.cancel_parameters(cancel_cb=True)
         self.simulation_manager.join_parameters()
 
         if self.logfile:
@@ -198,7 +197,8 @@ class CACEGui(ttk.Frame):
             column=4, row=0, ipadx=5, padx=10
         )
 
-        self.origin.set('Schematic Capture')
+        self.netlist_text = 'Schematic Capture'
+        self.origin.set(self.netlist_text)
         self.toppane.title_frame.origin_select = ttk.OptionMenu(
             self.toppane.title_frame,
             self.origin,
@@ -420,9 +420,6 @@ class CACEGui(ttk.Frame):
         """Simulate a single parameter"""
 
         self.simulation_manager.set_runtime_options(
-            'netlist_source', self.get_netlist_source()
-        )
-        self.simulation_manager.set_runtime_options(
             'force', self.settings.get_force()
         )
         self.simulation_manager.set_runtime_options(
@@ -634,18 +631,11 @@ class CACEGui(ttk.Frame):
 
     def sim_all(self):
         # Make sure no simulation is running
-        if (
-            self.simulation_manager.num_queued_parameters()
-            + self.simulation_manager.num_running_parameters()
-            > 0
-        ):
+        if self.simulation_manager.num_parameters() > 0:
             print('Simulation in progress must finish first.')
             return
 
         # TODO set at startup and only change directly if necessary
-        self.simulation_manager.set_runtime_options(
-            'netlist_source', self.get_netlist_source()
-        )
         self.simulation_manager.set_runtime_options(
             'force', self.settings.get_force()
         )
@@ -676,26 +666,11 @@ class CACEGui(ttk.Frame):
 
     def stop_sims(self):
         # Check whether simulations are running
-        if (
-            self.simulation_manager.num_queued_parameters()
-            + self.simulation_manager.num_running_parameters()
-            == 0
-        ):
+        if self.simulation_manager.num_parameters() == 0:
             print('No simulation running.')
         else:
-            # Cancel all queued and running simulations
-            self.simulation_manager.clear_queued_parameters()
-            self.simulation_manager.cancel_running_parameters()
-            # self.simulation_manager.join_parameters() # TODO deadlock because of GUI cb
-
-            if (
-                self.simulation_manager.num_queued_parameters()
-                + self.simulation_manager.num_running_parameters()
-                == 0
-            ):
-                print('All simulations have stopped.')
-            else:
-                print('Not all simulations have stopped yet.')
+            # Cancel all queued and running parameters
+            self.simulation_manager.cancel_parameters()
 
         self.update_simulate_all_button()
 
@@ -703,15 +678,7 @@ class CACEGui(ttk.Frame):
         # Check whether no simulations are running, or
         # if the function call comes from a callback,
         # only one simulation is running
-        if (
-            self.simulation_manager.num_queued_parameters()
-            + self.simulation_manager.num_running_parameters()
-            == 0
-            or from_callback
-            and self.simulation_manager.num_queued_parameters()
-            + self.simulation_manager.num_running_parameters()
-            == 1
-        ):
+        if self.simulation_manager.num_parameters() == 0:
             self.allsimbutton.configure(
                 style='bluetitle.TButton',
                 text='Simulate All',
@@ -756,22 +723,6 @@ class CACEGui(ttk.Frame):
         # Fill in any existing hints.
         self.simhints.populate(param, simbutton)
         self.simhints.open()
-
-    # Get the value for runtime options['netlist_source']
-    def get_netlist_source(self):
-        netlist_text = self.origin.get()
-        if netlist_text == 'Schematic Capture':
-            return 'schematic'
-        elif netlist_text == 'Layout Extracted':
-            return 'layout'
-        elif netlist_text == 'C Extracted':
-            return 'pex'
-        elif netlist_text == 'R-C Extracted':
-            return 'rcx'
-        else:
-            print('Unhandled netlist source ' + netlist_text)
-            print('Reverting to schematic.')
-            return 'schematic'
 
     def clear_results(self, dsheet):
         # TODO do in SimulationManager
@@ -969,6 +920,36 @@ class CACEGui(ttk.Frame):
         self.simulation_manager.generate_html()
 
     def swap_results(self, value={}):
+        """Triggered when a new netlist source is selected"""
+
+        # Make sure no parameters are currently scheduled
+        if self.simulation_manager.num_parameters() > 0:
+            print('Cannot change the netlist source: Parameters are running.')
+            self.origin.set(self.netlist_text)
+            return
+
+        netlist_source = None
+
+        # Get the netlist source from the text
+        self.netlist_text = self.origin.get()
+        if self.netlist_text == 'Schematic Capture':
+            netlist_source = 'schematic'
+        elif self.netlist_text == 'Layout Extracted':
+            netlist_source = 'layout'
+        elif self.netlist_text == 'C Extracted':
+            netlist_source = 'pex'
+        elif self.netlist_text == 'R-C Extracted':
+            netlist_source = 'rcx'
+        else:
+            print(f'Unhandled netlist source {netlist_text}')
+            print('Reverting to schematic.')
+            netlist_source = 'schematic'
+
+        # Update netlist source
+        self.simulation_manager.set_runtime_options(
+            'netlist_source', netlist_source
+        )
+
         # This routine just calls self.create_datasheet_view(), but the
         # button callback has an argument that needs to be handled even
         # if it is just discarded.
@@ -1010,6 +991,7 @@ class CACEGui(ttk.Frame):
             if not os.path.exists(dsdir):
                 print('Error:  Cannot find directory spice/ in path ' + dspath)
 
+        # TODO rework
         if self.origin.get() == 'Layout Extracted':
             spifile = dsdir + '/layout/' + dsroot + '.spice'
         if self.origin.get() == 'C Extracted':
@@ -1076,11 +1058,6 @@ class CACEGui(ttk.Frame):
 
         dsheet = self.simulation_manager.get_datasheet()
 
-        # Update netlist source
-        self.simulation_manager.set_runtime_options(
-            'netlist_source', self.get_netlist_source()
-        )
-
         # Add basic information at the top
 
         n = 0
@@ -1140,11 +1117,7 @@ class CACEGui(ttk.Frame):
         dframe.stat_title.grid(column=8, row=n, sticky='ewns')
 
         # Check whether simulations are running
-        if (
-            self.simulation_manager.num_queued_parameters()
-            + self.simulation_manager.num_running_parameters()
-            > 0
-        ):
+        if self.simulation_manager.num_parameters() > 0:
             self.allsimbutton = ttk.Button(
                 dframe,
                 text='Stop Simulations',
@@ -1205,7 +1178,7 @@ class CACEGui(ttk.Frame):
         # Set functions
         self.parameter_widgets[pname].set_functions(
             self.simulate_param,
-            self.simulation_manager.cancel_running_parameter,
+            self.simulation_manager.cancel_parameter,
             self.edit_param,
             self.copy_param,
             self.delete_param,

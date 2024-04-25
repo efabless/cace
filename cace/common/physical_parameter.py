@@ -47,6 +47,7 @@ class PhysicalParameter(threading.Thread):
         self.runtime_options = runtime_options
 
         self.canceled = False
+        self.done = False
 
         super().__init__(*args, **kwargs)
 
@@ -70,6 +71,9 @@ class PhysicalParameter(threading.Thread):
 
         print(f'{self.param["name"]}: Evaluating physical parameter')
         cace_evaluate(self.datasheet, self.param)
+
+        # Set done before calling cb
+        self.done = True
 
         if self.cb:
             self.cb(self.param['name'])
