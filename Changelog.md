@@ -1,4 +1,24 @@
-# 2.0.1
+# 2.2.3
+
+## Common
+
+- Improve scheduling of parameters
+  - Simpler and more reliable
+- Queued parameters can now be canceled
+
+## GUI
+
+- While a simulation is running, the netlist source cannot be changed
+
+# 2.2.2
+
+## Common
+
+- Lower setuptools_scm requirement to >=7
+
+# 2.2.0
+
+# 2.2.1
 
 ## GUI
 
