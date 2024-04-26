@@ -289,7 +289,7 @@ class SimulationManager:
     def validate_runtime_options(self):
         """Make sure the runtime options contain valid values"""
 
-        valid_sources = ['schematic', 'layout', 'pex', 'rcx']
+        valid_sources = ['schematic', 'layout', 'pex', 'rcx', 'best']
 
         if (
             not self.datasheet['runtime_options']['netlist_source']
