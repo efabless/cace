@@ -55,7 +55,9 @@ class ElectricalParameter(threading.Thread):
 
         self.queued_jobs = []
         self.new_testbenches = []
+
         self.canceled = False
+        self.done = False
 
         super().__init__(*args, **kwargs)
 
@@ -133,6 +135,9 @@ class ElectricalParameter(threading.Thread):
         self.param['testbenches'] = self.new_testbenches
 
         self.postprocess()
+
+        # Set done before calling cb
+        self.done = True
 
         if self.cb:
             self.cb(self.param['name'])

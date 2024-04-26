@@ -33,7 +33,7 @@ class SimulationJob(threading.Thread):
         self.paths = paths
         self.runtime_options = runtime_options
 
-        self.sim_complete_callback = None
+        self.cb = None
 
         self.canceled = False
         self.spiceproc = None
@@ -41,27 +41,33 @@ class SimulationJob(threading.Thread):
         super().__init__(*args, **kwargs)
 
     def cancel(self, cancel_cb):
-        print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
+        # print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
         self.canceled = True
 
         if cancel_cb:
-            self.sim_complete_callback = None
+            self.cb = None
 
         if self.spiceproc:
             self.spiceproc.kill()
+
+    def cancel_point(self):
+        """If canceled, call the cb and exit the thread"""
+
+        if self.canceled:
+            if self.cb:
+                self.cb(self.param['name'], self.testbenchlist, True)
+            sys.exit()
 
     def run(self):
         paramname = self.param['name']
         simresult = 0
 
-        if self.canceled:
-            return None
+        self.cancel_point()
 
         for testbench in self.testbenchlist:
             simresult += self.simulate(testbench)
 
-            if self.canceled:
-                return None
+            self.cancel_point()
 
         debug = (
             self.runtime_options['debug']
@@ -311,15 +317,10 @@ class SimulationJob(threading.Thread):
             # real-time, and flush the output buffer.  All output is ignored.
             # Note:  bufsize = 1 and universal_newlines = True sets line-buffered output
 
-            print(
-                'Running: '
-                + simulator
-                + ' '
-                + ' '.join(simargs)
-                + ' '
-                + filename
-            )
+            print(f'Running: {simulator} {" ".join(simargs)} {filename}')
             print('Current working directory is: ' + os.getcwd())
+
+            self.cancel_point()
 
             self.spiceproc = subprocess.Popen(
                 [simulator, *simargs, filename],
