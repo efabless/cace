@@ -923,17 +923,14 @@ def regenerate_schematic_netlist(dsheet):
     # Check the "paths" dictionary for paths to various files
 
     # Root path
-    if 'root' in paths:
-        root_path = paths['root']
-    else:
-        root_path = '.'
+    root_path = paths.get('root', '.')
 
     # Xschem schematic
-    if 'schematic' in paths:
-        schempath = paths['schematic']
+    schempath = paths.get('schematic', None)
+
+    if schempath:
         schemfilename = os.path.join(schempath, xschemname)
     else:
-        schempath = None
         schemfilename = None
 
     # Schematic-captured netlist
@@ -945,16 +942,40 @@ def regenerate_schematic_netlist(dsheet):
         schem_netlist = None
 
     # Verilog netlist
-    if 'verilog' in paths:
-        verilog_netlist_path = paths['verilog']
+    verilog_netlist_path = paths.get('verilog', None)
+
+    if verilog_netlist_path:
         verilog_netlist = os.path.join(verilog_netlist_path, netlistname)
     else:
-        verilog_netlist_path = None
         verilog_netlist = None
+
+    # Check for xschem schematic, if it does not exist check for alternatives
+    if not schemfilename or not os.path.isfile(schemfilename):
+        if verilog_netlist and os.path.isfile(verilog_netlist):
+            print('No schematic for project.')
+            print(
+                f'Using verilog structural netlist {verilog_netlist} for simulation and LVS.'
+            )
+            return verilog_netlist
+        elif schem_netlist and os.path.isfile(schem_netlist):
+            print('No schematic for project.')
+            print(
+                f'Using existing netlist {schem_netlist} for simulation and LVS.'
+            )
+            return schem_netlist
+        else:
+            print(f'Error: No netlist or schematic for project {dname}.')
+            if schemfilename:
+                print(f'(schematic master file {schemfilename} not found.)\n')
+            else:
+                print('Project does not have a master schematic.\n')
+            print('No structural verilog netlist, either.')
+            return False
 
     need_schem_capture = False
 
     if force_regenerate:
+        print('Forcing regeneration of schematic-captured netlist.')
         need_schem_capture = True
     else:
         print('Checking for out-of-date schematic-captured netlists.')
@@ -967,34 +988,6 @@ def regenerate_schematic_netlist(dsheet):
         need_schem_capture = True
 
     if need_schem_capture:
-        print('Forcing regeneration of schematic-captured netlist.')
-
-        # Netlist needs regenerating.  Check for xschem schematic
-        if not schemfilename or not os.path.isfile(schemfilename):
-            if verilog_netlist and os.path.isfile(verilog_netlist):
-                print('No schematic for project.')
-                print(
-                    'Using verilog structural netlist '
-                    + verilog_netlist
-                    + ' for simulation and LVS.'
-                )
-                return verilog_netlist
-            else:
-                print(
-                    'Error:  No netlist or schematic for project '
-                    + dname
-                    + '.'
-                )
-                if schemfilename:
-                    print(
-                        '(schematic master file '
-                        + schemfilename
-                        + ' not found.)\n'
-                    )
-                else:
-                    print('Project does not have a master schematic.\n')
-                print('No structural verilog netlist, either.')
-                return False
 
         print('Generating simulation netlist from schematic. . .')
         # Generate the netlist
@@ -1061,22 +1054,15 @@ def regenerate_schematic_netlist(dsheet):
             for line in xout.splitlines():
                 print(line.decode('utf-8'))
 
-            print(
-                'Xschem process returned error code '
-                + str(xproc.returncode)
-                + '\n'
-            )
+            print(f'Xschem process returned error code {xproc.returncode}\n')
         else:
             printwarn(xout)
 
         if not os.path.isfile(schem_netlist):
             print('Error: No netlist found for the circuit!\n')
             print(
-                '(schematic netlist for simulation '
-                + schem_netlist
-                + ' not found.)\n'
+                f'(schematic netlist for simulation {schem_netlist} not found.)\n'
             )
-
         else:
             # Do a quick parse of the netlist to check for errors
             missrex = re.compile('[ \t]*([^ \t]+)[ \t]+IS MISSING')
@@ -1086,9 +1072,7 @@ def regenerate_schematic_netlist(dsheet):
                     mmatch = missrex.search(line)
                     if mmatch:
                         print('Error in netlist generation:')
-                        print(
-                            'Subcircuit ' + mmatch.group(1) + ' was not found!'
-                        )
+                        print(f'Subcircuit {mmatch.group(1)} was not found!')
                         os.remove(schem_netlist)
 
     if need_schem_capture:
@@ -1115,6 +1099,15 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     testbenchsource = os.path.splitext(testbench)[0] + '.sch'
     source_file = os.path.join(testbenchpath, testbenchsource)
     netlist_file = os.path.join(testbenchpath, testbench)
+
+    # Check for xschem schematic, if it does not exist check for alternatives
+    if not testbenchsource or not os.path.isfile(testbenchsource):
+        if netlist_file and os.path.isfile(netlist_file):
+            print('No testbench schematic for project.')
+            print(
+                f'Using existing testbench netlist {netlist_file} for simulation.'
+            )
+            return 0
 
     if force_regenerate:
         need_testbench_netlist = True
@@ -1293,7 +1286,8 @@ def make_symbol_primitive(dsheet):
         symbolfilename = None
 
     if not symbolfilename or not os.path.isfile(symbolfilename):
-        print('Error:  symbol for project ' + dname + ' was not found!')
+        print(f'Info: symbol for project {dname} was not found!')
+        print("Primitive symbol won't be copied to the testbench directory.")
         return
 
     # Testbench primitive symbol
