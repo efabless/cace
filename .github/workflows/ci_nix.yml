@@ -1,0 +1,285 @@
+name: CI-Nix
+
+# Events that trigger workflow
+on:
+  # Runs on all pushes to branches
+  push:
+  # Runs on all PRs
+  pull_request:
+  # Runs every day at midnight UTC
+  schedule:
+    - cron: "0 0 * * *"
+  # Manual Dispatch
+  workflow_dispatch:
+
+jobs:
+  prepare-pdks:
+    name: Cache PDKs
+    runs-on: ubuntu-22.04
+    outputs:
+      opdks_rev: ${{ steps.set-rev.outputs.opdks_rev }}
+    steps:
+      - uses: actions/checkout@v3
+      - name: Python Dependencies
+        run: |
+          python3 -m pip install -r ./requirements.txt
+      - name: Get Open PDKs Revision
+        id: set-rev
+        run: |
+          echo "opdks_rev=$(cat ./cace/open_pdks_rev)" >> $GITHUB_OUTPUT
+      - name: Cache sky130 PDK
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.volare-sky130
+          key: cache-sky130-pdk-${{ steps.set-rev.outputs.opdks_rev }}
+      - name: Enable sky130 PDK
+        run: |
+          export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          volare enable --pdk sky130 --pdk-root ${{ github.workspace }}/.volare-sky130 ${{ steps.set-rev.outputs.opdks_rev }}
+      - name: Cache gf180mcu PDK
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.volare-gf180mcu
+          key: cache-gf180mcu-pdk-${{ steps.set-rev.outputs.opdks_rev }}
+      - name: Enable gf180mcu PDK
+        run: |
+          export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          volare enable --pdk gf180mcu --pdk-root ${{ github.workspace }}/.volare-gf180mcu ${{ steps.set-rev.outputs.opdks_rev }}
+      - name: Checkout submodules
+        uses: actions/checkout@v3
+        with:
+          submodules: true
+  lint:
+    name: Lint
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install Dependencies
+        run: make dependencies
+      - name: Lint
+        run: |
+          make lint
+  build-py:
+    runs-on: ubuntu-22.04
+    needs: [lint, prepare-pdks]
+    strategy:
+      matrix:
+        python-version: ["3.8", "3.9", "3.10"]
+      fail-fast: false
+    name: Build and Unit Test (Python ${{ matrix.python-version }})
+    steps:
+      - name: Check out repo
+        uses: actions/checkout@v3
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Cache sky130 PDK
+        id: cache-sky130-pdk
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.volare-sky130
+          key: cache-sky130-pdk-${{ needs.prepare-pdks.outputs.opdks_rev }}
+      - name: Enable sky130 PDK
+        if: steps.cache-sky130-pdk.outputs.cache-hit != 'true'
+        run: |
+          pip3 install -r ./requirements.txt
+          export GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}
+          volare enable --pdk sky130 --pdk-root ${{ github.workspace }}/.volare-sky130 ${{ needs.prepare-pdks.outputs.opdks_rev }}
+      - name: Run Unit Tests
+        run: echo TODO
+  build-linux-amd64:
+    needs: lint
+    runs-on: ubuntu-22.04
+    name: Build (Nix on Linux/amd64)
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up GITHUB_TOKEN
+        run: |
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+      - name: Install Nix
+        run: |
+          sh <(curl -L https://nixos.org/nix/install) --yes --daemon --nix-extra-conf-file /dev/stdin <<EXTRA_NIX_CONF
+          extra-experimental-features = nix-command flakes
+          extra-substituters = https://openlane.cachix.org
+          extra-trusted-public-keys = openlane.cachix.org-1:qqdwh+QMNGmZAuyeQJTH9ErW57OWSvdtuwfBKdS254E=
+          EXTRA_NIX_CONF
+
+          . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      - name: Build with Nix
+        uses: ./.github/actions/build_nix
+        with:
+          nix_system: x86_64-linux
+          local_cache_key: derivation-${{ github.run_id }}
+          cachix_cache: ${{ vars.CACHIX_CACHE || 'openlane' }}
+          cachix_token: "${{ secrets.CACHIX_TOKEN }}"
+          run_tests: "true"
+  build-linux-aarch64:
+    needs: lint
+    runs-on: ubuntu-22.04
+    name: Build (Nix on Linux/aarch64)
+    steps:
+      - uses: docker/setup-qemu-action@v1
+      - uses: actions/checkout@v3
+      - name: Set up GITHUB_TOKEN
+        run: |
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+      - uses: DeterminateSystems/nix-installer-action@main # Using the DS Nix installer because it also sets up binfmt
+      - name: Build with Nix
+        uses: ./.github/actions/build_nix
+        with:
+          nix_system: aarch64-linux
+          local_cache_key: derivation-${{ github.run_id }}
+          cachix_cache: ${{ vars.CACHIX_CACHE || 'openlane' }}
+          cachix_token: "${{ secrets.CACHIX_TOKEN }}"
+          run_tests: "true"
+  build-mac-amd64:
+    needs: lint
+    runs-on: macos-12
+    name: Build (Nix on macOS/amd64)
+    steps:
+      - uses: actions/checkout@v3
+      - name: Set up GITHUB_TOKEN
+        run: |
+          echo "GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }}" >> $GITHUB_ENV
+      - name: Install Nix
+        run: |
+          sh <(curl -L https://nixos.org/nix/install) --yes --nix-extra-conf-file /dev/stdin <<EXTRA_NIX_CONF
+          extra-experimental-features = nix-command flakes
+          extra-substituters = https://openlane.cachix.org
+          extra-trusted-public-keys = openlane.cachix.org-1:qqdwh+QMNGmZAuyeQJTH9ErW57OWSvdtuwfBKdS254E=
+          EXTRA_NIX_CONF
+
+          . '/nix/var/nix/profiles/default/etc/profile.d/nix-daemon.sh'
+          echo "PATH=$PATH" >> $GITHUB_ENV
+      - name: Build with Nix
+        uses: ./.github/actions/build_nix
+        with:
+          nix_system: x86_64-darwin
+          local_cache_key: derivation-${{ github.run_id }}
+          cachix_cache: ${{ vars.CACHIX_CACHE || 'openlane' }}
+          cachix_token: "${{ secrets.CACHIX_TOKEN }}"
+          shell: "zsh {0}"
+          run_tests: "true"
+  build-docker:
+    runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        arch: ["amd64", "aarch64"]
+    needs: [build-linux-amd64, build-linux-aarch64]
+    name: Build Docker Image (${{ matrix.arch }})
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
+          root-reserve-mb: 20480
+      - name: Check out repo
+        uses: actions/checkout@v3
+
+      - uses: docker/setup-qemu-action@v1
+      - name: Set Nix System
+        run: |
+          nix_system=x86_64-linux
+          if [ "${{ matrix.arch }}" == "aarch64" ]; then
+            nix_system=aarch64-linux
+          fi
+          echo "NIX_SYSTEM=$nix_system" >> $GITHUB_ENV
+      - uses: DeterminateSystems/nix-installer-action@main
+      - name: Build with Nix
+        uses: ./.github/actions/build_nix
+        with:
+          nix_system: ${{ env.NIX_SYSTEM }}
+          local_cache_key: derivation-${{ github.run_id }}
+          cachix_cache: ${{ vars.CACHIX_CACHE || 'openlane' }}
+
+      - name: Build Docker Image
+        run: |
+          IMAGE_PATH=$(nix build\
+            --print-out-paths\
+            --no-link\
+            --accept-flake-config\
+            --option system ${{ env.NIX_SYSTEM }}\
+            --extra-platforms ${{ env.NIX_SYSTEM }}\
+            .#packages.${{ env.NIX_SYSTEM }}.cace-docker)
+          echo "IMAGE_PATH=$IMAGE_PATH" >> $GITHUB_ENV
+          cat $IMAGE_PATH | docker load
+      - name: Set Up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.8"
+      - name: Install Dependencies
+        run: make dependencies
+      # Do not cache the PDK. We want to test the typical Docker flow here.
+      - name: Smoke-Test Docker Image
+        run: echo TODO
+      - name: Upload Docker Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: docker-image-${{ matrix.arch }}
+          path: ${{ env.IMAGE_PATH }}
+  test:
+    runs-on: ubuntu-22.04
+    needs: [build-linux-amd64, prepare-pdks]
+    name: Test Design ${{ matrix.test_name }} (${{ matrix.pdk }})
+    strategy:
+      fail-fast: false
+      matrix:
+        test_name: ["test"]
+        pdk: ["sky130A"]
+        pdk_family: ["sky130"]
+    steps:
+      - name: Maximize build space
+        uses: easimon/maximize-build-space@master
+        with:
+          remove-dotnet: "true"
+          remove-android: "true"
+          remove-haskell: "true"
+          remove-codeql: "true"
+          remove-docker-images: "true"
+          root-reserve-mb: 20480
+      - uses: actions/checkout@v3
+        with:
+          submodules: recursive
+      - name: Check if Git
+        run: |
+          git status || true
+          tree .git || true
+
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build with Nix
+        uses: ./.github/actions/build_nix
+        with:
+          nix_system: x86_64-linux
+          local_cache_key: derivation-${{ github.run_id }}
+          cachix_cache: ${{ vars.CACHIX_CACHE || 'openlane' }}
+
+      - name: Check Nix
+        run: |
+          sudo du -hs /nix/store/* | sort -h | tail -n 10
+          sudo tree /nix/store/*-openlane2 || true
+      - name: Cache PDKs
+        id: cache-pdks
+        uses: actions/cache@v3
+        with:
+          path: ${{ github.workspace }}/.volare-${{ matrix.pdk_family }}
+          key: cache-${{ matrix.pdk_family }}-pdk-${{ needs.prepare-pdks.outputs.opdks_rev }}
+
+      - name: Enable PDKs
+        if: steps.cache-pdks.outputs.cache-hit != 'true'
+        run: |
+          pip3 install -r ./requirements.txt
+          volare enable --pdk ${{ matrix.pdk_family }} \
+            --pdk-root ${{ github.workspace }}/.volare-${{ matrix.pdk_family }} \
+            ${{ needs.prepare-pdks.outputs.opdks_rev }}
