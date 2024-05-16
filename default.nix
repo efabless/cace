@@ -32,6 +32,7 @@
   matplotlib,
   numpy,
   pillow,
+  tkinter,
 }:
 buildPythonPackage rec {
   name = "cace";
@@ -77,6 +78,7 @@ buildPythonPackage rec {
     numpy
     pillow
     volare
+    tkinter
   ]
   ++ includedTools;
   
