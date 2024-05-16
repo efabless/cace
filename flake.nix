@@ -36,7 +36,8 @@
     ...
   }: let
     package-config = {
-      using-inputs = [nix-eda volare self];
+      current = self;
+      withInputs = [nix-eda volare];
     };
   in {
     # Helper functions
