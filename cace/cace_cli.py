@@ -113,6 +113,11 @@ def cli():
         action='store_true',
         help='prints a summary of results at the end',
     )
+    parser.add_argument(
+        '--markdown',
+        action='store_true',
+        help='writes summary.md at the end',
+    )
 
     # Parse arguments
     args = parser.parse_args()
@@ -180,6 +185,14 @@ def cli():
         print('CACE Summary of results:')
         print('------------------------')
         simulation_manager.summarize_datasheet(args.parameter)
+
+    # Print the summary to stdout
+    simulation_manager.markdown_summary()
+
+    # Print the summary to a file
+    if args.markdown:
+        with open('summary.md', 'w') as ofile:
+            simulation_manager.markdown_summary(ofile)
 
 
 if __name__ == '__main__':
