@@ -18,6 +18,8 @@ import time
 import signal
 import argparse
 
+from .__version__ import __version__
+
 from .common.simulation_manager import SimulationManager
 
 
@@ -35,6 +37,11 @@ def cli():
         file, runs simulations, and can output a modified file annotated with 
         characterization results.""",
         epilog='Online documentation at: https://cace.readthedocs.io/',
+    )
+
+    # version number
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {__version__}'
     )
 
     # positional argument

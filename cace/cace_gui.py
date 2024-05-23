@@ -34,6 +34,8 @@ import tkinter
 from tkinter import ttk
 from tkinter import filedialog
 
+from .__version__ import __version__
+
 from .gui.style import init_style
 from .gui.tksimpledialog import *
 from .gui.tooltip import *
@@ -1194,6 +1196,11 @@ def gui():
         description="""Graphical interface for the Circuit Automatic Characterization Engine,
         an analog and mixed-signal design flow system.""",
         epilog='Online documentation at: https://cace.readthedocs.io/',
+    )
+
+    # version number
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {__version__}'
     )
 
     # positional argument, optional
