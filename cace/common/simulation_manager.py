@@ -22,7 +22,12 @@ import threading
 
 from .cace_read import cace_read
 from .cace_compat import cace_compat
-from .cace_write import cace_write, cace_summary, cace_generate_html
+from .cace_write import (
+    cace_write,
+    cace_summary,
+    markdown_summary,
+    cace_generate_html,
+)
 from .physical_parameter import PhysicalParameter
 from .electrical_parameter import ElectricalParameter
 
@@ -208,193 +213,8 @@ class SimulationManager:
         """Return the datasheet"""
         return self.datasheet
 
-    def summarize_datasheet(self, pnames=[]):
-        cace_summary(self.datasheet, pnames)
-
-    def markdown_summary(self, file=None):
-        """
-        Print a brief summary to either stdout or any file that is passed.
-        The summary is formatted in Markdown and can be viewed
-        """
-        print('\n# CACE Summary\n', file=file)
-
-        print(
-            f'**general**\n\n'
-            f'- name: {self.datasheet["name"]}\n'
-            f'- description: {self.datasheet["description"]}\n'
-            f'- commit: {self.datasheet["commit"]}\n'
-            f'- PDK: {self.datasheet["PDK"]}\n'
-            f'- cace_format: {self.datasheet["cace_format"]}\n',
-            file=file,
-        )
-
-        print(
-            f'**authorship**\n\n'
-            f'- designer: {self.datasheet["authorship"]["designer"]}\n'
-            f'- company: {self.datasheet["authorship"]["company"]}\n'
-            f'- creation_date: {self.datasheet["authorship"]["creation_date"]}\n'
-            f'- license: {self.datasheet["authorship"]["license"]}\n',
-            file=file,
-        )
-
-        print('## Electrical Parameters\n', file=file)
-
-        # Spacings
-        sp = [20, 20, 9, 9, 9, 9, 9, 9, 8]
-
-        print(
-            f'| {"Parameter": ^{sp[0]}} | {"Testbench": ^{sp[1]}} | {"Min Limit": ^{sp[2]}} | {"Min Value": ^{sp[3]}} | {"Typ Limit": ^{sp[4]}} | {"Typ Value": ^{sp[5]}} | {"Max Limit": ^{sp[6]}} | {"Max Value": ^{sp[7]}} | {"Status": ^{sp[8]}} |',
-            file=file,
-        )
-        print(
-            f'| :{"-"*(sp[0]-1)} | :{"-"*(sp[1]-1)} | :{"-"*(sp[3]-2)}: | :{"-"*(sp[3]-2)}: | :{"-"*(sp[4]-2)}: | :{"-"*(sp[5]-2)}: | :{"-"*(sp[6]-2)}: | :{"-"*(sp[7]-2)}: | :{"-"*(sp[8]-2)}: |',
-            file=file,
-        )
-
-        if 'electrical_parameters' in self.datasheet:
-            for eparam in self.datasheet['electrical_parameters']:
-
-                min_limit = ''
-                typ_limit = ''
-                max_limit = ''
-
-                if 'spec' in eparam:
-                    if 'minimum' in eparam['spec']:
-                        min_limit = eparam['spec']['minimum']
-
-                        if isinstance(min_limit, list):
-                            min_limit = min_limit[0]
-
-                    if 'typical' in eparam['spec']:
-                        typ_limit = eparam['spec']['typical']
-
-                        if isinstance(typ_limit, list):
-                            typ_limit = typ_limit[0]
-
-                    if 'maximum' in eparam['spec']:
-                        max_limit = eparam['spec']['maximum']
-
-                        if isinstance(max_limit, list):
-                            max_limit = max_limit[0]
-
-                min_value = ''
-                typ_value = ''
-                max_value = ''
-
-                if 'results' in eparam:
-                    passing = True
-
-                    if 'minimum' in eparam['results']:
-                        min_value = eparam['results']['minimum'][0]
-
-                        if eparam['results']['minimum'][1] != 'pass':
-                            passing = False
-
-                    if 'typical' in eparam['results']:
-                        typ_value = eparam['results']['typical'][0]
-
-                        if eparam['results']['typical'][1] != 'pass':
-                            passing = False
-
-                    if 'maximum' in eparam['results']:
-                        max_value = eparam['results']['maximum'][0]
-
-                        if eparam['results']['maximum'][1] != 'pass':
-                            passing = False
-
-                testbench = ''
-
-                status = 'Pass ✅' if passing else 'Fail ❌'
-
-                if eparam['status'] == 'skip':
-                    status = 'Skip 🟧'
-
-                if 'simulate' in eparam:
-                    testbench = eparam['simulate']['template']
-
-                print(
-                    f'| {eparam["name"]: <{sp[0]}} | {testbench: <{sp[1]}} | {min_limit: ^{sp[2]}} | {min_value: ^{sp[3]}} | {typ_limit: ^{sp[4]}} | {typ_value: ^{sp[5]}} | {max_limit: ^{sp[6]}} | {max_value: ^{sp[7]}} | {status: ^{sp[8]-1}} |',
-                    file=file,
-                )
-
-        print('\n## Physical Parameters\n', file=file)
-
-        print(
-            f'| {"Parameter": ^{sp[0]}} | {"Testbench": ^{sp[1]}} | {"Min Limit": ^{sp[2]}} | {"Min Value": ^{sp[3]}} | {"Typ Limit": ^{sp[4]}} | {"Typ Value": ^{sp[5]}} | {"Max Limit": ^{sp[6]}} | {"Max Value": ^{sp[7]}} | {"Status": ^{sp[8]}} |',
-            file=file,
-        )
-        print(
-            f'| :{"-"*(sp[0]-1)} | :{"-"*(sp[1]-1)} | :{"-"*(sp[3]-2)}: | :{"-"*(sp[3]-2)}: | :{"-"*(sp[4]-2)}: | :{"-"*(sp[5]-2)}: | :{"-"*(sp[6]-2)}: | :{"-"*(sp[7]-2)}: | :{"-"*(sp[8]-2)}: |',
-            file=file,
-        )
-
-        if 'physical_parameters' in self.datasheet:
-            for pparam in self.datasheet['physical_parameters']:
-
-                min_limit = ''
-                typ_limit = ''
-                max_limit = ''
-
-                if 'spec' in pparam:
-                    if 'minimum' in pparam['spec']:
-                        min_limit = pparam['spec']['minimum']
-
-                        if isinstance(min_limit, list):
-                            min_limit = min_limit[0]
-
-                    if 'typical' in pparam['spec']:
-                        typ_limit = pparam['spec']['typical']
-
-                        if isinstance(typ_limit, list):
-                            typ_limit = typ_limit[0]
-
-                    if 'maximum' in pparam['spec']:
-                        max_limit = pparam['spec']['maximum']
-
-                        if isinstance(max_limit, list):
-                            max_limit = max_limit[0]
-
-                min_value = ''
-                typ_value = ''
-                max_value = ''
-
-                if 'results' in pparam:
-                    passing = True
-
-                    if 'minimum' in pparam['results']:
-                        min_value = pparam['results']['minimum'][0]
-
-                        if pparam['results']['minimum'][1] != 'pass':
-                            passing = False
-
-                    if 'typical' in pparam['results']:
-                        typ_value = pparam['results']['typical'][0]
-
-                        if pparam['results']['typical'][1] != 'pass':
-                            passing = False
-
-                    if 'maximum' in pparam['results']:
-                        max_value = pparam['results']['maximum'][0]
-
-                        if pparam['results']['maximum'][1] != 'pass':
-                            passing = False
-
-                testbench = ''
-
-                status = 'Pass ✅' if passing else 'Fail ❌'
-
-                if pparam['status'] == 'skip':
-                    status = 'Skip 🟧'
-
-                if 'simulate' in pparam:
-                    testbench = pparam['simulate']['template']
-
-                print(
-                    f'| {pparam["name"]: <{sp[0]}} | {testbench: <{sp[1]}} | {min_limit: ^{sp[2]}} | {min_value: ^{sp[3]}} | {typ_limit: ^{sp[4]}} | {typ_value: ^{sp[5]}} | {max_limit: ^{sp[6]}} | {max_value: ^{sp[7]}} | {status: ^{sp[8]-1}} |',
-                    file=file,
-                )
-
-        print('\n', file=file)
+    def summarize_datasheet(self, file=None):
+        markdown_summary(self.datasheet, file)
 
     def generate_html(self):
         debug = self.get_runtime_options('debug')

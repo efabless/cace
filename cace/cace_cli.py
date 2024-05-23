@@ -110,13 +110,7 @@ def cli():
     )
     parser.add_argument(
         '--summary',
-        action='store_true',
-        help='prints a summary of results at the end',
-    )
-    parser.add_argument(
-        '--markdown',
-        action='store_true',
-        help='writes summary.md at the end',
+        help='output path for the summary e.g. final/summary.md',
     )
 
     # Parse arguments
@@ -157,7 +151,7 @@ def cli():
             print(f'Running simulation for: {args.parameter}')
 
         for pname in args.parameter:
-            simulation_manager.queue_simulation(pname)
+            simulation_manager.queue_parameter(pname)
     # Queue all parameters
     else:
         pnames = simulation_manager.get_all_pnames()
@@ -180,19 +174,22 @@ def cli():
     if args.outfile:
         simulation_manager.save_datasheet(args.outfile)
 
-    if args.summary:
-        print('')
-        print('CACE Summary of results:')
-        print('------------------------')
-        simulation_manager.summarize_datasheet(args.parameter)
-
     # Print the summary to stdout
-    simulation_manager.markdown_summary()
+    simulation_manager.summarize_datasheet()
 
     # Print the summary to a file
-    if args.markdown:
-        with open('summary.md', 'w') as ofile:
-            simulation_manager.markdown_summary(ofile)
+    if args.summary:
+        dirname = os.path.dirname(args.summary) or os.getcwd()
+        filename = os.path.basename(args.summary)
+
+        # Check whether path to file exists
+        if os.path.isdir(dirname):
+            with open(os.path.join(dirname, filename), 'w') as ofile:
+                simulation_manager.summarize_datasheet(ofile)
+        else:
+            print(
+                f"Couldn't write summary, invalid path: {os.path.dirname(args.summary)}"
+            )
 
 
 if __name__ == '__main__':
