@@ -1199,7 +1199,9 @@ def gui():
     )
 
     # version number
-    parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {__version__}'
+    )
 
     # positional argument, optional
     parser.add_argument(

@@ -22,6 +22,7 @@ from .__version__ import __version__
 
 from .common.simulation_manager import SimulationManager
 
+
 def cli():
     """
     Read a text file in CACE (ASCII) format 4.0, run
@@ -39,7 +40,9 @@ def cli():
     )
 
     # version number
-    parser.add_argument('--version', action='version', version=f'%(prog)s {__version__}')
+    parser.add_argument(
+        '--version', action='version', version=f'%(prog)s {__version__}'
+    )
 
     # positional argument
     parser.add_argument(
