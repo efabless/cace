@@ -22,7 +22,12 @@ import threading
 
 from .cace_read import cace_read
 from .cace_compat import cace_compat
-from .cace_write import cace_write, cace_summary, cace_generate_html
+from .cace_write import (
+    cace_write,
+    cace_summary,
+    markdown_summary,
+    cace_generate_html,
+)
 from .physical_parameter import PhysicalParameter
 from .electrical_parameter import ElectricalParameter
 
@@ -208,8 +213,8 @@ class SimulationManager:
         """Return the datasheet"""
         return self.datasheet
 
-    def summarize_datasheet(self, pnames=[]):
-        cace_summary(self.datasheet, pnames)
+    def summarize_datasheet(self, file=None):
+        markdown_summary(self.datasheet, file)
 
     def generate_html(self):
         debug = self.get_runtime_options('debug')

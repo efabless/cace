@@ -1,3 +1,14 @@
+# 2.2.4
+
+## Common
+
+- Add `markdown_summary`
+
+## CLI
+
+- Call `markdown_summary` at the end and print to stdout
+- Change `--summary` argument to print to file
+
 # 2.2.3
 
 ## Common

@@ -880,6 +880,303 @@ def cace_summarize_result(param, result):
     print('')
 
 
+def markdown_summary(datasheet, file=None):
+    """
+    Print a brief summary to either stdout or any file that is passed.
+    The summary is formatted in Markdown and can be viewed with any
+    Markdown viewer
+    """
+
+    # Table spacings
+    sp = [20, 20, 10, 12, 10, 12, 10, 12, 8]
+
+    skip_msg = 'Skip 🟧'
+    fail_msg = 'Fail ❌'
+    pass_msg = 'Pass ✅'
+
+    print('\n# CACE Summary\n', file=file)
+
+    print(
+        f'**general**\n\n'
+        f'- name: {datasheet["name"]}\n'
+        f'- description: {datasheet["description"]}\n'
+        f'- commit: {datasheet["commit"]}\n'
+        f'- PDK: {datasheet["PDK"]}\n'
+        f'- cace_format: {datasheet["cace_format"]}\n',
+        file=file,
+    )
+
+    print(
+        f'**authorship**\n\n'
+        f'- designer: {datasheet["authorship"]["designer"]}\n'
+        f'- company: {datasheet["authorship"]["company"]}\n'
+        f'- creation_date: {datasheet["authorship"]["creation_date"]}\n'
+        f'- license: {datasheet["authorship"]["license"]}\n',
+        file=file,
+    )
+
+    print(
+        f'**netlist source**: {datasheet["runtime_options"]["netlist_source"]}\n',
+        file=file,
+    )
+
+    print('## Electrical Parameters\n', file=file)
+
+    # Print the table headings
+    print(
+        f'| {"Parameter": ^{sp[0]}} '
+        f'| {"Testbench": ^{sp[1]}} '
+        f'| {"Min Limit": ^{sp[2]}} '
+        f'| {"Min Value": ^{sp[3]}} '
+        f'| {"Typ Target": ^{sp[4]}} '
+        f'| {"Typ Value": ^{sp[5]}} '
+        f'| {"Max Limit": ^{sp[6]}} '
+        f'| {"Max Value": ^{sp[7]}} '
+        f'| {"Status": ^{sp[8]}} |',
+        file=file,
+    )
+    # Print the separators
+    print(
+        f'| :{"-"*(sp[0]-1)} '
+        f'| :{"-"*(sp[1]-1)} '
+        f'| {"-"*(sp[2]-1)}: '
+        f'| {"-"*(sp[3]-1)}: '
+        f'| {"-"*(sp[4]-1)}: '
+        f'| {"-"*(sp[5]-1)}: '
+        f'| {"-"*(sp[6]-1)}: '
+        f'| {"-"*(sp[7]-1)}: '
+        f'| :{"-"*(sp[8]-2)}: |',
+        file=file,
+    )
+
+    if 'electrical_parameters' in datasheet:
+        for eparam in datasheet['electrical_parameters']:
+
+            # Get the unit
+            unit = eparam['unit'] if 'unit' in eparam else None
+
+            limits = {'minimum': '', 'typical': '', 'maximum': ''}
+
+            # Get the limits from the spec
+            if 'spec' in eparam:
+                for spec_type in ['minimum', 'typical', 'maximum']:
+                    if spec_type in eparam['spec']:
+                        limits[spec_type] = eparam['spec'][spec_type]
+
+                        if isinstance(limits[spec_type], list):
+                            limits[spec_type] = limits[spec_type][0]
+
+            values = {'minimum': '', 'typical': '', 'maximum': ''}
+
+            # Get the results
+            passing = None
+            if 'results' in eparam:
+                passing = True
+
+                for result_type in ['minimum', 'typical', 'maximum']:
+                    if result_type in eparam['results']:
+                        values[result_type] = eparam['results'][result_type][0]
+
+                        # Any fail fails the whole parameter
+                        if eparam['results'][result_type][1] != 'pass':
+                            passing = False
+
+            # Get the status message
+            status = pass_msg if passing else fail_msg
+
+            if passing == None:
+                status = skip_msg
+
+            if 'status' in eparam and eparam['status'] == 'skip':
+                status = skip_msg
+
+            # Get the testbench
+            testbench = ''
+            if 'simulate' in eparam:
+                testbench = eparam['simulate']['template']
+
+            # Don't print any unit if empty or any
+            no_unit = ['', 'any']
+
+            # Print the row for the parameter
+            parameter_str = eparam['name']
+            testbench_str = testbench
+            min_limit_str = (
+                f'{limits["minimum"]} {unit}'
+                if unit and not limits['minimum'] in no_unit
+                else limits['minimum']
+            )
+            min_value_str = (
+                f'{values["minimum"]} {unit}'
+                if unit and not values['minimum'] in no_unit
+                else values['minimum']
+            )
+            typ_limit_str = (
+                f'{limits["typical"]} {unit}'
+                if unit and not limits['typical'] in no_unit
+                else limits['typical']
+            )
+            typ_value_str = (
+                f'{values["typical"]} {unit}'
+                if unit and not values['typical'] in no_unit
+                else values['typical']
+            )
+            max_limit_str = (
+                f'{limits["maximum"]} {unit}'
+                if unit and not limits['maximum'] in no_unit
+                else limits['maximum']
+            )
+            max_value_str = (
+                f'{values["maximum"]} {unit}'
+                if unit and not values['maximum'] in no_unit
+                else values['maximum']
+            )
+            status_str = status
+
+            print(
+                f'| {parameter_str: <{sp[0]}} '
+                f'| {testbench_str: <{sp[1]}} '
+                f'| {min_limit_str: >{sp[2]}} '
+                f'| {min_value_str: >{sp[3]}} '
+                f'| {typ_limit_str: >{sp[4]}} '
+                f'| {typ_value_str: >{sp[5]}} '
+                f'| {max_limit_str: >{sp[6]}} '
+                f'| {max_value_str: >{sp[7]}} '
+                f'| {status_str: ^{sp[8]-1}} |',
+                file=file,
+            )
+
+    print('\n## Physical Parameters\n', file=file)
+
+    # Print the table headings
+    print(
+        f'| {"Parameter": ^{sp[0]}} '
+        f'| {"Tool": ^{sp[1]}} '
+        f'| {"Min Limit": ^{sp[2]}} '
+        f'| {"Min Value": ^{sp[3]}} '
+        f'| {"Typ Target": ^{sp[4]}} '
+        f'| {"Typ Value": ^{sp[5]}} '
+        f'| {"Max Limit": ^{sp[6]}} '
+        f'| {"Max Value": ^{sp[7]}} '
+        f'| {"Status": ^{sp[8]}} |',
+        file=file,
+    )
+    # Print the separators
+    print(
+        f'| :{"-"*(sp[0]-1)} '
+        f'| :{"-"*(sp[1]-1)} '
+        f'| {"-"*(sp[2]-1)}: '
+        f'| {"-"*(sp[3]-1)}: '
+        f'| {"-"*(sp[4]-1)}: '
+        f'| {"-"*(sp[5]-1)}: '
+        f'| {"-"*(sp[6]-1)}: '
+        f'| {"-"*(sp[7]-1)}: '
+        f'| :{"-"*(sp[8]-2)}: |',
+        file=file,
+    )
+
+    if 'physical_parameters' in datasheet:
+        for pparam in datasheet['physical_parameters']:
+
+            # Get the unit
+            unit = pparam['unit'] if 'unit' in pparam else None
+
+            limits = {'minimum': '', 'typical': '', 'maximum': ''}
+
+            # Get the limits from the spec
+            if 'spec' in pparam:
+                for spec_type in ['minimum', 'typical', 'maximum']:
+                    if spec_type in pparam['spec']:
+                        limits[spec_type] = pparam['spec'][spec_type]
+
+                        if isinstance(limits[spec_type], list):
+                            limits[spec_type] = limits[spec_type][0]
+
+            values = {'minimum': '', 'typical': '', 'maximum': ''}
+
+            # Get the results
+            passing = None
+            if 'results' in pparam:
+                passing = True
+
+                for result_type in ['minimum', 'typical', 'maximum']:
+                    if result_type in pparam['results']:
+                        values[result_type] = pparam['results'][result_type][0]
+
+                        # Any fail fails the whole parameter
+                        if pparam['results'][result_type][1] != 'pass':
+                            passing = False
+
+            # Get the status message
+            status = pass_msg if passing else fail_msg
+
+            if passing == None:
+                status = skip_msg
+
+            if 'status' in pparam and pparam['status'] == 'skip':
+                status = skip_msg
+
+            # Get the tool
+            tool = ''
+            if 'evaluate' in pparam:
+                tool = pparam['evaluate']['tool']
+                if isinstance(tool, list):
+                    tool = tool[0]
+
+            # Don't print any unit if empty or any
+            no_unit = ['', 'any']
+
+            # Print the row for the parameter
+            parameter_str = pparam['name']
+            tool_str = tool
+            min_limit_str = (
+                f'{limits["minimum"]} {unit}'
+                if unit and not limits['minimum'] in no_unit
+                else limits['minimum']
+            )
+            min_value_str = (
+                f'{values["minimum"]} {unit}'
+                if unit and not values['minimum'] in no_unit
+                else values['minimum']
+            )
+            typ_limit_str = (
+                f'{limits["typical"]} {unit}'
+                if unit and not limits['typical'] in no_unit
+                else limits['typical']
+            )
+            typ_value_str = (
+                f'{values["typical"]} {unit}'
+                if unit and not values['typical'] in no_unit
+                else values['typical']
+            )
+            max_limit_str = (
+                f'{limits["maximum"]} {unit}'
+                if unit and not limits['maximum'] in no_unit
+                else limits['maximum']
+            )
+            max_value_str = (
+                f'{values["maximum"]} {unit}'
+                if unit and not values['maximum'] in no_unit
+                else values['maximum']
+            )
+            status_str = status
+
+            print(
+                f'| {parameter_str: <{sp[0]}} '
+                f'| {tool_str: <{sp[1]}} '
+                f'| {min_limit_str: >{sp[2]}} '
+                f'| {min_value_str: >{sp[3]}} '
+                f'| {typ_limit_str: >{sp[4]}} '
+                f'| {typ_value_str: >{sp[5]}} '
+                f'| {max_limit_str: >{sp[6]}} '
+                f'| {max_value_str: >{sp[7]}} '
+                f'| {status_str: ^{sp[8]-1}} |',
+                file=file,
+            )
+
+    print('', file=file)
+
+
 # ---------------------------------------------------------------
 # cace_summary
 #
