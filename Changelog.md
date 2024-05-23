@@ -1,3 +1,13 @@
+# 2.2.5
+
+## CLI
+
+- Add `--version` argument
+
+## GUI
+
+- Add `--version` argument
+
 # 2.2.4
 
 ## Common
