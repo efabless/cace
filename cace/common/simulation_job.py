@@ -39,6 +39,7 @@ class SimulationJob(threading.Thread):
         self.spiceproc = None
 
         super().__init__(*args, **kwargs)
+        self._return = None
 
     def cancel(self, cancel_cb):
         # print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
@@ -112,7 +113,13 @@ class SimulationJob(threading.Thread):
                 if os.path.isfile(outfilename):
                     os.remove(outfilename)
 
-        return tbzero if simulations > 0 else None
+        # For when the join function is called
+        self._return = tbzero if simulations > 0 else None
+        return self._return
+
+    def join(self, *args):
+        threading.Thread.join(self, *args)
+        return self._return
 
     def collate_after_simulation(self, param, collnames, testbenchlist, debug):
         # Sanity check:  If there is only one testbench, then there is
