@@ -40,6 +40,9 @@ class ConsoleText(tkinter.Text):
         def write(self, str):
             self.text_area.write(str, True)
 
+        def flush(self):
+            pass
+
     def __init__(self, master=None, cnf={}, **kw):
         """See the __init__ for Tkinter.Text."""
 

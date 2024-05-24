@@ -1,3 +1,9 @@
+# 2.2.6
+
+## Common
+
+- Restored functionality of `sequential` runtime option
+
 # 2.2.5
 
 ## CLI

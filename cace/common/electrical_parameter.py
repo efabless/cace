@@ -90,34 +90,55 @@ class ElectricalParameter(threading.Thread):
 
         self.cancel_point()
 
-        with ThreadPool(processes=max(cpu_count() - 1, 1)) as mypool:
+        # Run simulation jobs sequentially
+        if self.runtime_options['sequential']:
 
-            # Start the jobs
-            jobs = []
             for sim in self.queued_jobs:
                 print(f'{self.param["name"]}: Starting task')
-                jobs.append(mypool.apply_async(sim.run, callback=self.cb_sims))
 
-            # Wait for completion
-            while 1:
+                # Start simulation job as single thread
+                sim.start()
+                presult = sim.join()
+
                 self.cancel_point()
 
-                # Check if all tasks have completed
-                if all([job.ready() for job in jobs]):
-                    print(f'{self.param["name"]}: All tasks done')
-                    break
+                self.new_testbenches[presult['sequence']] = presult
 
-                time.sleep(0.1)
+                if self.cb_sims:
+                    self.cb_sims()
 
-            # Get the restuls
-            for job in jobs:
-                presult = job.get()
+        # Run simulation jobs in parallel
+        else:
+            with ThreadPool(processes=max(cpu_count() - 1, 1)) as mypool:
 
-                if presult:
-                    # TODO make testbench name the key for easier access
-                    self.new_testbenches[presult['sequence']] = presult
+                # Start the jobs
+                jobs = []
+                for sim in self.queued_jobs:
+                    print(f'{self.param["name"]}: Starting task')
+                    jobs.append(
+                        mypool.apply_async(sim.run, callback=self.cb_sims)
+                    )
 
-            jobs = []
+                # Wait for completion
+                while 1:
+                    self.cancel_point()
+
+                    # Check if all tasks have completed
+                    if all([job.ready() for job in jobs]):
+                        print(f'{self.param["name"]}: All tasks done')
+                        break
+
+                    time.sleep(0.1)
+
+                # Get the restuls
+                for job in jobs:
+                    presult = job.get()
+
+                    if presult:
+                        # TODO make testbench name the key for easier access
+                        self.new_testbenches[presult['sequence']] = presult
+
+                jobs = []
 
         self.cancel_point()
 
