@@ -49,7 +49,6 @@ from .gui.simhints import SimHints
 from .gui.rowwidget import RowWidget
 
 from .common.cace_read import *
-from .common.cace_compat import *
 from .common.cace_write import *
 from .common.simulation_manager import SimulationManager
 
@@ -573,8 +572,8 @@ class CACEGui(ttk.Frame):
             multiple=False,
             initialdir=os.getcwd(),
             filetypes=(
-                ('Text file', '*.txt'),
-                ('JSON File', '*.json'),
+                ('YAML File', '*.yaml'),
+                ('Text File', '*.txt'),
                 ('All Files', '*.*'),
             ),
             title='Find a datasheet.',
@@ -878,14 +877,16 @@ class CACEGui(ttk.Frame):
     def save_manual(self, value={}):
         # Set initialdir to the project where datasheet is located
         dsparent = os.path.split(self.filename)[0]
+        filepath = self.simulation_manager.get_runtime_options('filename')
 
         datasheet_path = filedialog.asksaveasfilename(
             initialdir=dsparent,
             confirmoverwrite=True,
-            defaultextension='.txt',
+            initialfile=os.path.splitext(os.path.basename(filepath))[0],
+            defaultextension='.yaml',
             filetypes=(
-                ('Text file', '*.txt'),
-                ('JSON File', '*.json'),
+                ('YAML File', '*.yaml'),
+                ('Text File', '*.txt'),
                 ('All Files', '*.*'),
             ),
             title='Select filename for saved datasheet',
@@ -903,8 +904,8 @@ class CACEGui(ttk.Frame):
             multiple=False,
             initialdir=dsparent,
             filetypes=(
-                ('Text file', '*.txt'),
-                ('JSON File', '*.json'),
+                ('YAML File', '*.yaml'),
+                ('Text File', '*.txt'),
                 ('All Files', '*.*'),
             ),
             title='Find a datasheet',
@@ -956,96 +957,6 @@ class CACEGui(ttk.Frame):
         # button callback has an argument that needs to be handled even
         # if it is just discarded.
         self.create_datasheet_view()
-
-    def load_results(self, value={}):
-
-        # Check if datasheet_save exists and is more recent than the
-        # latest design netlist.  If so, load it;  otherwise, not.
-        # NOTE:  Name of .spice file comes from the project 'name'
-        # in the datasheet.
-
-        [dspath, dsname] = os.path.split(self.filename)
-        try:
-            dsheet = self.simulation_manager.get_datasheet()   # TODO ?
-        except KeyError:
-            return
-
-        if dspath == '':
-            dspath = '.'
-
-        dsroot = dsheet['name']
-
-        # Remove any existing results from the datasheet records
-        self.clear_results(dsheet)
-
-        # Also must be more recent than datasheet
-        jtime = os.path.getmtime(self.filename)
-
-        # dsroot = os.path.splitext(dsname)[0]
-
-        paths = dsheet['paths']
-        dsdir = os.path.join(dspath, paths['root'], paths['simulation'])
-
-        if not os.path.exists(dsdir):
-            # Try 'spice' as a subdirectory of the datasheet directory as a
-            # fallback.
-            dsdir = dspath + '/spice'
-            if not os.path.exists(dsdir):
-                print('Error:  Cannot find directory spice/ in path ' + dspath)
-
-        # TODO rework
-        if self.origin.get() == 'Layout Extracted':
-            spifile = dsdir + '/layout/' + dsroot + '.spice'
-        if self.origin.get() == 'C Extracted':
-            spifile = dsdir + '/pex/' + dsroot + '.spice'
-        elif self.origin.get() == 'R-C Extracted':
-            spifile = dsdir + '/rcx/' + dsroot + '.spice'
-        else:
-            spifile = dsdir + '/' + dsroot + '.spice'
-
-        dsdir = dspath + '/ngspice'
-        savefile = dsdir + '/datasheet_save.json'
-
-        if os.path.exists(savefile):
-            savetime = os.path.getmtime(savefile)
-
-        if os.path.exists(spifile):
-            spitime = os.path.getmtime(spifile)
-
-            if os.path.exists(savefile):
-                if savetime > spitime and savetime > jtime:
-                    self.annotate('save', 0)
-                    print('Characterization results loaded.')
-                    # print('(' + savefile + ' timestamp = ' + str(savetime) + '; ' + self.datasheet + ' timestamp = ' + str(jtime))
-                else:
-                    print('Saved datasheet is out-of-date, not loading')
-            else:
-                print('Datasheet file ' + savefile)
-                print('No saved datasheet file, nothing to pre-load')
-        else:
-            print('No netlist file ' + spifile + '!')
-
-        # Remove outdated datasheet.json and datasheet_anno.json to prevent
-        # them from overwriting characterization document entries
-
-        if os.path.exists(savefile):
-            if savetime < jtime:
-                print('Removing outdated save file ' + savefile)
-                os.remove(savefile)
-
-        savefile = dsdir + '/datasheet_anno.json'
-        if os.path.exists(savefile):
-            savetime = os.path.getmtime(savefile)
-            if savetime < jtime:
-                print('Removing outdated results file ' + savefile)
-                os.remove(savefile)
-
-        savefile = dsdir + '/datasheet.json'
-        if os.path.exists(savefile):
-            savetime = os.path.getmtime(savefile)
-            if savetime < jtime:
-                print('Removing outdated results file ' + savefile)
-                os.remove(savefile)
 
     def create_datasheet_view(self):
         """Create the datasheet view from scratch"""
@@ -1207,7 +1118,7 @@ def gui():
     parser.add_argument(
         'datasheet',
         nargs='?',
-        help='text or JSON file with the specification of the circuit',
+        help='input specification datasheet (YAML)',
     )
 
     # on/off flag, optional
@@ -1215,7 +1126,7 @@ def gui():
         '-t',
         '--terminal',
         action='store_true',
-        help='generate all output to the terminal, not the window',
+        help='write all output to the terminal, not the window',
     )
 
     # Parse arguments

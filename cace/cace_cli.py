@@ -44,13 +44,17 @@ def cli():
         '--version', action='version', version=f'%(prog)s {__version__}'
     )
 
-    # positional argument
+    # positional argument, optional
     parser.add_argument(
-        'datasheet', nargs='?', help='format 4.0 ASCII CACE file'
+        'datasheet_in', nargs='?', help='input specification datasheet (YAML)'
     )
 
     # positional argument, optional
-    parser.add_argument('outfile', nargs='?', help='name of the file to write')
+    parser.add_argument(
+        'datasheet_out',
+        nargs='?',
+        help='output specification datasheet (YAML)',
+    )
 
     parser.add_argument(
         '-s',
@@ -83,12 +87,6 @@ def cli():
         '--force',
         action='store_true',
         help='forces new regeneration of all netlists',
-    )
-    parser.add_argument(
-        '-j',
-        '--json',
-        action='store_true',
-        help='generates an output file in JSON format',
     )
     parser.add_argument(
         '-k',
@@ -136,7 +134,6 @@ def cli():
     # Set runtime options
     simulation_manager.set_runtime_options('debug', args.debug)
     simulation_manager.set_runtime_options('force', args.force)
-    simulation_manager.set_runtime_options('json', args.json)
     simulation_manager.set_runtime_options('keep', args.keep)
     simulation_manager.set_runtime_options('noplot', args.no_plot)
     simulation_manager.set_runtime_options('nosim', args.no_simulation)

@@ -62,8 +62,8 @@ def find_limits(spectype, spec, results, units, debug=False):
         target = spec[0]
         penalty = spec[1] if len(spec) > 1 else 'pass'
         calcrec = spec[2] if len(spec) > 2 else spectype
-    elif isinstance(spec, str):
-        target = spec
+    else:
+        target = str(spec)
         penalty = 'pass'
         calcrec = spectype
 
