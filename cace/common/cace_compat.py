@@ -68,7 +68,7 @@ def cace_compat(datasheet, debug=False):
     if 'foundry' not in datasheet:
         # Pick up foundry name using PDK_ROOT
         pdk_root = get_pdk_root()
-        if pdk_root:
+        if pdk_root and 'PDK' in datasheet:
             pdk_config_file = (
                 pdk_root + '/' + datasheet['PDK'] + '/.config/nodeinfo.json'
             )

@@ -1301,7 +1301,7 @@ def cace_gensim(dataset, param):
     runtime_options = dataset['runtime_options']
     debug = runtime_options['debug']
     source = runtime_options['netlist_source']
-    pdkname = dataset['PDK']
+    pdkname = dataset.get('PDK', "Unknown")
 
     # Grab values held in 'paths'
     paths = dataset['paths']
