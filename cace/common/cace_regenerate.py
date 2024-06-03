@@ -455,6 +455,14 @@ def regenerate_rcx_netlist(dsheet):
         gdspath = None
         gdsfilename = None
 
+    # Schematic-captured netlist
+    if 'netlist' in paths:
+        schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
+        schem_netlist = os.path.join(schem_netlist_path, netlistname)
+    else:
+        schem_netlist_path = None
+        schem_netlist = None
+
     # Layout-extracted netlist with R-C parasitics
     if 'netlist' in paths:
         rcx_netlist_path = os.path.join(paths['netlist'], 'rcx')
@@ -480,14 +488,14 @@ def regenerate_rcx_netlist(dsheet):
     if need_rcx_extract:
         # Layout parasitic netlist needs regenerating.  Check for magic layout.
 
-        if not magicfilename or not os.path.isfile(magicfilename):
-            print('Error:  No netlist or layout for project ' + dname + '.')
+        if (not magicfilename or not os.path.isfile(magicfilename)) and (
+            not gdsfilename or not os.path.isfile(gdsfilename)
+        ):
+            print(f'Error: No netlist or layout for project {dname}. ', end='')
             if magicfilename:
-                print(
-                    '(layout master file ' + magicfilename + ' not found.)\n'
-                )
+                print(f'(layout master file {magicfilename} not found.)\n')
             else:
-                print('(layout master file ' + gdsfilename + ' not found.)\n')
+                print(f'(layout master file {gdsfilename} not found.)\n')
             return False
 
         # Check for parasitic netlist directory
@@ -527,11 +535,13 @@ def regenerate_rcx_netlist(dsheet):
             env=newenv,
             universal_newlines=True,
         )
-        if magicfilename:
+        if magicfilename and os.path.isfile(magicfilename):
             mproc.stdin.write('load ' + magicfilename + '\n')
         else:
             mproc.stdin.write('gds read ' + gdsfilename + '\n')
             mproc.stdin.write('load ' + dname + '\n')
+            # Use readspice to get the port order
+            mproc.stdin.write('readspice ' + schem_netlist + '\n')
         mproc.stdin.write('select top cell\n')
         mproc.stdin.write('expand\n')
         mproc.stdin.write('flatten ' + dname + '_flat\n')
@@ -563,7 +573,7 @@ def regenerate_rcx_netlist(dsheet):
             )
 
         if need_rcx_extract and not os.path.isfile(rcx_netlist):
-            print('Error:  No netlist with parasitics extracted from magic.')
+            print('Error: No netlist with parasitics extracted from magic.')
 
         # Remove the temporary directory of extraction files "cace_extfiles"
         try:
@@ -628,6 +638,14 @@ def regenerate_lvs_netlist(dsheet, pex=False):
         gdspath = None
         gdsfilename = None
 
+    # Schematic-captured netlist
+    if 'netlist' in paths:
+        schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
+        schem_netlist = os.path.join(schem_netlist_path, netlistname)
+    else:
+        schem_netlist_path = None
+        schem_netlist = None
+
     if pex == True:
         nettype = 'pex'
     else:
@@ -656,14 +674,16 @@ def regenerate_lvs_netlist(dsheet, pex=False):
         print('Forcing regeneration of layout-extracted netlist.')
 
         # Layout LVS netlist needs regenerating.  Check for magic layout.
-        if not magicfilename or not os.path.isfile(magicfilename):
-            print('Error:  No netlist or layout for project ' + dname + '.')
+        if (not magicfilename or not os.path.isfile(magicfilename)) and (
+            not gdsfilename or not os.path.isfile(gdsfilename)
+        ):
+            print(
+                f'Error:  No netlist or layout for project {dname}. ', end=''
+            )
             if magicfilename:
-                print(
-                    '(layout master file ' + magicfilename + ' not found.)\n'
-                )
+                print(f'(layout master file {magicfilename} not found.)')
             else:
-                print('(layout master file ' + gdsfilename + ' not found.)\n')
+                print(f'(layout master file {gdsfilename} not found.)')
             return False
 
         # Check for LVS netlist directory
@@ -705,11 +725,13 @@ def regenerate_lvs_netlist(dsheet, pex=False):
             env=newenv,
             universal_newlines=True,
         )
-        if magicfilename:
+        if magicfilename and os.path.isfile(magicfilename):
             mproc.stdin.write('load ' + magicfilename + '\n')
         else:
             mproc.stdin.write('gds read ' + gdsfilename + '\n')
             mproc.stdin.write('load ' + dname + '\n')
+            # Use readspice to get the port order
+            mproc.stdin.write('readspice ' + schem_netlist + '\n')
         mproc.stdin.write('select top cell\n')
         mproc.stdin.write('expand\n')
         mproc.stdin.write('extract path cace_extfiles\n')
