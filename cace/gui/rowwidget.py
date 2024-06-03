@@ -296,9 +296,9 @@ class RowWidget:
                 if 'unit' in self.param and not binrex.match(
                     self.param['unit']
                 ):
-                    targettext = pmin + ' ' + self.param['unit']
+                    targettext = f'{pmin} {self.param["unit"]}'
                 else:
-                    targettext = pmin
+                    targettext = str(pmin)
                 min_limit = targettext
 
         return min_limit
@@ -378,9 +378,9 @@ class RowWidget:
                 if 'unit' in self.param and not binrex.match(
                     self.param['unit']
                 ):
-                    targettext = ptyp + ' ' + self.param['unit']
+                    targettext = f'{ptyp} {self.param["unit"]}'
                 else:
-                    targettext = ptyp
+                    targettext = str(ptyp)
                 typ_limit = targettext
 
         return typ_limit
@@ -460,9 +460,9 @@ class RowWidget:
                 if 'unit' in self.param and not binrex.match(
                     self.param['unit']
                 ):
-                    targettext = pmax + ' ' + self.param['unit']
+                    targettext = f'{pmax} {self.param["unit"]}'
                 else:
-                    targettext = pmax
+                    targettext = str(pmax)
                 max_limit = targettext
 
         return max_limit

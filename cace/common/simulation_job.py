@@ -365,6 +365,8 @@ class SimulationJob(threading.Thread):
         # to the first entry.  This makes the simulation['format'] incorrect,
         # and other routines (like cace_makeplot) will need to adjust it.
 
+        print(simoutputfile)
+
         if os.path.isfile(simoutputfile):
             result = 1
             with open(simoutputfile, 'r') as ifile:

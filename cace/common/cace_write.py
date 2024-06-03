@@ -23,8 +23,7 @@ import json
 import datetime
 import subprocess
 
-from .cace_compat import *
-from .cace_regenerate import printwarn
+from .cace_regenerate import printwarn, get_pdk_root
 
 # ---------------------------------------------------------------
 # generate_svg
@@ -1545,6 +1544,7 @@ def cace_output_known_dict(dictname, itemdict, outlines, doruntime, indent):
             'simulation',
             'plots',
             'logs',
+            'reports',
         ]
 
     elif dictname == 'dependencies':
@@ -1789,80 +1789,3 @@ def cace_write(datasheet, filename, doruntime=False):
         return 1
 
     return 0
-
-
-# ------------------------------------------------------------------
-# Print usage statement
-# ------------------------------------------------------------------
-
-
-def usage():
-    print('Usage:')
-    print('')
-    print('cace_write.py <filename> <outfilename>')
-    print('  Where <filename> is a pre-format 4.0 CACE JSON file.')
-    print('  and <outfilename> is the name for the output text file.')
-    print('  If <outfilename> ends in .html, then HTML is generated.')
-    print('')
-    print('When run from the top level, this program parses a CACE')
-    print('format JSON file and outputs a CACE format 4.0 text file.')
-
-
-# ------------------------------------------------------------------
-# If called from the command line, this can be used to read in a
-# pre-format 4.0 CACE JSON file and write out a CACE format 4.0
-# text file.  It does exactly the same thing as the cace_compat.py
-# script when run from the command line.
-# ------------------------------------------------------------------
-
-if __name__ == '__main__':
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item)
-        else:
-            arguments.append(item)
-
-    debug = False
-    for item in options:
-        if item == '-debug':
-            debug = True
-
-    result = 0
-
-    if len(arguments) == 2 and len(options) == 0:
-        infilename = arguments[0]
-        outfilename = arguments[1]
-        if not os.path.isfile(infilename):
-            print('Error:  No such file ' + infilename)
-            sys.exit(1)
-
-        with open(infilename, 'r') as ifile:
-            try:
-                dataset = json.load(ifile)
-            except json.decoder.JSONDecodeError as e:
-                print(
-                    'Error:  Parse error reading JSON file ' + datasheet + ':'
-                )
-                print(str(e))
-                sys.exit(1)
-
-        # If 'data-sheet' is a dictionary in 'dataset' then set that as the top
-        if 'data-sheet' in dataset:
-            dataset = dataset['data-sheet']
-        new_dataset = cace_compat(dataset, debug)
-        if debug:
-            print('Diagnostic (not writing file)---dataset is:')
-            print(str(new_dataset))
-        else:
-            if os.path.splitext(outfilename)[1] == '.html':
-                cace_generate_html(new_dataset, outfilename)
-            else:
-                result = cace_write(new_dataset, outfilename)
-
-    else:
-        usage()
-        sys.exit(1)
-
-    sys.exit(result)

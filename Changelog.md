@@ -1,3 +1,21 @@
+# 2.3.0
+
+## Common
+
+- Remove JSON datasheet format
+- Add YAML datasheet format, set as default
+- Remove cli interface from `cace_read.py` and `cace_write.py`
+
+## GUI
+
+- Remove `JSON` in the file picker
+- Add `YAML` to the file picker
+- Remove bit-rotted `load_results`
+
+## CLI
+
+- Remove `--json` argument
+
 # 2.2.7
 
 ## Common

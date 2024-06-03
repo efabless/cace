@@ -44,13 +44,17 @@ def cli():
         '--version', action='version', version=f'%(prog)s {__version__}'
     )
 
-    # positional argument
+    # positional argument, optional
     parser.add_argument(
-        'datasheet', nargs='?', help='format 4.0 ASCII CACE file'
+        'datasheet', nargs='?', help='input specification datasheet (YAML)'
     )
 
     # positional argument, optional
-    parser.add_argument('outfile', nargs='?', help='name of the file to write')
+    parser.add_argument(
+        'output',
+        nargs='?',
+        help='output specification datasheet (YAML)',
+    )
 
     parser.add_argument(
         '-s',
@@ -83,12 +87,6 @@ def cli():
         '--force',
         action='store_true',
         help='forces new regeneration of all netlists',
-    )
-    parser.add_argument(
-        '-j',
-        '--json',
-        action='store_true',
-        help='generates an output file in JSON format',
     )
     parser.add_argument(
         '-k',
@@ -136,7 +134,6 @@ def cli():
     # Set runtime options
     simulation_manager.set_runtime_options('debug', args.debug)
     simulation_manager.set_runtime_options('force', args.force)
-    simulation_manager.set_runtime_options('json', args.json)
     simulation_manager.set_runtime_options('keep', args.keep)
     simulation_manager.set_runtime_options('noplot', args.no_plot)
     simulation_manager.set_runtime_options('nosim', args.no_simulation)
@@ -145,12 +142,6 @@ def cli():
     simulation_manager.set_runtime_options(
         'parallel_parameters', args.parallel_parameters
     )
-
-    # Add the name of the file to the top-level dictionary
-    if args.datasheet:
-        simulation_manager.set_runtime_options(
-            'filename', os.path.split(args.datasheet)[1]
-        )
 
     # Queue specified parameters
     if args.parameter:
@@ -178,8 +169,8 @@ def cli():
     if args.debug:
         print('Done with CACE simulations and evaluations.')
 
-    if args.outfile:
-        simulation_manager.save_datasheet(args.outfile)
+    if args.output:
+        simulation_manager.save_datasheet(args.output)
 
     # Print the summary to stdout
     simulation_manager.summarize_datasheet()

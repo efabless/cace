@@ -16,12 +16,12 @@ import os
 import re
 import sys
 import time
+import yaml
 import shutil
 import signal
 import threading
 
-from .cace_read import cace_read
-from .cace_compat import cace_compat
+from .cace_read import cace_read, cace_read_yaml
 from .cace_write import (
     cace_write,
     cace_summary,
@@ -57,7 +57,6 @@ class SimulationManager:
             'force': False,
             'keep': False,
             'nosim': False,
-            'json': False,
             'sequential': False,  # TODO implement
             'noplot': False,  # TODO test
             'parallel_parameters': 4,
@@ -77,28 +76,12 @@ class SimulationManager:
 
         [dspath, dsname] = os.path.split(datasheet_path)
 
-        # Read the datasheet, legacy format
-        if os.path.splitext(datasheet_path)[1] == '.json':
-            with open(datasheet_path) as ifile:
-                try:
-                    # "data-sheet" as a sub-entry of the input file is deprecated.
-                    datatop = json.load(ifile)
-                    if 'data-sheet' in datatop:
-                        datatop = datatop['data-sheet']
-                except json.decoder.JSONDecodeError as e:
-                    print(
-                        'Error:  Parse error reading JSON file '
-                        + datasheet_path
-                        + ':'
-                    )
-                    print(str(e))
-                    return
-        # New format
+        # Read the datasheet, legacy CACE ASCII format version 4.0
+        if os.path.splitext(datasheet_path)[1] == '.txt':
+            self.datasheet = cace_read(datasheet_path, debug)
+        # Read the datasheet, new CACE YAML format version 5.0
         else:
-            datatop = cace_read(datasheet_path, debug)
-
-        # Ensure that datasheet complies with CACE version 4.0 format
-        self.datasheet = cace_compat(datatop, debug)
+            self.datasheet = cace_read_yaml(datasheet_path, debug)
 
         # CACE should be run from the location of the datasheet's root
         # directory.  Typically, the datasheet is in the "cace" subdirectory
@@ -107,18 +90,23 @@ class SimulationManager:
         rootpath = None
         paths = self.datasheet['paths']
         if 'root' in paths:
-            rootpath = self.datasheet['paths']['root']
+            rootpath = paths['root']
 
         if rootpath:
             dspath = os.path.join(dspath, rootpath)
             paths['root'] = '.'
 
         os.chdir(dspath)
-        print(os.getcwd())
         if debug:
             print(
                 f'Working directory set to {dspath} ({os.path.abspath(dspath)})'
             )
+
+        if debug:
+            import pprint
+
+            pp = pprint.PrettyPrinter()
+            pp.pprint(self.datasheet)
 
         # set the filename
         self.datasheet['runtime_options']['filename'] = os.path.abspath(
@@ -131,7 +119,7 @@ class SimulationManager:
     def find_datasheet(self, search_dir, debug):
         """
         Check the search_dir directory and determine if there
-        is a .txt or .json file with the name of the directory, which
+        is a .yaml or .txt file with the name of the directory, which
         is assumed to have the same name as the project circuit.  Also
         check subdirectories one level down.
         Returns 0 on success and 1 on failure.
@@ -139,6 +127,30 @@ class SimulationManager:
 
         dirname = os.path.split(search_dir)[1]
         dirlist = os.listdir(search_dir)
+
+        # Look through all directories for a '.yaml' file
+        for item in dirlist:
+            if os.path.isfile(item):
+                fileext = os.path.splitext(item)[1]
+                basename = os.path.splitext(item)[0]
+                if fileext == '.yaml':
+                    if basename == dirname:
+                        print(f'Loading datasheet from {item}')
+                        self.load_datasheet(item, debug)
+                        return 0
+
+            elif os.path.isdir(item):
+                subdirlist = os.listdir(item)
+                for subitem in subdirlist:
+                    subitemref = os.path.join(item, subitem)
+                    if os.path.isfile(subitemref):
+                        fileext = os.path.splitext(subitem)[1]
+                        basename = os.path.splitext(subitem)[0]
+                        if fileext == '.yaml':
+                            if basename == dirname:
+                                print(f'Loading datasheet from {subitemref}')
+                                self.load_datasheet(subitemref, debug)
+                                return 0
 
         # Look through all directories for a '.txt' file
         for item in dirlist:
@@ -164,46 +176,224 @@ class SimulationManager:
                                 self.load_datasheet(subitemref, debug)
                                 return 0
 
-        # Look through all directories for a '.json' file
-        # ('.txt') is preferred to ('.json')
-        for item in dirlist:
-            if os.path.isfile(item):
-                fileext = os.path.splitext(item)[1]
-                basename = os.path.splitext(item)[0]
-                if fileext == '.json':
-                    if basename == dirname:
-                        print(f'Loading datasheet from {item}')
-                        self.load_datasheet(item, debug)
-                        return 0
-
-            elif os.path.isdir(item):
-                subdirlist = os.listdir(item)
-                for subitem in subdirlist:
-                    subitemref = os.path.join(item, subitem)
-                    if os.path.isfile(subitemref):
-                        fileext = os.path.splitext(subitem)[1]
-                        basename = os.path.splitext(subitem)[0]
-                        if fileext == '.json':
-                            if basename == dirname:
-                                print(f'Loading datasheet from {subitemref}')
-                                self.load_datasheet(subitemref, debug)
-                                return 0
-
-        print('No datasheet found in local project (JSON or text file).')
+        print('No datasheet found in local project (YAML or text file).')
         return 1
 
     def save_datasheet(self, path):
         if self.datasheet['runtime_options']['debug']:
             print(f'Writing final output file {path}')
 
-        if self.datasheet['runtime_options']['json']:
-            # Dump the result as a JSON file
-            jsonfile = os.path.splitext(path)[0] + '_debug.json'
-            with open(jsonfile, 'w') as ofile:
-                json.dump(self.datasheet, ofile, indent=4)
-        else:
-            # Write the result in CACE ASCII format version 4.0
+        suffix = os.path.splitext(path)[1]
+
+        if suffix == '.txt':
+            # Write the result in legacy CACE ASCII format version 4.0
             cace_write(self.datasheet, path, doruntime=False)
+        elif suffix == '.yaml':
+            # Write the result in CACE YAML format version 5.0
+            new_datasheet = self.datasheet.copy()
+
+            # Rewrite internal datasheet structure
+            # for format version 5.0 compatibility
+
+            # TODO Remove this step and change the remaining code
+            # in CACE to work with dictionaries
+
+            # Convert pins
+            new_datasheet['pins'] = {}
+            for pin in self.datasheet['pins']:
+                name = pin.pop('name')
+
+                if 'Vmax' in pin:
+                    if isinstance(pin['Vmax'], list):
+                        pin['Vmax'] = ' '.join(pin['Vmax'])
+
+                if 'Vmin' in pin:
+                    if isinstance(pin['Vmin'], list):
+                        pin['Vmin'] = ' '.join(pin['Vmin'])
+
+                new_datasheet['pins'][name] = pin
+
+            # Convert conditions in electrical_parameters
+            for parameter in self.datasheet['electrical_parameters']:
+                new_conditions = {}
+                for condition in parameter['conditions']:
+                    name = condition.pop('name')
+                    new_conditions[name] = condition
+                parameter['conditions'] = new_conditions
+
+            # Convert simulate in electrical_parameters
+            for parameter in self.datasheet['electrical_parameters']:
+                new_simulate = {}
+
+                tool = parameter['simulate'].pop('tool')
+
+                if 'format' in parameter['simulate']:
+                    format_list = parameter['simulate'].pop('format')
+
+                    parameter['simulate']['format'] = format_list[0]
+                    parameter['simulate']['suffix'] = format_list[1]
+                    parameter['simulate']['variables'] = format_list[2:]
+
+                parameter['simulate'] = {tool: parameter['simulate']}
+
+            # Convert variables in electrical_parameters
+            for parameter in self.datasheet['electrical_parameters']:
+                if 'variables' in parameter:
+                    new_variables = {}
+                    for variable in parameter['variables']:
+                        name = variable.pop('name')
+                        new_variables[name] = variable
+                    parameter['variables'] = new_variables
+
+            # Convert spec entries in electrical_parameters
+            for parameter in self.datasheet['electrical_parameters']:
+                if 'spec' in parameter:
+                    for limit in ['minimum', 'typical', 'maximum']:
+                        if limit in parameter['spec']:
+                            new_limit = {}
+                            if not isinstance(parameter['spec'][limit], list):
+                                try:
+                                    new_limit[
+                                        'value'
+                                    ] = f'{float(parameter["spec"][limit]):g}'
+                                except:
+                                    new_limit['value'] = parameter['spec'][
+                                        limit
+                                    ]
+                            elif len(parameter['spec'][limit]) == 2:
+                                try:
+                                    new_limit[
+                                        'value'
+                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                except:
+                                    new_limit['value'] = parameter['spec'][
+                                        limit
+                                    ][0]
+                                new_limit['fail'] = True
+                            elif len(parameter['spec'][limit]) == 3:
+                                try:
+                                    new_limit[
+                                        'value'
+                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                except:
+                                    new_limit['value'] = parameter['spec'][
+                                        limit
+                                    ][0]
+                                new_limit['fail'] = True
+                                new_limit['calculation'] = parameter['spec'][
+                                    limit
+                                ][2]
+
+                            parameter['spec'][limit] = new_limit
+
+            # Convert evaluate in physical_parameters
+            for parameter in self.datasheet['physical_parameters']:
+                tool = parameter['evaluate'].pop('tool')
+                new_evaluate = tool
+
+                if isinstance(tool, list):
+                    if tool[0] == 'cace_lvs':
+                        parameter['evaluate']['script'] = tool[1]
+                        tool = 'cace_lvs'
+                    else:
+                        print(f'Error: Unknown tool list {tool}')
+
+                if parameter['evaluate']:
+                    new_evaluate = {tool: parameter['evaluate']}
+                else:
+                    new_evaluate = tool
+
+                parameter['evaluate'] = new_evaluate
+
+            # Convert spec entries in physical_parameters
+            for parameter in self.datasheet['physical_parameters']:
+                if 'spec' in parameter:
+                    for limit in ['minimum', 'typical', 'maximum']:
+                        if limit in parameter['spec']:
+                            new_limit = {}
+                            if not isinstance(parameter['spec'][limit], list):
+                                try:
+                                    new_limit[
+                                        'value'
+                                    ] = f'{float(parameter["spec"][limit]):g}'
+                                except:
+                                    new_limit['value'] = parameter['spec'][
+                                        limit
+                                    ]
+                            elif len(parameter['spec'][limit]) == 2:
+                                try:
+                                    new_limit[
+                                        'value'
+                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                except:
+                                    new_limit['value'] = parameter['spec'][
+                                        limit
+                                    ][0]
+                                new_limit['fail'] = True
+                            elif len(parameter['spec'][limit]) == 3:
+                                try:
+                                    new_limit[
+                                        'value'
+                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                except:
+                                    new_limit['value'] = parameter['spec'][
+                                        limit
+                                    ][0]
+                                new_limit['fail'] = True
+                                new_limit['calculation'] = parameter['spec'][
+                                    limit
+                                ][2]
+
+                            parameter['spec'][limit] = new_limit
+
+            # Convert default_conditions
+            new_datasheet['default_conditions'] = {}
+            for default_condition in self.datasheet['default_conditions']:
+                name = default_condition.pop('name')
+                new_datasheet['default_conditions'][name] = default_condition
+
+            # Convert electrical_parameters
+            new_datasheet['electrical_parameters'] = {}
+            for electrical_parameter in self.datasheet[
+                'electrical_parameters'
+            ]:
+                name = electrical_parameter.pop('name')
+                new_datasheet['electrical_parameters'][
+                    name
+                ] = electrical_parameter
+
+            # Convert physical_parameters
+            new_datasheet['physical_parameters'] = {}
+            for physical_parameter in self.datasheet['physical_parameters']:
+                name = physical_parameter.pop('name')
+                new_datasheet['physical_parameters'][name] = physical_parameter
+
+            # Rewrite paths['root'] as the cwd relative to filename.
+            oldroot = None
+            if 'paths' in new_datasheet:
+                paths = new_datasheet['paths']
+                if 'root' in paths:
+                    oldroot = paths['root']
+                    filepath = os.path.split(path)[0]
+                    newroot = os.path.relpath(os.curdir, filepath)
+                    paths['root'] = newroot
+
+            # Remove runtime options
+            new_datasheet.pop('runtime_options')
+
+            # Set version to 5.0
+            new_datasheet['cace_format'] = 5.0
+
+            with open(os.path.join(path), 'w') as outfile:
+                yaml.dump(
+                    new_datasheet,
+                    outfile,
+                    default_flow_style=False,
+                    sort_keys=False,
+                    allow_unicode=True,
+                )
+        else:
+            print(f'Unsupported file extension: {suffix}')
 
     def set_datasheet(self, datasheet):
         """Set a new datasheet"""

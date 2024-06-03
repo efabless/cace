@@ -17,8 +17,7 @@ import re
 import os
 import sys
 import json
-
-from .cace_compat import *
+import yaml
 
 # Replace special character specifications with unicode characters
 
@@ -289,68 +288,160 @@ def cace_read(filename, debug=False):
     return curdict
 
 
-# Print usage statement
+def cace_read_yaml(filename, debug=False):
+    if not os.path.isfile(filename):
+        print('Error:  No such file ' + filename)
+        return {}
 
+    with open(filename, 'r') as ifile:
+        datasheet = yaml.safe_load(ifile)
 
-def usage():
-    print('Usage:')
-    print('')
-    print('cace_read.py <filename>')
-    print('  Where <filename> is a format 4.0 ASCII CACE file.')
-    print('')
-    print('When run from the top level, this program parses the CACE')
-    print('file and reports any syntax errors.  Otherwise it is meant')
-    print('to be called internally by the CACE system to read a file')
-    print('and return a dictionary of the contents.')
+    # For compatibility convert dictionaries to arrays with
+    # dictionaries containing the key inside "name"
+    # TODO Remove this step and change the remaining code
+    # in CACE to work with dictionaries
 
+    # Copy header
+    new_datasheet = {}
+    new_datasheet['name'] = datasheet['name']
+    new_datasheet['description'] = datasheet['description']
+    new_datasheet['commit'] = datasheet['commit']
+    new_datasheet['PDK'] = datasheet['PDK']
+    new_datasheet['cace_format'] = datasheet['cace_format']
+    new_datasheet['authorship'] = datasheet['authorship']
+    new_datasheet['paths'] = datasheet['paths']
+    new_datasheet['dependencies'] = datasheet['dependencies']
 
-# Top level call to cace_read.py
-# If called from the command line
+    # Convert pins
+    new_datasheet['pins'] = []
+    for key, value in datasheet['pins'].items():
+        value['name'] = key
+        new_datasheet['pins'].append(value)
 
-if __name__ == '__main__':
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item)
+    # Convert conditions in electrical_parameters
+    for parameter in datasheet['electrical_parameters'].values():
+        new_conditions = []
+        for key, value in parameter['conditions'].items():
+            value['name'] = key
+            new_conditions.append(value)
+        parameter['conditions'] = new_conditions
+
+    # Convert variables in electrical_parameters
+    for parameter in datasheet['electrical_parameters'].values():
+        new_variables = []
+        if 'variables' in parameter:
+            for key, value in parameter['variables'].items():
+                value['name'] = key
+                new_variables.append(value)
+            parameter['variables'] = new_variables
+
+    # Convert simulate in electrical_parameters
+    for parameter in datasheet['electrical_parameters'].values():
+        for key, value in parameter['simulate'].items():
+            value['tool'] = key
+
+            if 'format' in value:
+                new_format = []
+                new_format.append(value.pop('format'))
+                new_format.append(value.pop('suffix'))
+                new_format += value.pop('variables')
+
+                value['format'] = new_format
+
+        parameter['simulate'] = value
+
+    # Convert spec entries in electrical_parameters
+    for parameter in datasheet['electrical_parameters'].values():
+
+        if 'spec' in parameter:
+            for limit in ['minimum', 'typical', 'maximum']:
+                if limit in parameter['spec']:
+                    if 'fail' in parameter['spec'][limit]:
+                        new_limit = []
+                        new_limit.append(parameter['spec'][limit]['value'])
+
+                        if parameter['spec'][limit]['fail'] == True:
+                            new_limit.append('fail')
+                            if 'calculation' in parameter['spec'][limit]:
+                                new_limit.append(
+                                    parameter['spec'][limit]['calculation']
+                                )
+
+                        parameter['spec'][limit] = new_limit
+                    else:
+                        parameter['spec'][limit] = parameter['spec'][limit][
+                            'value'
+                        ]
+
+    # Convert evaluate in physical_parameters
+    for parameter in datasheet['physical_parameters'].values():
+
+        if isinstance(parameter['evaluate'], str):
+            value = {'tool': parameter['evaluate']}
         else:
-            arguments.append(item)
+            for key, value in parameter['evaluate'].items():
+                value['tool'] = key
 
-    debug = False
-    for item in options:
-        if item == '-debug':
-            debug = True
+                if 'script' in value:
+                    value['tool'] = [value['tool'], value.pop('script')]
 
-    result = 0
-    if len(arguments) == 1 and len(options) == 0:
-        filename = arguments[0]
+        parameter['evaluate'] = value
 
-        # If the file is a JSON file, read it with json.load
-        if os.path.splitext(filename)[1] == '.json':
-            if not os.path.isfile(filename):
-                print('Error:  No such file ' + filename)
-                result = 1
-            else:
-                with open(filename, 'r') as ifile:
-                    dataset = json.load(ifile)
-                    if dataset and 'data-sheet' in dataset:
-                        dataset = dataset['data-sheet']
-                        # Attempt to upgrade this to format 4.0
-                        dataset = cace_compat(dataset, debug)
-        else:
-            dataset = cace_read(filename, debug)
+    # Convert spec entries in physical_parameters
+    for parameter in datasheet['physical_parameters'].values():
 
-        if dataset == {}:
-            result = 1
-        else:
-            if debug:
-                print('Diagnostic---dataset is:')
-                print(str(dataset))
-            else:
-                print('CACE file has no syntax issues.')
+        if 'spec' in parameter:
+            for limit in ['minimum', 'typical', 'maximum']:
+                if limit in parameter['spec']:
+                    if 'fail' in parameter['spec'][limit]:
+                        new_limit = []
+                        new_limit.append(parameter['spec'][limit]['value'])
 
+                        if parameter['spec'][limit]['fail'] == True:
+                            new_limit.append('fail')
+                            if 'calculation' in parameter['spec'][limit]:
+                                new_limit.append(
+                                    parameter['spec'][limit]['calculation']
+                                )
+
+                        parameter['spec'][limit] = new_limit
+                    else:
+                        parameter['spec'][limit] = parameter['spec'][limit][
+                            'value'
+                        ]
+
+    # Convert default_conditions
+    new_datasheet['default_conditions'] = []
+    for key, value in datasheet['default_conditions'].items():
+        value['name'] = key
+        new_datasheet['default_conditions'].append(value)
+
+    # Convert electrical_parameters
+    new_datasheet['electrical_parameters'] = []
+    for key, value in datasheet['electrical_parameters'].items():
+        value['name'] = key
+        new_datasheet['electrical_parameters'].append(value)
+
+    # Convert physical_parameters
+    new_datasheet['physical_parameters'] = []
+    for key, value in datasheet['physical_parameters'].items():
+        value['name'] = key
+        new_datasheet['physical_parameters'].append(value)
+
+    # Convert dependencies TODO
+    if not new_datasheet['dependencies']:
+        new_datasheet['dependencies'] = []
+
+    # TODO Remove runtime options from datasheet
+    # Set up runtime options in the dictionary before returning.
+
+    if 'runtime_options' in datasheet:
+        runtime_options = datasheet['runtime_options']
     else:
-        usage()
-        sys.exit(1)
+        runtime_options = {}
+    new_datasheet['runtime_options'] = runtime_options
 
-    sys.exit(result)
+    runtime_options['debug'] = debug
+    runtime_options['filename'] = filename
+
+    return new_datasheet
