@@ -126,10 +126,12 @@ def cli():
 
     # Load the datasheet
     if args.datasheet:
-        simulation_manager.load_datasheet(args.datasheet, args.debug)
+        if simulation_manager.load_datasheet(args.datasheet, args.debug):
+            sys.exit(0)
     # Else search for it starting from the cwd
     else:
-        simulation_manager.find_datasheet(os.getcwd(), args.debug)
+        if simulation_manager.find_datasheet(os.getcwd(), args.debug):
+            sys.exit(0)
 
     # Set runtime options
     simulation_manager.set_runtime_options('debug', args.debug)

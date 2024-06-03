@@ -517,7 +517,8 @@ class CACEGui(ttk.Frame):
         debug = self.settings.get_debug()
 
         # Load the new datasheet
-        self.simulation_manager.load_datasheet(datasheet_path, debug)
+        if self.simulation_manager.load_datasheet(datasheet_path, debug):
+            return 1
         self.update_filename()
         self.adjust_datasheet_viewer_size()
         self.create_datasheet_view()
@@ -913,9 +914,8 @@ class CACEGui(ttk.Frame):
         if datasheet_path:
             print('Reading file ' + datasheet_path)
 
-            self.simulation_manager.load_datasheet(datasheet_path, debug)
-
-            # self.set_working_directory()
+            if self.simulation_manager.load_datasheet(datasheet_path, debug):
+                self.on_quit()
 
             self.create_datasheet_view()
 
@@ -1151,7 +1151,8 @@ def gui():
 
     if args.datasheet:
         print('Setting datasheet to ' + args.datasheet)
-        app.set_datasheet(args.datasheet)
+        if app.set_datasheet(args.datasheet):
+            sys.exit(0)
     else:
         if app.find_datasheet(os.getcwd()):
             sys.exit(0)

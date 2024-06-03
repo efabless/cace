@@ -69,10 +69,15 @@ class SimulationManager:
     ### datasheet functions ###
 
     def load_datasheet(self, datasheet_path, debug):
+        """
+        Tries to load a datasheet from the given path.
+        YAML is preferred over text format.
+        Returns 0 on success and 1 on failure.
+        """
 
         if not os.path.isfile(datasheet_path):
             print(f'Error: File {datasheet_path} not found.')
-            return
+            return 1
 
         [dspath, dsname] = os.path.split(datasheet_path)
 
@@ -108,13 +113,9 @@ class SimulationManager:
             pp = pprint.PrettyPrinter()
             pp.pprint(self.datasheet)
 
-        # set the filename
-        self.datasheet['runtime_options']['filename'] = os.path.abspath(
-            datasheet_path
-        )
-
         # Make sure all runtime options exist
         self.default_runtime_options()
+        return 0
 
     def find_datasheet(self, search_dir, debug):
         """
