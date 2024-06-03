@@ -310,7 +310,9 @@ def cace_read_yaml(filename, debug=False):
     new_datasheet['cace_format'] = datasheet['cace_format']
     new_datasheet['authorship'] = datasheet['authorship']
     new_datasheet['paths'] = datasheet['paths']
-    new_datasheet['dependencies'] = datasheet['dependencies']
+
+    if 'dependencies' in datasheet:
+        new_datasheet['dependencies'] = datasheet['dependencies']
 
     # Convert pins
     new_datasheet['pins'] = []
@@ -427,10 +429,6 @@ def cace_read_yaml(filename, debug=False):
     for key, value in datasheet['physical_parameters'].items():
         value['name'] = key
         new_datasheet['physical_parameters'].append(value)
-
-    # Convert dependencies TODO
-    if not new_datasheet['dependencies']:
-        new_datasheet['dependencies'] = []
 
     # TODO Remove runtime options from datasheet
     # Set up runtime options in the dictionary before returning.
