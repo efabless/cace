@@ -1,3 +1,9 @@
+# 2.2.7
+
+## Common
+
+- Improve extraction with only a GDS file
+
 # 2.2.6
 
 ## Common
