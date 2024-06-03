@@ -46,12 +46,12 @@ def cli():
 
     # positional argument, optional
     parser.add_argument(
-        'datasheet_in', nargs='?', help='input specification datasheet (YAML)'
+        'datasheet', nargs='?', help='input specification datasheet (YAML)'
     )
 
     # positional argument, optional
     parser.add_argument(
-        'datasheet_out',
+        'output',
         nargs='?',
         help='output specification datasheet (YAML)',
     )
@@ -143,12 +143,6 @@ def cli():
         'parallel_parameters', args.parallel_parameters
     )
 
-    # Add the name of the file to the top-level dictionary
-    if args.datasheet:
-        simulation_manager.set_runtime_options(
-            'filename', os.path.split(args.datasheet)[1]
-        )
-
     # Queue specified parameters
     if args.parameter:
         if args.debug:
@@ -175,8 +169,8 @@ def cli():
     if args.debug:
         print('Done with CACE simulations and evaluations.')
 
-    if args.outfile:
-        simulation_manager.save_datasheet(args.outfile)
+    if args.output:
+        simulation_manager.save_datasheet(args.output)
 
     # Print the summary to stdout
     simulation_manager.summarize_datasheet()

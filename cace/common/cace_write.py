@@ -23,7 +23,7 @@ import json
 import datetime
 import subprocess
 
-from .cace_regenerate import printwarn
+from .cace_regenerate import printwarn, get_pdk_root
 
 # ---------------------------------------------------------------
 # generate_svg

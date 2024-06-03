@@ -181,6 +181,10 @@ class Settings(tkinter.Toplevel):
         # return the state of the "edit all parameters" checkbox
         return False if self.doedit.get() == 0 else True
 
+    def set_debug(self, debug):
+        # set the state of the "print debug output" checkbox
+        self.dodebug.set(debug)
+
     def get_debug(self):
         # return the state of the "print debug output" checkbox
         return False if self.dodebug.get() == 0 else True

@@ -1123,10 +1123,16 @@ def gui():
 
     # on/off flag, optional
     parser.add_argument(
-        '-t',
         '--terminal',
         action='store_true',
         help='write all output to the terminal, not the window',
+    )
+
+    # on/off flag, optional
+    parser.add_argument(
+        '--debug',
+        action='store_true',
+        help='generates additional diagnostic output',
     )
 
     # Parse arguments
@@ -1138,6 +1144,10 @@ def gui():
 
     if not args.terminal:
         app.capture_output()
+
+    if args.debug:
+        print('Enabling debug output.')
+        app.settings.set_debug(True)
 
     if args.datasheet:
         print('Setting datasheet to ' + args.datasheet)

@@ -296,9 +296,6 @@ def cace_read_yaml(filename, debug=False):
     with open(filename, 'r') as ifile:
         datasheet = yaml.safe_load(ifile)
 
-    if debug:
-        print(datasheet)
-
     # For compatibility convert dictionaries to arrays with
     # dictionaries containing the key inside "name"
     # TODO Remove this step and change the remaining code
@@ -336,7 +333,7 @@ def cace_read_yaml(filename, debug=False):
             for key, value in parameter['variables'].items():
                 value['name'] = key
                 new_variables.append(value)
-        parameter['variables'] = new_variables
+            parameter['variables'] = new_variables
 
     # Convert simulate in electrical_parameters
     for parameter in datasheet['electrical_parameters'].values():
@@ -434,12 +431,6 @@ def cace_read_yaml(filename, debug=False):
     # Convert dependencies TODO
     if not new_datasheet['dependencies']:
         new_datasheet['dependencies'] = []
-
-    if debug:
-        import pprint
-
-        pp = pprint.PrettyPrinter(depth=4)
-        pp.pprint(new_datasheet)
 
     # TODO Remove runtime options from datasheet
     # Set up runtime options in the dictionary before returning.

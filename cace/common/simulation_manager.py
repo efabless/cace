@@ -21,7 +21,7 @@ import shutil
 import signal
 import threading
 
-from .cace_read import cace_read
+from .cace_read import cace_read, cace_read_yaml
 from .cace_write import (
     cace_write,
     cace_summary,
@@ -97,13 +97,16 @@ class SimulationManager:
             paths['root'] = '.'
 
         os.chdir(dspath)
-        print(os.getcwd())
         if debug:
             print(
                 f'Working directory set to {dspath} ({os.path.abspath(dspath)})'
             )
 
-        print(self.datasheet)
+        if debug:
+            import pprint
+
+            pp = pprint.PrettyPrinter()
+            pp.pprint(self.datasheet)
 
         # set the filename
         self.datasheet['runtime_options']['filename'] = os.path.abspath(
@@ -116,7 +119,7 @@ class SimulationManager:
     def find_datasheet(self, search_dir, debug):
         """
         Check the search_dir directory and determine if there
-        is a .txt or .json file with the name of the directory, which
+        is a .yaml or .txt file with the name of the directory, which
         is assumed to have the same name as the project circuit.  Also
         check subdirectories one level down.
         Returns 0 on success and 1 on failure.
@@ -173,32 +176,7 @@ class SimulationManager:
                                 self.load_datasheet(subitemref, debug)
                                 return 0
 
-        # Look through all directories for a '.json' file
-        # ('.txt') is preferred to ('.json')
-        for item in dirlist:
-            if os.path.isfile(item):
-                fileext = os.path.splitext(item)[1]
-                basename = os.path.splitext(item)[0]
-                if fileext == '.json':
-                    if basename == dirname:
-                        print(f'Loading datasheet from {item}')
-                        self.load_datasheet(item, debug)
-                        return 0
-
-            elif os.path.isdir(item):
-                subdirlist = os.listdir(item)
-                for subitem in subdirlist:
-                    subitemref = os.path.join(item, subitem)
-                    if os.path.isfile(subitemref):
-                        fileext = os.path.splitext(subitem)[1]
-                        basename = os.path.splitext(subitem)[0]
-                        if fileext == '.json':
-                            if basename == dirname:
-                                print(f'Loading datasheet from {subitemref}')
-                                self.load_datasheet(subitemref, debug)
-                                return 0
-
-        print('No datasheet found in local project (JSON or text file).')
+        print('No datasheet found in local project (YAML or text file).')
         return 1
 
     def save_datasheet(self, path):
@@ -402,6 +380,9 @@ class SimulationManager:
 
             # Remove runtime options
             new_datasheet.pop('runtime_options')
+
+            # Set version to 5.0
+            new_datasheet['cace_format'] = 5.0
 
             with open(os.path.join(path), 'w') as outfile:
                 yaml.dump(
