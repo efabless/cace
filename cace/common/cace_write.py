@@ -920,38 +920,39 @@ def markdown_summary(datasheet):
 
     result += f'**netlist source**: {datasheet["runtime_options"]["netlist_source"]}\n\n'
 
-    result += '## Electrical Parameters\n\n'
-
-    # Print the table headings
-    result += ''.join(
-        [
-            f'| {"Parameter": ^{sp[0]}} ',
-            f'| {"Testbench": ^{sp[1]}} ',
-            f'| {"Min Limit": ^{sp[2]}} ',
-            f'| {"Min Value": ^{sp[3]}} ',
-            f'| {"Typ Target": ^{sp[4]}} ',
-            f'| {"Typ Value": ^{sp[5]}} ',
-            f'| {"Max Limit": ^{sp[6]}} ',
-            f'| {"Max Value": ^{sp[7]}} ',
-            f'| {"Status": ^{sp[8]}} |\n',
-        ]
-    )
-    # Print the separators
-    result += ''.join(
-        [
-            f'| :{"-"*(sp[0]-1)} ',
-            f'| :{"-"*(sp[1]-1)} ',
-            f'| {"-"*(sp[2]-1)}: ',
-            f'| {"-"*(sp[3]-1)}: ',
-            f'| {"-"*(sp[4]-1)}: ',
-            f'| {"-"*(sp[5]-1)}: ',
-            f'| {"-"*(sp[6]-1)}: ',
-            f'| {"-"*(sp[7]-1)}: ',
-            f'| :{"-"*(sp[8]-2)}: |\n',
-        ]
-    )
-
     if 'electrical_parameters' in datasheet:
+
+        result += '## Electrical Parameters\n\n'
+
+        # Print the table headings
+        result += ''.join(
+            [
+                f'| {"Parameter": ^{sp[0]}} ',
+                f'| {"Testbench": ^{sp[1]}} ',
+                f'| {"Min Limit": ^{sp[2]}} ',
+                f'| {"Min Value": ^{sp[3]}} ',
+                f'| {"Typ Target": ^{sp[4]}} ',
+                f'| {"Typ Value": ^{sp[5]}} ',
+                f'| {"Max Limit": ^{sp[6]}} ',
+                f'| {"Max Value": ^{sp[7]}} ',
+                f'| {"Status": ^{sp[8]}} |\n',
+            ]
+        )
+        # Print the separators
+        result += ''.join(
+            [
+                f'| :{"-"*(sp[0]-1)} ',
+                f'| :{"-"*(sp[1]-1)} ',
+                f'| {"-"*(sp[2]-1)}: ',
+                f'| {"-"*(sp[3]-1)}: ',
+                f'| {"-"*(sp[4]-1)}: ',
+                f'| {"-"*(sp[5]-1)}: ',
+                f'| {"-"*(sp[6]-1)}: ',
+                f'| {"-"*(sp[7]-1)}: ',
+                f'| :{"-"*(sp[8]-2)}: |\n',
+            ]
+        )
+
         for eparam in datasheet['electrical_parameters']:
 
             # Get the unit
@@ -970,18 +971,26 @@ def markdown_summary(datasheet):
 
             values = {'minimum': '', 'typical': '', 'maximum': ''}
 
+            print(eparam)
+
             # Get the results
             passing = None
             if 'results' in eparam:
                 passing = True
 
-                for result_type in ['minimum', 'typical', 'maximum']:
-                    if result_type in eparam['results']:
-                        values[result_type] = eparam['results'][result_type][0]
+                # Invalid results
+                if not eparam['results']:
+                    passing = False
+                else:
+                    for result_type in ['minimum', 'typical', 'maximum']:
+                        if result_type in eparam['results']:
+                            values[result_type] = eparam['results'][
+                                result_type
+                            ][0]
 
-                        # Any fail fails the whole parameter
-                        if eparam['results'][result_type][1] != 'pass':
-                            passing = False
+                            # Any fail fails the whole parameter
+                            if eparam['results'][result_type][1] != 'pass':
+                                passing = False
 
             # Get the status message
             status = pass_msg if passing else fail_msg
@@ -1053,38 +1062,39 @@ def markdown_summary(datasheet):
                 ]
             )
 
-    result += '\n## Physical Parameters\n\n'
-
-    # Print the table headings
-    result += ''.join(
-        [
-            f'| {"Parameter": ^{sp[0]}} '
-            f'| {"Tool": ^{sp[1]}} '
-            f'| {"Min Limit": ^{sp[2]}} '
-            f'| {"Min Value": ^{sp[3]}} '
-            f'| {"Typ Target": ^{sp[4]}} '
-            f'| {"Typ Value": ^{sp[5]}} '
-            f'| {"Max Limit": ^{sp[6]}} '
-            f'| {"Max Value": ^{sp[7]}} '
-            f'| {"Status": ^{sp[8]}} |\n',
-        ]
-    )
-    # Print the separators
-    result += ''.join(
-        [
-            f'| :{"-"*(sp[0]-1)} '
-            f'| :{"-"*(sp[1]-1)} '
-            f'| {"-"*(sp[2]-1)}: '
-            f'| {"-"*(sp[3]-1)}: '
-            f'| {"-"*(sp[4]-1)}: '
-            f'| {"-"*(sp[5]-1)}: '
-            f'| {"-"*(sp[6]-1)}: '
-            f'| {"-"*(sp[7]-1)}: '
-            f'| :{"-"*(sp[8]-2)}: |\n',
-        ]
-    )
-
     if 'physical_parameters' in datasheet:
+
+        result += '\n## Physical Parameters\n\n'
+
+        # Print the table headings
+        result += ''.join(
+            [
+                f'| {"Parameter": ^{sp[0]}} '
+                f'| {"Tool": ^{sp[1]}} '
+                f'| {"Min Limit": ^{sp[2]}} '
+                f'| {"Min Value": ^{sp[3]}} '
+                f'| {"Typ Target": ^{sp[4]}} '
+                f'| {"Typ Value": ^{sp[5]}} '
+                f'| {"Max Limit": ^{sp[6]}} '
+                f'| {"Max Value": ^{sp[7]}} '
+                f'| {"Status": ^{sp[8]}} |\n',
+            ]
+        )
+        # Print the separators
+        result += ''.join(
+            [
+                f'| :{"-"*(sp[0]-1)} '
+                f'| :{"-"*(sp[1]-1)} '
+                f'| {"-"*(sp[2]-1)}: '
+                f'| {"-"*(sp[3]-1)}: '
+                f'| {"-"*(sp[4]-1)}: '
+                f'| {"-"*(sp[5]-1)}: '
+                f'| {"-"*(sp[6]-1)}: '
+                f'| {"-"*(sp[7]-1)}: '
+                f'| :{"-"*(sp[8]-2)}: |\n',
+            ]
+        )
+
         for pparam in datasheet['physical_parameters']:
 
             # Get the unit

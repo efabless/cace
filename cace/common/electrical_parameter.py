@@ -102,7 +102,8 @@ class ElectricalParameter(threading.Thread):
 
                 self.cancel_point()
 
-                self.new_testbenches[presult['sequence']] = presult
+                if presult:
+                    self.new_testbenches[presult['sequence']] = presult
 
                 if self.cb_sims:
                     self.cb_sims()
@@ -148,8 +149,11 @@ class ElectricalParameter(threading.Thread):
                 print(
                     f'{self.param["name"]}: Error: At least one testbench is invalid'
                 )
-                self.cb(self.param['name'])
-                return
+                self.param['results'] = None
+
+                # Just cancel on error
+                self.cancel(False)
+                self.cancel_point()
 
         # Assign the new testbenches to the parameter
         # (cancel is not possible anymore)

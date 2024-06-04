@@ -235,7 +235,7 @@ class RowWidget:
     def get_resultdict(self):
 
         # Return resultdict depending on source
-        if 'results' in self.param:
+        if 'results' in self.param and self.param['results']:
             resultlist = self.param['results']
             if not isinstance(resultlist, list):
                 resultlist = [resultlist]
