@@ -404,8 +404,8 @@ class SimulationManager:
         """Return the datasheet"""
         return self.datasheet
 
-    def summarize_datasheet(self, file=None):
-        markdown_summary(self.datasheet, file)
+    def summarize_datasheet(self):
+        return markdown_summary(self.datasheet)
 
     def generate_html(self):
         debug = self.get_runtime_options('debug')

@@ -320,6 +320,11 @@ class SimulationJob(threading.Thread):
                         print('Copying ngspice configuration file from PDK.')
                         shutil.copy(spinitfile, '.spiceinit')
 
+                # Run simulations in batch mode
+                # (exit after end of simulation)
+                if not '-b' in simargs and not '--batch' in simargs:
+                    simargs.append('--batch')
+
             # Capture all output from stdout and stderr.  Print each line in
             # real-time, and flush the output buffer.  All output is ignored.
             # Note:  bufsize = 1 and universal_newlines = True sets line-buffered output
@@ -354,6 +359,7 @@ class SimulationJob(threading.Thread):
 
             if return_code != 0:
                 print('Error:  ngspice exited with non-zero status!')
+                return 0
 
             # Clean up pipe file after cosimulation, also the .lxt file and .tvo files
             if cosimdict:
@@ -410,8 +416,7 @@ class SimulationJob(threading.Thread):
             testbench['format'] = varnames
 
         else:
-            print(
-                'Error:  No output file ' + simoutputfile + ' from simulation!'
-            )
+            print(f'Error:  No output file {simoutputfile} from simulation!')
+            return 0
 
         return result

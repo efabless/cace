@@ -1142,20 +1142,22 @@ def gui():
     root = tkinter.Tk(className='CACE')
     app = CACEGui(root)
 
-    if not args.terminal:
-        app.capture_output()
-
+    # Enable debug output
     if args.debug:
         print('Enabling debug output.')
         app.settings.set_debug(True)
 
+    # Load the datasheet
     if args.datasheet:
         print('Setting datasheet to ' + args.datasheet)
         if app.set_datasheet(args.datasheet):
             sys.exit(0)
     else:
-        if app.find_datasheet(os.getcwd()):
-            sys.exit(0)
+        app.find_datasheet(os.getcwd())
+
+    # Capture the output
+    if not args.terminal:
+        app.capture_output()
 
     # Start the main loop
     root.mainloop()

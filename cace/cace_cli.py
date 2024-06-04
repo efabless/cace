@@ -18,8 +18,18 @@ import time
 import signal
 import argparse
 
-from .__version__ import __version__
+from rich.console import Console
+from rich.markdown import Markdown
+from rich.progress import (
+    Progress,
+    TextColumn,
+    BarColumn,
+    MofNCompleteColumn,
+    TimeElapsedColumn,
+    TaskID,
+)
 
+from .__version__ import __version__
 from .common.simulation_manager import SimulationManager
 
 
@@ -114,6 +124,11 @@ def cli():
     (Warning: Does not check if simulations are out of date)""",
     )
     parser.add_argument(
+        '--no-progress',
+        action='store_true',
+        help='do not display the progress bar',
+    )
+    parser.add_argument(
         '--summary',
         help='output path for the summary e.g. final/summary.md',
     )
@@ -145,22 +160,51 @@ def cli():
         'parallel_parameters', args.parallel_parameters
     )
 
+    # Rich console
+    console = Console()
+
+    # Create the progress bar
+    progress = Progress(
+        TextColumn('[progress.description]{task.description}'),
+        BarColumn(),
+        MofNCompleteColumn(),
+        TimeElapsedColumn(),
+        console=console,
+        disable=args.no_progress,
+    )
+
+    # Add a single task for all parameters
+    progress.start()
+    task_id = progress.add_task(
+        'Running parameters',
+    )
+
     # Queue specified parameters
     if args.parameter:
         if args.debug:
             print(f'Running simulation for: {args.parameter}')
-
         for pname in args.parameter:
-            simulation_manager.queue_parameter(pname)
+            simulation_manager.queue_parameter(
+                pname,
+                cb=lambda pname, canceled=False: progress.update(
+                    task_id, advance=1
+                ),
+            )
     # Queue all parameters
     else:
         pnames = simulation_manager.get_all_pnames()
-
         if args.debug:
             print(f'Running simulation for: {pnames}')
-
         for pname in pnames:
-            simulation_manager.queue_parameter(pname)
+            simulation_manager.queue_parameter(
+                pname,
+                cb=lambda pname, canceled=False: progress.update(
+                    task_id, advance=1
+                ),
+            )
+
+    # Set the total number of parameters in the progress bar
+    progress.update(task_id, total=simulation_manager.num_queued_parameters())
 
     # Run the simulations
     simulation_manager.run_parameters_async()
@@ -168,16 +212,20 @@ def cli():
     # Wait for completion
     simulation_manager.join_parameters()
 
+    # Stop the progress bar
+    progress.stop()
+
     if args.debug:
         print('Done with CACE simulations and evaluations.')
 
     if args.output:
         simulation_manager.save_datasheet(args.output)
 
-    # Print the summary to stdout
-    simulation_manager.summarize_datasheet()
+    # Print the summary to the console
+    summary = simulation_manager.summarize_datasheet()
+    console.print(Markdown(summary))
 
-    # Print the summary to a file
+    # Write the summary to a file
     if args.summary:
         dirname = os.path.dirname(args.summary) or os.getcwd()
         filename = os.path.basename(args.summary)
@@ -185,7 +233,7 @@ def cli():
         # Check whether path to file exists
         if os.path.isdir(dirname):
             with open(os.path.join(dirname, filename), 'w') as ofile:
-                simulation_manager.summarize_datasheet(ofile)
+                ofile.write(summary)
         else:
             print(
                 f"Couldn't write summary, invalid path: {os.path.dirname(args.summary)}"

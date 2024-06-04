@@ -879,12 +879,14 @@ def cace_summarize_result(param, result):
     print('')
 
 
-def markdown_summary(datasheet, file=None):
+def markdown_summary(datasheet):
     """
-    Print a brief summary to either stdout or any file that is passed.
-    The summary is formatted in Markdown and can be viewed with any
-    Markdown viewer
+    Returns a brief summary of the datasheet and its parameters
+    The summary is formatted in Markdown and can either be printed
+    directly or via rich to get a nice formatting
     """
+
+    result = ''
 
     # Table spacings
     sp = [20, 20, 10, 12, 10, 12, 10, 12, 8]
@@ -893,62 +895,64 @@ def markdown_summary(datasheet, file=None):
     fail_msg = 'Fail ❌'
     pass_msg = 'Pass ✅'
 
-    print('\n# CACE Summary\n', file=file)
+    result += '\n# CACE Summary\n\n'
 
-    print(
-        f'**general**\n\n'
-        f'- name: {datasheet["name"]}\n'
-        f'- description: {datasheet["description"]}\n'
-        f'- commit: {datasheet["commit"]}\n'
-        f'- PDK: {datasheet["PDK"]}\n'
-        f'- cace_format: {datasheet["cace_format"]}\n',
-        file=file,
+    result += ''.join(
+        [
+            f'**general**\n\n',
+            f'- name: {datasheet["name"]}\n',
+            f'- description: {datasheet["description"]}\n',
+            f'- commit: {datasheet["commit"]}\n',
+            f'- PDK: {datasheet["PDK"]}\n',
+            f'- cace_format: {datasheet["cace_format"]}\n\n',
+        ]
     )
 
-    print(
-        f'**authorship**\n\n'
-        f'- designer: {datasheet["authorship"]["designer"]}\n'
-        f'- company: {datasheet["authorship"]["company"]}\n'
-        f'- creation_date: {datasheet["authorship"]["creation_date"]}\n'
-        f'- license: {datasheet["authorship"]["license"]}\n',
-        file=file,
+    result += ''.join(
+        [
+            f'**authorship**\n\n'
+            f'- designer: {datasheet["authorship"]["designer"]}\n'
+            f'- company: {datasheet["authorship"]["company"]}\n'
+            f'- creation_date: {datasheet["authorship"]["creation_date"]}\n'
+            f'- license: {datasheet["authorship"]["license"]}\n\n',
+        ]
     )
 
-    print(
-        f'**netlist source**: {datasheet["runtime_options"]["netlist_source"]}\n',
-        file=file,
-    )
-
-    print('## Electrical Parameters\n', file=file)
-
-    # Print the table headings
-    print(
-        f'| {"Parameter": ^{sp[0]}} '
-        f'| {"Testbench": ^{sp[1]}} '
-        f'| {"Min Limit": ^{sp[2]}} '
-        f'| {"Min Value": ^{sp[3]}} '
-        f'| {"Typ Target": ^{sp[4]}} '
-        f'| {"Typ Value": ^{sp[5]}} '
-        f'| {"Max Limit": ^{sp[6]}} '
-        f'| {"Max Value": ^{sp[7]}} '
-        f'| {"Status": ^{sp[8]}} |',
-        file=file,
-    )
-    # Print the separators
-    print(
-        f'| :{"-"*(sp[0]-1)} '
-        f'| :{"-"*(sp[1]-1)} '
-        f'| {"-"*(sp[2]-1)}: '
-        f'| {"-"*(sp[3]-1)}: '
-        f'| {"-"*(sp[4]-1)}: '
-        f'| {"-"*(sp[5]-1)}: '
-        f'| {"-"*(sp[6]-1)}: '
-        f'| {"-"*(sp[7]-1)}: '
-        f'| :{"-"*(sp[8]-2)}: |',
-        file=file,
-    )
+    result += f'**netlist source**: {datasheet["runtime_options"]["netlist_source"]}\n\n'
 
     if 'electrical_parameters' in datasheet:
+
+        result += '## Electrical Parameters\n\n'
+
+        # Print the table headings
+        result += ''.join(
+            [
+                f'| {"Parameter": ^{sp[0]}} ',
+                f'| {"Testbench": ^{sp[1]}} ',
+                f'| {"Min Limit": ^{sp[2]}} ',
+                f'| {"Min Value": ^{sp[3]}} ',
+                f'| {"Typ Target": ^{sp[4]}} ',
+                f'| {"Typ Value": ^{sp[5]}} ',
+                f'| {"Max Limit": ^{sp[6]}} ',
+                f'| {"Max Value": ^{sp[7]}} ',
+                f'| {"Status": ^{sp[8]}} |\n',
+            ]
+        )
+        # Print the separators
+        result += ''.join(
+            [
+                f'| :{"-"*(sp[0]-1)} ',
+                f'| :{"-"*(sp[1]-1)} ',
+                f'| {"-"*(sp[2]-1)}: ',
+                f'| {"-"*(sp[3]-1)}: ',
+                f'| {"-"*(sp[4]-1)}: ',
+                f'| {"-"*(sp[5]-1)}: ',
+                f'| {"-"*(sp[6]-1)}: ',
+                f'| {"-"*(sp[7]-1)}: ',
+                f'| :{"-"*(sp[8]-2)}: |\n',
+            ]
+        )
+
         for eparam in datasheet['electrical_parameters']:
 
             # Get the unit
@@ -967,18 +971,26 @@ def markdown_summary(datasheet, file=None):
 
             values = {'minimum': '', 'typical': '', 'maximum': ''}
 
+            print(eparam)
+
             # Get the results
             passing = None
             if 'results' in eparam:
                 passing = True
 
-                for result_type in ['minimum', 'typical', 'maximum']:
-                    if result_type in eparam['results']:
-                        values[result_type] = eparam['results'][result_type][0]
+                # Invalid results
+                if not eparam['results']:
+                    passing = False
+                else:
+                    for result_type in ['minimum', 'typical', 'maximum']:
+                        if result_type in eparam['results']:
+                            values[result_type] = eparam['results'][
+                                result_type
+                            ][0]
 
-                        # Any fail fails the whole parameter
-                        if eparam['results'][result_type][1] != 'pass':
-                            passing = False
+                            # Any fail fails the whole parameter
+                            if eparam['results'][result_type][1] != 'pass':
+                                passing = False
 
             # Get the status message
             status = pass_msg if passing else fail_msg
@@ -998,7 +1010,9 @@ def markdown_summary(datasheet, file=None):
             no_unit = ['', 'any']
 
             # Print the row for the parameter
-            parameter_str = eparam['name']
+            parameter_str = (
+                eparam['display'] if 'display' in eparam else eparam['name']
+            )
             testbench_str = testbench
             min_limit_str = (
                 f'{limits["minimum"]} {unit}'
@@ -1032,49 +1046,55 @@ def markdown_summary(datasheet, file=None):
             )
             status_str = status
 
-            print(
-                f'| {parameter_str: <{sp[0]}} '
-                f'| {testbench_str: <{sp[1]}} '
-                f'| {min_limit_str: >{sp[2]}} '
-                f'| {min_value_str: >{sp[3]}} '
-                f'| {typ_limit_str: >{sp[4]}} '
-                f'| {typ_value_str: >{sp[5]}} '
-                f'| {max_limit_str: >{sp[6]}} '
-                f'| {max_value_str: >{sp[7]}} '
-                f'| {status_str: ^{sp[8]-1}} |',
-                file=file,
+            # Workaround for rich: replace empty cells with one invisible space character
+            inv_char = '\u200B'
+            result += ''.join(
+                [
+                    f'| {parameter_str if parameter_str else inv_char: <{sp[0]}} '
+                    f'| {testbench_str if testbench_str else inv_char: <{sp[1]}} '
+                    f'| {min_limit_str if min_limit_str else inv_char: >{sp[2]}} '
+                    f'| {min_value_str if min_value_str else inv_char: >{sp[3]}} '
+                    f'| {typ_limit_str if typ_limit_str else inv_char: >{sp[4]}} '
+                    f'| {typ_value_str if typ_value_str else inv_char: >{sp[5]}} '
+                    f'| {max_limit_str if max_limit_str else inv_char: >{sp[6]}} '
+                    f'| {max_value_str if max_value_str else inv_char: >{sp[7]}} '
+                    f'| {status_str if status_str else inv_char: ^{sp[8]-1}} |\n',
+                ]
             )
 
-    print('\n## Physical Parameters\n', file=file)
-
-    # Print the table headings
-    print(
-        f'| {"Parameter": ^{sp[0]}} '
-        f'| {"Tool": ^{sp[1]}} '
-        f'| {"Min Limit": ^{sp[2]}} '
-        f'| {"Min Value": ^{sp[3]}} '
-        f'| {"Typ Target": ^{sp[4]}} '
-        f'| {"Typ Value": ^{sp[5]}} '
-        f'| {"Max Limit": ^{sp[6]}} '
-        f'| {"Max Value": ^{sp[7]}} '
-        f'| {"Status": ^{sp[8]}} |',
-        file=file,
-    )
-    # Print the separators
-    print(
-        f'| :{"-"*(sp[0]-1)} '
-        f'| :{"-"*(sp[1]-1)} '
-        f'| {"-"*(sp[2]-1)}: '
-        f'| {"-"*(sp[3]-1)}: '
-        f'| {"-"*(sp[4]-1)}: '
-        f'| {"-"*(sp[5]-1)}: '
-        f'| {"-"*(sp[6]-1)}: '
-        f'| {"-"*(sp[7]-1)}: '
-        f'| :{"-"*(sp[8]-2)}: |',
-        file=file,
-    )
-
     if 'physical_parameters' in datasheet:
+
+        result += '\n## Physical Parameters\n\n'
+
+        # Print the table headings
+        result += ''.join(
+            [
+                f'| {"Parameter": ^{sp[0]}} '
+                f'| {"Tool": ^{sp[1]}} '
+                f'| {"Min Limit": ^{sp[2]}} '
+                f'| {"Min Value": ^{sp[3]}} '
+                f'| {"Typ Target": ^{sp[4]}} '
+                f'| {"Typ Value": ^{sp[5]}} '
+                f'| {"Max Limit": ^{sp[6]}} '
+                f'| {"Max Value": ^{sp[7]}} '
+                f'| {"Status": ^{sp[8]}} |\n',
+            ]
+        )
+        # Print the separators
+        result += ''.join(
+            [
+                f'| :{"-"*(sp[0]-1)} '
+                f'| :{"-"*(sp[1]-1)} '
+                f'| {"-"*(sp[2]-1)}: '
+                f'| {"-"*(sp[3]-1)}: '
+                f'| {"-"*(sp[4]-1)}: '
+                f'| {"-"*(sp[5]-1)}: '
+                f'| {"-"*(sp[6]-1)}: '
+                f'| {"-"*(sp[7]-1)}: '
+                f'| :{"-"*(sp[8]-2)}: |\n',
+            ]
+        )
+
         for pparam in datasheet['physical_parameters']:
 
             # Get the unit
@@ -1126,7 +1146,9 @@ def markdown_summary(datasheet, file=None):
             no_unit = ['', 'any']
 
             # Print the row for the parameter
-            parameter_str = pparam['name']
+            parameter_str = (
+                pparam['display'] if 'display' in pparam else pparam['name']
+            )
             tool_str = tool
             min_limit_str = (
                 f'{limits["minimum"]} {unit}'
@@ -1160,20 +1182,24 @@ def markdown_summary(datasheet, file=None):
             )
             status_str = status
 
-            print(
-                f'| {parameter_str: <{sp[0]}} '
-                f'| {tool_str: <{sp[1]}} '
-                f'| {min_limit_str: >{sp[2]}} '
-                f'| {min_value_str: >{sp[3]}} '
-                f'| {typ_limit_str: >{sp[4]}} '
-                f'| {typ_value_str: >{sp[5]}} '
-                f'| {max_limit_str: >{sp[6]}} '
-                f'| {max_value_str: >{sp[7]}} '
-                f'| {status_str: ^{sp[8]-1}} |',
-                file=file,
+            # Workaround for rich: replace empty cells with one invisible space character
+            inv_char = '\u200B'
+            result += ''.join(
+                [
+                    f'| {parameter_str if parameter_str else inv_char: <{sp[0]}} '
+                    f'| {tool_str if tool_str else inv_char: <{sp[1]}} '
+                    f'| {min_limit_str if min_limit_str else inv_char: >{sp[2]}} '
+                    f'| {min_value_str if min_value_str else inv_char: >{sp[3]}} '
+                    f'| {typ_limit_str if typ_limit_str else inv_char: >{sp[4]}} '
+                    f'| {typ_value_str if typ_value_str else inv_char: >{sp[5]}} '
+                    f'| {max_limit_str if max_limit_str else inv_char: >{sp[6]}} '
+                    f'| {max_value_str if max_value_str else inv_char: >{sp[7]}} '
+                    f'| {status_str if status_str else inv_char: ^{sp[8]-1}} |\n',
+                ]
             )
 
-    print('', file=file)
+    result += '\n'
+    return result
 
 
 # ---------------------------------------------------------------

@@ -1,3 +1,16 @@
+# 2.3.1
+
+## Common
+
+- Add [Rich](https://github.com/Textualize/rich) as dependency
+- Pass `--batch` to ngspice, to exit simulations after they are done
+
+## CLI
+
+- Add a progress bar
+- Render the Markdown of the summary
+- Bugfix: Show a fail in the summary if a simulation fails
+
 # 2.3.0
 
 ## Common
