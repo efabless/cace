@@ -33,6 +33,7 @@
   numpy,
   pillow,
   tkinter,
+  rich,
 }:
 buildPythonPackage rec {
   name = "cace";
@@ -79,6 +80,7 @@ buildPythonPackage rec {
     pillow
     volare
     tkinter
+    rich
   ]
   ++ includedTools;
   

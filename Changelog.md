@@ -1,3 +1,14 @@
+# 2.3.1
+
+## Common
+
+- Add [Rich](https://github.com/Textualize/rich) as dependency
+
+## CLI
+
+- Add a progress bar
+- Render the Markdown of the summary
+
 # 2.3.0
 
 ## Common
