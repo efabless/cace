@@ -31,6 +31,18 @@ from .cace_write import *
 from .cace_regenerate import get_pdk_root
 from .safe_eval import safe_eval
 
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
+
 # -----------------------------------------------------------------------
 # Read the indicated file, find the .subckt line, and copy out the
 # pin names and DUT name.  Complain if pin names don't match pin names
@@ -46,7 +58,7 @@ def construct_dut_from_path(pname, pathname, pinlist):
     outline = ''
     dutname = ''
     if not os.path.isfile(pathname):
-        print('Error:  No design netlist file ' + pathname + ' found.')
+        err('No design netlist file ' + pathname + ' found.')
         return outline
 
     # First pull in all lines of the file and concatenate all continuation
@@ -83,13 +95,13 @@ def construct_dut_from_path(pname, pathname, pinlist):
                 break
 
     if found == 0 and dutname == '':
-        print('File ' + pathname + ' does not contain any subcircuits!')
+        warn('File ' + pathname + ' does not contain any subcircuits!')
         raise SyntaxError(
             'File ' + pathname + ' does not contain any subcircuits!'
         )
     elif found == 0:
         if dutname != pname:
-            print(
+            warn(
                 'File '
                 + pathname
                 + ' does not have a subcircuit named '
@@ -104,12 +116,11 @@ def construct_dut_from_path(pname, pathname, pinlist):
                 + '!'
             )
         else:
-            print('Pins in schematic: ' + str(tokens[1:]))
-            print('Pins in datasheet: ', end='')
+            warn('Pins in schematic: ' + str(tokens[1:]))
+            warn('Pins in datasheet: ')
             for pin in pinlist:
-                print(pin['name'] + ' ', end='')
-            print('')
-            print(
+                warn(pin['name'] + ' ')
+            warn(
                 'File '
                 + pathname
                 + ' subcircuit '
@@ -124,17 +135,14 @@ def construct_dut_from_path(pname, pathname, pinlist):
                 + ' does not have expected pins!'
             )
     elif found != len(pinlist):
-        print(
-            'File ' + pathname + ' does not contain the project DUT ' + pname
-        )
-        print('or not all pins of the DUT were found.')
-        print('Pinlist is : ', end='')
+        warn('File ' + pathname + ' does not contain the project DUT ' + pname)
+        warn('or not all pins of the DUT were found.')
+        warn('Pinlist is : ')
         for pinrec in pinlist:
-            print(pinrec['name'] + ' ', end='')
-        print('')
+            warn(pinrec['name'] + ' ')
 
-        print('Length of pinlist is ' + str(len(pinlist)))
-        print('Number of pins found in subcircuit call is ' + str(found))
+        warn('Length of pinlist is ' + str(len(pinlist)))
+        warn('Number of pins found in subcircuit call is ' + str(found))
         raise SyntaxError(
             'File ' + pathname + ' does not contain the project DUT!'
         )
@@ -271,7 +279,7 @@ def condition_gen(cond):
                 lcond, unit, minimum, cond['maximum'], cond['stepsize']
             )
         else:
-            print('Diagnostic: yield from linseq')
+            dbg('Diagnostic: yield from linseq')
             yield from linseq(
                 lcond, unit, minimum, cond['maximum'], cond['stepsize']
             )
@@ -445,7 +453,7 @@ def inline_dut(filename, functional, rootpath, ofile):
         subsline = line
         cmatch = comtrex.match(line)
         if cmatch:
-            print(line, file=ofile)
+            dbg(line, file=ofile)
             continue
         # Check for ".end" which should be removed (but not ".ends", which must remain)
         ematch = endrex.match(line)
@@ -521,20 +529,20 @@ def inline_dut(filename, functional, rootpath, ofile):
 
                 funcpath = os.path.expanduser(funcpath)
                 if funcpath and os.path.exists(funcpath):
-                    print('Subsituting functional view for IP block ' + ipname)
-                    print('Original netlist is ' + incpath)
-                    print('Functional netlist is ' + funcpath)
+                    info('Subsituting functional view for IP block ' + ipname)
+                    info('Original netlist is ' + incpath)
+                    info('Functional netlist is ' + funcpath)
                     subsline = '.include ' + funcpath
                 elif funcpath:
-                    print('Original netlist is ' + incpath)
-                    print(
+                    warn('Original netlist is ' + incpath)
+                    warn(
                         'Functional view specified but no functional view found.'
                     )
-                    print('Tried looking for ' + funcpath)
-                    print('Retaining original view.')
+                    warn('Tried looking for ' + funcpath)
+                    warn('Retaining original view.')
                 else:
-                    print('Original netlist is ' + incpath)
-                    print(
+                    warn('Original netlist is ' + incpath)
+                    warn(
                         'Cannot make sense of netlist path to find functional view.'
                     )
 
@@ -605,7 +613,7 @@ def get_condition_names_used(testbenchpath, testbench):
 
     template = os.path.join(testbenchpath, testbench)
     if not os.path.isfile(template):
-        print('Error:  No such template file ' + template)
+        err('No such template file ' + template)
         return
 
     with open(template, 'r') as ifile:
@@ -734,8 +742,8 @@ def substitute(
                 or 'libs.ref' in path
                 and not '{PDK_ROOT}' in path
             ):
-                print(f'Warning: This path may not be portable: {path}')
-                print(
+                warn(f'This path may not be portable: {path}')
+                warn(
                     f'Reason: Contains "libs.tech" or "libs.ref" but {{PDK_ROOT}} is missing'
                 )
 
@@ -743,8 +751,8 @@ def substitute(
                 path.startswith(os.path.expanduser('~'))
                 and not '** sch_path:' in line
             ):
-                print(f'Warning: This path may not be portable: {path}')
-                print(f"Reason: Starts with the user's home directory")
+                warn(f'This path may not be portable: {path}')
+                warn(f"Reason: Starts with the user's home directory")
 
     # Make initial pass over contents of template file, looking for conditions
     # with values (e.g., "Vdd|maximum").  These indicate that the condition is
@@ -772,10 +780,9 @@ def substitute(
                     item for item in sweeps if item['name'] == condition
                 )
             except (StopIteration, KeyError):
-                if debug:
-                    print('New sweeps entry ' + condition + ' found.')
-                    # print('Line = ' + line)
-                    # print('Substitution list = ' + str(sublist))
+                dbg('New sweeps entry ' + condition + ' found.')
+                # print('Line = ' + line)
+                # print('Substitution list = ' + str(sublist))
                 entry = {'name': condition}
                 sweeps.append(entry)
 
@@ -790,7 +797,7 @@ def substitute(
                             item for item in simval if item[0] == condition
                         )
                     except StopIteration:
-                        print('No condition = ' + condition + ' in record:\n')
+                        warn('No condition = ' + condition + ' in record:\n')
                         ptext = str(simval) + '\n'
                         sys.stdout.buffer.write(ptext.encode('utf-8'))
                     else:
@@ -801,11 +808,7 @@ def substitute(
                 # Remove non-unique entries from lvals
                 lvals = list(set(lvals))
                 if not lvals:
-                    print(
-                        'CACE gensim error:  No substitution for "'
-                        + condition
-                        + '"'
-                    )
+                    err('No substitution for "' + condition + '"')
                     continue
 
                 # Now parse lvals for minimum/maximum
@@ -966,8 +969,8 @@ def substitute(
                                             + line[patmatch.end() :]
                                         )
                                     else:
-                                        print(
-                                            'CACE gensim: substitution error in "'
+                                        err(
+                                            'substitution error in "'
                                             + subsline
                                             + '"'
                                         )
@@ -994,8 +997,8 @@ def substitute(
                                             + line[patmatch.end() :]
                                         )
                                     else:
-                                        print(
-                                            'CACE gensim: substitution error in "'
+                                        err(
+                                            'substitution error in "'
                                             + subsline
                                             + '"'
                                         )
@@ -1022,8 +1025,8 @@ def substitute(
                                             + line[patmatch.end() :]
                                         )
                                     else:
-                                        print(
-                                            'CACE gensim: substitution error in "'
+                                        err(
+                                            'substitution error in "'
                                             + subsline
                                             + '"'
                                         )
@@ -1050,8 +1053,8 @@ def substitute(
                                             + line[patmatch.end() :]
                                         )
                                     else:
-                                        print(
-                                            'CACE gensim: substitution error in "'
+                                        err(
+                                            'substitution error in "'
                                             + subsline
                                             + '"'
                                         )
@@ -1080,8 +1083,8 @@ def substitute(
                                             + line[patmatch.end() :]
                                         )
                                     else:
-                                        print(
-                                            'CACE gensim: substitution error in "'
+                                        err(
+                                            'substitution error in "'
                                             + subsline
                                             + '"'
                                         )
@@ -1110,8 +1113,8 @@ def substitute(
                                             + line[patmatch.end() :]
                                         )
                                     else:
-                                        print(
-                                            'CACE gensim: substitution error in "'
+                                        err(
+                                            'substitution error in "'
                                             + subsline
                                             + '"'
                                         )
@@ -1159,8 +1162,8 @@ def substitute(
                                         pinname = pinrec.group(1).upper()
                                         netname = pinrec.group(2).upper()
                                     else:
-                                        print(
-                                            'Error: Bad PIN variable '
+                                        err(
+                                            'Bad PIN variable '
                                             + condition
                                             + ' in DUT!'
                                         )
@@ -1250,11 +1253,7 @@ def substitute(
                         # Make the variable substitution
                         subsline = subsline.replace(pattern, repl)
                     elif not no_repl_ok:
-                        print(
-                            'Warning: Variable '
-                            + pattern
-                            + ' had no substitution'
-                        )
+                        warn('Variable ' + pattern + ' had no substitution')
 
                 # Check if {PIN} are in line.  If so, order by index and
                 # rewrite pins in order
@@ -1263,9 +1262,9 @@ def substitute(
                         if simpins[i]:
                             subsline = subsline.replace('{PIN}', simpins[i], 1)
                         else:
-                            print('Error:  simpins is ' + str(simpins) + '\n')
-                            print('        subsline is ' + subsline + '\n')
-                            print('        i is ' + str(i) + '\n')
+                            err('Error:  simpins is ' + str(simpins) + '\n')
+                            err('        subsline is ' + subsline + '\n')
+                            err('        i is ' + str(i) + '\n')
 
                 # Check for a verilog include file, and if any is found, copy it
                 # to the target simulation directory.  Replace any leading path
@@ -1346,13 +1345,11 @@ def cace_gensim(dataset, param):
     else:
         status = 'active'
     if status == 'skip' or status == 'blocked':
-        if debug:
-            print('Parameter ' + paramname + ' is marked for skipping.')
+        info('Parameter ' + paramname + ' is marked for skipping.')
 
         return param
 
-    if debug:
-        print('Generating simulation files for parameter ' + paramname)
+    dbg('Generating simulation files for parameter ' + paramname)
 
     # Get list of default conditions and generate a list of the condition names
     defcondlist = dataset['default_conditions']
@@ -1429,12 +1426,11 @@ def cace_gensim(dataset, param):
 
     if not os.path.isfile(dutpath):
         if 'verilog' not in paths:
-            print(
+            err(
                 'No SPICE netlist exists at '
                 + dutpath
                 + ' and no verilog path exists.'
             )
-            print('This is an error condition.')
             return param
 
     # Get the DUT definition from the SPICE netlist.  Note that this
@@ -1484,7 +1480,7 @@ def cace_gensim(dataset, param):
     for testbench in testbenches:
         newnames = get_condition_names_used(testbenchpath, testbench)
         if not newnames:
-            print('Error:  No conditions for testbench ' + testbench)
+            err('No conditions for testbench ' + testbench)
         else:
             # Convert the dictionary of names into a list
             for name in newnames:
@@ -1598,11 +1594,7 @@ def cace_gensim(dataset, param):
                 )
             elif not cond.startswith('PIN|') and not '=' in cond:
                 if cond not in reserved:
-                    print(
-                        'Error:  Unknown/unhandled condition name "'
-                        + cond
-                        + '"'
-                    )
+                    err('Unknown/unhandled condition name "' + cond + '"')
         else:
             if cond in pcondnames:
                 lcondlist.extend(
@@ -1614,11 +1606,7 @@ def cace_gensim(dataset, param):
                 )
             elif not cond.startswith('PIN|') and not '=' in cond:
                 if cond not in reserved:
-                    print(
-                        'Error:  Unknown/unhandled condition name "'
-                        + cond
-                        + '"'
-                    )
+                    err('Unknown/unhandled condition name "' + cond + '"')
 
     # Get the list of parameters that are collated (simulated together
     # and results passed as a list to the measurement).  These go first
@@ -1645,8 +1633,8 @@ def cace_gensim(dataset, param):
                     )
                 )
             except:
-                print(
-                    'Error:  Request to collate '
+                err(
+                    'Request to collate '
                     + collname
                     + ' which is not a condition of parameter '
                     + paramname
@@ -1673,7 +1661,7 @@ def cace_gensim(dataset, param):
     if 'Tmax' in condnames:
         if 'Tmax' not in lcondnames:
             maxtime = findmaxtime(param, lcondlist)
-            print('maxtime is ' + str(maxtime))
+            info('maxtime is ' + str(maxtime))
             maxtimedict = {}
             maxtimedict['name'] = 'Tmax'
             maxtimedict['unit'] = 's'
@@ -1681,10 +1669,9 @@ def cace_gensim(dataset, param):
             lcondlist.append(maxtimedict)
 
     if lcondlist == []:
-        print('Error:  Empty condition list for electrical parameter.')
-        if debug:
-            print('conditions in testbench: ' + ' '.join(condnames))
-            print('conditions in parameter: ' + ' '.join(pcondnames))
+        err(' Empty condition list for electrical parameter.')
+        dbg('conditions in testbench: ' + ' '.join(condnames))
+        dbg('conditions in parameter: ' + ' '.join(pcondnames))
         return param
 
     # Find the length of each generator
@@ -1692,9 +1679,8 @@ def cace_gensim(dataset, param):
     for cond in lcondlist:
         cgenlen.append(len(list(condition_gen(cond))))
 
-    if debug:
-        print('Full condition list (lcondlist) is:')
-        print('   ' + ' '.join(lcondnames))
+    dbg('Full condition list (lcondlist) is:')
+    dbg('   ' + ' '.join(lcondnames))
 
     # The lengths of all generators multiplied together is the number of
     # simulations to be run
@@ -1712,12 +1698,10 @@ def cace_gensim(dataset, param):
         simulatedict['group_size'] = numcollated
 
         # Diagnostic
-        if debug:
-            print('Collated variables = ' + ' '.join(collnames))
-            print('Number of grouped testbenches = ' + str(numcollated))
+        dbg('Collated variables = ' + ' '.join(collnames))
+        dbg('Number of grouped testbenches = ' + str(numcollated))
     else:
-        if debug:
-            print('No collation in parameter ' + param['name'])
+        dbg('No collation in parameter ' + param['name'])
 
     # This code repeats each condition as necessary such that the final list
     # (transposed) is a complete set of unique condition combinations.
@@ -1755,7 +1739,7 @@ def cace_gensim(dataset, param):
                 debug,
             )
         else:
-            print('Error:  No testbench file ' + template + '.')
+            err('No testbench file ' + template + '.')
 
     return param
 

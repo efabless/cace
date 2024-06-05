@@ -103,7 +103,7 @@ class Settings(tkinter.Toplevel):
         self.sframe.log.pack(side='top', anchor='w')
 
         parallel_parameters = (
-            self.parent.simulation_manager.get_runtime_options(
+            self.parent.parameter_manager.get_runtime_options(
                 'parallel_parameters'
             )
         )

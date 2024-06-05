@@ -15,26 +15,42 @@
 import os
 import re
 import sys
+import glob
 import time
 import yaml
 import shutil
 import signal
+import datetime
 import threading
 
-from .cace_read import cace_read, cace_read_yaml
-from .cace_write import (
+from ..common.misc import mkdirp
+from ..common.cace_read import cace_read, cace_read_yaml
+from ..common.cace_write import (
     cace_write,
     cace_summary,
     markdown_summary,
     cace_generate_html,
 )
+from ..common.cace_regenerate import regenerate_netlists
 from .physical_parameter import PhysicalParameter
 from .electrical_parameter import ElectricalParameter
 
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
 
-class SimulationManager:
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
+
+
+class ParameterManager:
     """
-    The SimulationManager manages the simulation queue
+    The ParameterManager manages the parameter queue
     of physical and electrical parameters.
     It also holds the datasheet and provides functions to
     manipulate it.
@@ -66,6 +82,9 @@ class SimulationManager:
 
         self.default_runtime_options()
 
+        # Create a new run dir for logs
+        self.prepare_run_dir()
+
     ### datasheet functions ###
 
     def load_datasheet(self, datasheet_path, debug):
@@ -76,7 +95,7 @@ class SimulationManager:
         """
 
         if not os.path.isfile(datasheet_path):
-            print(f'Error: File {datasheet_path} not found.')
+            err(f'File {datasheet_path} not found.')
             return 1
 
         [dspath, dsname] = os.path.split(datasheet_path)
@@ -102,10 +121,8 @@ class SimulationManager:
             paths['root'] = '.'
 
         os.chdir(dspath)
-        if debug:
-            print(
-                f'Working directory set to {dspath} ({os.path.abspath(dspath)})'
-            )
+
+        info(f'Working directory set to {dspath} ({os.path.abspath(dspath)})')
 
         if debug:
             import pprint
@@ -136,7 +153,7 @@ class SimulationManager:
                 basename = os.path.splitext(item)[0]
                 if fileext == '.yaml':
                     if basename == dirname:
-                        print(f'Loading datasheet from {item}')
+                        info(f'Loading datasheet from {item}')
                         self.load_datasheet(item, debug)
                         return 0
 
@@ -149,7 +166,7 @@ class SimulationManager:
                         basename = os.path.splitext(subitem)[0]
                         if fileext == '.yaml':
                             if basename == dirname:
-                                print(f'Loading datasheet from {subitemref}')
+                                info(f'Loading datasheet from {subitemref}')
                                 self.load_datasheet(subitemref, debug)
                                 return 0
 
@@ -160,7 +177,7 @@ class SimulationManager:
                 basename = os.path.splitext(item)[0]
                 if fileext == '.txt':
                     if basename == dirname:
-                        print(f'Loading datasheet from {item}')
+                        info(f'Loading datasheet from {item}')
                         self.load_datasheet(item, debug)
                         return 0
 
@@ -173,16 +190,16 @@ class SimulationManager:
                         basename = os.path.splitext(subitem)[0]
                         if fileext == '.txt':
                             if basename == dirname:
-                                print(f'Loading datasheet from {subitemref}')
+                                info(f'Loading datasheet from {subitemref}')
                                 self.load_datasheet(subitemref, debug)
                                 return 0
 
-        print('No datasheet found in local project (YAML or text file).')
+        info('No datasheet found in local project (YAML or text file).')
         return 1
 
     def save_datasheet(self, path):
         if self.datasheet['runtime_options']['debug']:
-            print(f'Writing final output file {path}')
+            info(f'Writing final output file {path}')
 
         suffix = os.path.splitext(path)[1]
 
@@ -297,7 +314,7 @@ class SimulationManager:
                         parameter['evaluate']['script'] = tool[1]
                         tool = 'cace_lvs'
                     else:
-                        print(f'Error: Unknown tool list {tool}')
+                        err(f'Unknown tool list {tool}')
 
                 if parameter['evaluate']:
                     new_evaluate = {tool: parameter['evaluate']}
@@ -394,7 +411,7 @@ class SimulationManager:
                     allow_unicode=True,
                 )
         else:
-            print(f'Unsupported file extension: {suffix}')
+            warn(f'Unsupported file extension: {suffix}')
 
     def set_datasheet(self, datasheet):
         """Set a new datasheet"""
@@ -415,7 +432,7 @@ class SimulationManager:
         param = self.find_parameter(pname)
 
         if not param:
-            print(f'Could not duplicate parameter {pname}')
+            warn(f'Could not duplicate parameter {pname}')
             return
 
         newparam = param.copy()
@@ -438,7 +455,7 @@ class SimulationManager:
         param = self.find_parameter(pname)
 
         if not param:
-            print(f'Could not delete parameter {pname}')
+            warn(f'Could not delete parameter {pname}')
             return
 
         eparams = self.datasheet['electrical_parameters']
@@ -465,9 +482,9 @@ class SimulationManager:
 
     def get_runtime_options(self, key):
         if not key in self.datasheet['runtime_options']:
-            print(f'Warning: Runtime option "{key}" not in runtime_options')
+            warn(f'Runtime option "{key}" not in runtime_options')
             if key in self.default_options:
-                print(f'Setting runtime option "{key}" to default value')
+                info(f'Setting runtime option "{key}" to default value')
                 self.datasheet['runtime_options'][key] = self.default_options[
                     key
                 ]
@@ -476,8 +493,8 @@ class SimulationManager:
 
     def get_path(self, key):
         if not key in self.datasheet['paths']:
-            print(f'Warning: Path "{key}" not in paths')
-            print(f'Setting path "{key}" to "{key}"')
+            warn(f'Path "{key}" not in paths')
+            warn(f'Setting path "{key}" to "{key}"')
             self.datasheet['paths'][key] = key
 
         return self.datasheet['paths'][key]
@@ -491,12 +508,12 @@ class SimulationManager:
             not self.datasheet['runtime_options']['netlist_source']
             in valid_sources
         ):
-            print(
-                f'Error: Invalid netlist source: {self.datasheet["runtime_options"]["netlist_source"]}'
+            err(
+                f'Invalid netlist source: {self.datasheet["runtime_options"]["netlist_source"]}'
             )
 
         if not self.datasheet['runtime_options']['parallel_parameters'] > 0:
-            print(f'Error: parallel_parameters must be at least 1')
+            err(f'parallel_parameters must be at least 1')
 
         # TODO check that other keys exist
 
@@ -535,26 +552,26 @@ class SimulationManager:
             for item in self.datasheet['electrical_parameters']:
                 if item['name'] == pname:
                     if param:
-                        print(f'Error: {pname} at least twice in datasheet')
+                        err(f'{pname} at least twice in datasheet')
                     param = item
 
         if 'physical_parameters' in self.datasheet:
             for item in self.datasheet['physical_parameters']:
                 if item['name'] == pname:
                     if param:
-                        print(f'Error: {pname} at least twice in datasheet')
+                        err(f'{pname} at least twice in datasheet')
                     param = item
 
         if not param:
-            print('Unknown parameter "' + pname + '"')
+            warn(f'Unknown parameter: {pname}')
             if 'electrical_parameters' in self.datasheet:
-                print('Known electrical parameters are:')
+                warn('Known electrical parameters are:')
                 for eparam in self.datasheet['electrical_parameters']:
-                    print(eparam['name'])
+                    warn(eparam['name'])
             if 'physical_parameters' in self.datasheet:
-                print('Known physical parameters are:')
+                warn('Known physical parameters are:')
                 for pparam in self.datasheet['physical_parameters']:
-                    print(pparam['name'])
+                    warn(pparam['name'])
 
         return param
 
@@ -577,21 +594,27 @@ class SimulationManager:
                     if 'status' in param:
                         status = param['status']
                         if status == 'skip':
-                            print(
+                            warn(
                                 f'Skipping parameter {param["name"]} (status=skip).'
                             )
                             return
                         if status == 'blocked':
-                            print(
+                            warn(
                                 f'Skipping parameter {param["name"]} (status=blocked).'
                             )
                             return
 
                     new_sim_param = ElectricalParameter(
-                        param, self.datasheet, pdk, paths, runtime_options, cb
+                        param,
+                        self.datasheet,
+                        pdk,
+                        paths,
+                        runtime_options,
+                        self.run_dir,
+                        end_cb=cb,
                     )
 
-                    print(
+                    dbg(
                         f'Inserting electrical parameter {param["name"]} into queue'
                     )
 
@@ -609,21 +632,27 @@ class SimulationManager:
                     if 'status' in param:
                         status = param['status']
                         if status == 'skip':
-                            print(
+                            warn(
                                 f'Skipping parameter {param["name"]} (status=skip).'
                             )
                             return
                         if status == 'blocked':
-                            print(
+                            warn(
                                 f'Skipping parameter {param["name"]} (status=blocked).'
                             )
                             return
 
                     new_sim_param = PhysicalParameter(
-                        param, self.datasheet, pdk, paths, runtime_options, cb
+                        param,
+                        self.datasheet,
+                        pdk,
+                        paths,
+                        runtime_options,
+                        self.run_dir,
+                        end_cb=cb,
                     )
 
-                    print(
+                    dbg(
                         f'Inserting physical parameter {param["name"]} into queue'
                     )
 
@@ -634,15 +663,15 @@ class SimulationManager:
                     #      needed for progress bars etc.
                     return 1
 
-        print(f'Unknown parameter {pname}')
+        warn(f'Unknown parameter {pname}')
         if 'electrical_parameters' in self.datasheet:
-            print('Known electrical parameters are:')
+            warn('Known electrical parameters are:')
             for eparam in self.datasheet['electrical_parameters']:
-                print(eparam['name'])
+                warn(eparam['name'])
         if 'physical_parameters' in self.datasheet:
-            print('Known physical parameters are:')
+            warn('Known physical parameters are:')
             for pparam in self.datasheet['physical_parameters']:
-                print(pparam['name'])
+                warn(pparam['name'])
 
         return None
 
@@ -689,8 +718,68 @@ class SimulationManager:
 
         return num_running
 
+    def prepare_run_dir(self):
+
+        self.design_dir = '.'
+
+        # Create a new tag
+        tag = (
+            datetime.datetime.now()
+            .astimezone()
+            .strftime('RUN_%Y-%m-%d_%H-%M-%S')
+        )
+
+        # Create new run dir
+        self.run_dir = os.path.abspath(
+            os.path.join(self.design_dir, 'runs', tag)
+        )
+
+        # Check if run dir already exists
+        runs = sorted(glob.glob(os.path.join(self.design_dir, 'runs', '*')))
+
+        if self.run_dir in runs:
+            error('Run directory exists already. Please try again.')
+
+        info(f"Starting a new run with the tag '{tag}'.")
+        mkdirp(self.run_dir)
+
+        # TODO make configurable
+        if len(runs) > 5:
+            remove = runs[:-4]
+            dbg(f'Removing run directories: {remove}')
+
+            for run in remove:
+                shutil.rmtree(run)
+
+    def prepare_parameters(self):
+
+        # Get the set of paths from the characterization file
+        paths = self.datasheet['paths']
+
+        # Simulation path is where the output is dumped.  If it doesn't
+        # exist, then create it.
+        root_path = paths['root']
+        simulation_path = paths['simulation']
+
+        if not os.path.isdir(os.path.join(root_path, simulation_path)):
+            info(f'Creating simulation path {simulation_path}')
+            os.makedirs(os.path.join(root_path, simulation_path))
+
+        # Start by regenerating the netlists for the circuit-under-test
+        # (This may not be quick but all tests depend on the existence
+        # of the netlist, so it has to be done here and cannot be
+        # parallelized).
+
+        fullnetlistpath = regenerate_netlists(self.datasheet)
+        if not fullnetlistpath:
+            err('Failed to regenerate project netlist')
+            return 1
+
     def run_parameters_async(self):
         """Start a worker thread to start parameter threads"""
+
+        # TODO
+        self.prepare_parameters()
 
         # Only start a new worker thread, if
         # the previous one hasn't completed yet
@@ -723,7 +812,7 @@ class SimulationManager:
                             self.running_threads.append(param_thread)
 
                 if param_thread and not param_thread.canceled:
-                    print(f'Running parameter {param_thread.param["name"]}')
+                    info(f'Running parameter {param_thread.param["name"]}')
                     param_thread.start()
 
             # Else wait until another parameter has completed

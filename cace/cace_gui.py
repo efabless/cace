@@ -27,6 +27,7 @@ import json
 import time
 import signal
 import select
+import logging
 import argparse
 import datetime
 
@@ -50,7 +51,18 @@ from .gui.rowwidget import RowWidget
 
 from .common.cace_read import *
 from .common.cace_write import *
-from .common.simulation_manager import SimulationManager
+from .parameter import ParameterManager
+
+from .logging import (
+    LevelFilter,
+    console,
+    info,
+    warn,
+    verbose,
+    register_additional_handler,
+    deregister_additional_handler,
+    options,
+)
 
 # Application path (path where this script is located)
 apps_path = os.path.realpath(os.path.dirname(__file__))
@@ -75,7 +87,7 @@ class CACEGui(ttk.Frame):
     def __init__(self, parent, *args, **kwargs):
         ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.root = parent
-        self.simulation_manager = SimulationManager()
+        self.parameter_manager = ParameterManager()
         self.init_gui()
         parent.protocol('WM_DELETE_WINDOW', self.on_quit)
 
@@ -90,8 +102,8 @@ class CACEGui(ttk.Frame):
 
         # Cancel all queued and running parameters and join them
         print('Stopping all simulations for shutdown.')
-        self.simulation_manager.cancel_parameters(cancel_cb=True)
-        self.simulation_manager.join_parameters()
+        self.parameter_manager.cancel_parameters(cancel_cb=True)
+        self.parameter_manager.join_parameters()
 
         if self.logfile:
             self.logfile.close()
@@ -411,7 +423,7 @@ class CACEGui(ttk.Frame):
             print(f'Simulation of {pname} has completed.')
 
         self.parameter_widgets[pname].update_param(
-            self.simulation_manager.find_parameter(pname)
+            self.parameter_manager.find_parameter(pname)
         )
         self.parameter_widgets[pname].update_widgets()
 
@@ -420,31 +432,31 @@ class CACEGui(ttk.Frame):
     def simulate_param(self, pname, process=True):
         """Simulate a single parameter"""
 
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'force', self.settings.get_force()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'keep', self.settings.get_keep()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'sequential', self.settings.get_sequential()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'noplot', self.settings.get_noplot()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'debug', self.settings.get_debug()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'parallel_parameters', self.settings.get_parallel_parameters()
         )
 
         # From the GUI, simulation is forced, so clear any "skip" status.
         # TO DO:  "gray out" entries marked as "skip" and require entry to
         # be set to "active" before simulating.
-        self.simulation_manager.param_set_status(pname, 'active')
+        self.parameter_manager.param_set_status(pname, 'active')
 
-        num_sims = self.simulation_manager.queue_parameter(
+        num_sims = self.parameter_manager.queue_parameter(
             pname, cb=self.update_param
         )
 
@@ -460,7 +472,7 @@ class CACEGui(ttk.Frame):
         self.update_simulate_all_button()
 
         if process:
-            self.simulation_manager.run_parameters_async()
+            self.parameter_manager.run_parameters_async()
 
     def frame_configure(self, event):
         self.update_idletasks()
@@ -500,7 +512,7 @@ class CACEGui(ttk.Frame):
 
     def find_datasheet(self, search_dir):
         debug = self.settings.get_debug()
-        if self.simulation_manager.find_datasheet(search_dir, debug):
+        if self.parameter_manager.find_datasheet(search_dir, debug):
             # Could not find a datasheet
             return 1
         self.update_filename()
@@ -517,7 +529,7 @@ class CACEGui(ttk.Frame):
         debug = self.settings.get_debug()
 
         # Load the new datasheet
-        if self.simulation_manager.load_datasheet(datasheet_path, debug):
+        if self.parameter_manager.load_datasheet(datasheet_path, debug):
             return 1
         self.update_filename()
         self.adjust_datasheet_viewer_size()
@@ -525,7 +537,7 @@ class CACEGui(ttk.Frame):
 
     def update_filename(self):
 
-        self.filename = self.simulation_manager.get_runtime_options('filename')
+        self.filename = self.parameter_manager.get_runtime_options('filename')
 
         if not self.filename:
             print('Error: Filename for datasheet not set!')
@@ -633,46 +645,46 @@ class CACEGui(ttk.Frame):
 
     def sim_all(self):
         # Make sure no simulation is running
-        if self.simulation_manager.num_parameters() > 0:
+        if self.parameter_manager.num_parameters() > 0:
             print('Simulation in progress must finish first.')
             return
 
         # TODO set at startup and only change directly if necessary
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'force', self.settings.get_force()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'keep', self.settings.get_keep()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'sequential', self.settings.get_sequential()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'noplot', self.settings.get_noplot()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'debug', self.settings.get_debug()
         )
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'parallel_parameters', self.settings.get_parallel_parameters()
         )
 
         # Queue all of the parameters
-        for pname in self.simulation_manager.get_all_pnames():
+        for pname in self.parameter_manager.get_all_pnames():
             self.simulate_param(pname, False)
 
         # Now simulate all parameters
-        self.simulation_manager.run_parameters_async()
+        self.parameter_manager.run_parameters_async()
 
         self.update_simulate_all_button()
 
     def stop_sims(self):
         # Check whether simulations are running
-        if self.simulation_manager.num_parameters() == 0:
+        if self.parameter_manager.num_parameters() == 0:
             print('No simulation running.')
         else:
             # Cancel all queued and running parameters
-            self.simulation_manager.cancel_parameters()
+            self.parameter_manager.cancel_parameters()
 
         self.update_simulate_all_button()
 
@@ -680,7 +692,7 @@ class CACEGui(ttk.Frame):
         # Check whether no simulations are running, or
         # if the function call comes from a callback,
         # only one simulation is running
-        if self.simulation_manager.num_parameters() == 0:
+        if self.parameter_manager.num_parameters() == 0:
             self.allsimbutton.configure(
                 style='bluetitle.TButton',
                 text='Simulate All',
@@ -695,7 +707,7 @@ class CACEGui(ttk.Frame):
             )
 
     def edit_param(self, pname):
-        param = self.simulation_manager.find_parameter(pname)
+        param = self.parameter_manager.find_parameter(pname)
 
         # Edit the conditions under which the parameter is tested.
         if (
@@ -708,7 +720,7 @@ class CACEGui(ttk.Frame):
 
     def copy_param(self, pname):
         # Make a copy of the parameter (for editing)
-        self.simulation_manager.duplicate_parameter(pname)
+        self.parameter_manager.duplicate_parameter(pname)
 
         self.create_datasheet_view()
 
@@ -716,7 +728,7 @@ class CACEGui(ttk.Frame):
         # Remove an electrical parameter from the datasheet.  This is only
         # allowed if the parameter has been copied from another and so does
         # not belong to the original set of parameters.
-        self.simulation_manager.delete_parameter(pname)
+        self.parameter_manager.delete_parameter(pname)
 
         self.create_datasheet_view()
 
@@ -791,10 +803,10 @@ class CACEGui(ttk.Frame):
                 print('Error in simulation, no results.', file=sys.stderr)
             elif os.path.splitext(anno)[1] == '.json':
                 with open(anno, 'r') as file:
-                    self.simulation_manager.set_datasheet(json.load(file))
+                    self.parameter_manager.set_datasheet(json.load(file))
             else:
                 debug = self.settings.get_debug()
-                self.simulation_manager.set_datasheet(cace_read(file, debug))
+                self.parameter_manager.set_datasheet(cace_read(file, debug))
         else:
             print(
                 'Error in simulation, no update to results.', file=sys.stderr
@@ -811,7 +823,7 @@ class CACEGui(ttk.Frame):
         dspath = os.path.split(self.filename)[0]
 
         # Save to simulation directory (may want to change this)
-        dsheet = self.simulation_manager.get_datasheet()
+        dsheet = self.parameter_manager.get_datasheet()
         paths = dsheet['paths']
         dsdir = os.path.join(dspath, paths['root'], paths['simulation'])
 
@@ -878,7 +890,7 @@ class CACEGui(ttk.Frame):
     def save_manual(self, value={}):
         # Set initialdir to the project where datasheet is located
         dsparent = os.path.split(self.filename)[0]
-        filepath = self.simulation_manager.get_runtime_options('filename')
+        filepath = self.parameter_manager.get_runtime_options('filename')
 
         datasheet_path = filedialog.asksaveasfilename(
             initialdir=dsparent,
@@ -894,7 +906,7 @@ class CACEGui(ttk.Frame):
         )
 
         # Save the datasheet
-        self.simulation_manager.save_datasheet(datasheet_path)
+        self.parameter_manager.save_datasheet(datasheet_path)
 
     def load_manual(self, value={}):
         dspath = self.filename
@@ -914,19 +926,19 @@ class CACEGui(ttk.Frame):
         if datasheet_path:
             print('Reading file ' + datasheet_path)
 
-            if self.simulation_manager.load_datasheet(datasheet_path, debug):
+            if self.parameter_manager.load_datasheet(datasheet_path, debug):
                 self.on_quit()
 
             self.create_datasheet_view()
 
     def generate_html(self):
-        self.simulation_manager.generate_html()
+        self.parameter_manager.generate_html()
 
     def swap_results(self, value={}):
         """Triggered when a new netlist source is selected"""
 
         # Make sure no parameters are currently scheduled
-        if self.simulation_manager.num_parameters() > 0:
+        if self.parameter_manager.num_parameters() > 0:
             print('Cannot change the netlist source: Parameters are running.')
             self.origin.set(self.netlist_text)
             return
@@ -949,7 +961,7 @@ class CACEGui(ttk.Frame):
             netlist_source = 'schematic'
 
         # Update netlist source
-        self.simulation_manager.set_runtime_options(
+        self.parameter_manager.set_runtime_options(
             'netlist_source', netlist_source
         )
 
@@ -969,7 +981,7 @@ class CACEGui(ttk.Frame):
 
         self.parameter_widgets = {}
 
-        dsheet = self.simulation_manager.get_datasheet()
+        dsheet = self.parameter_manager.get_datasheet()
 
         # Add basic information at the top
 
@@ -1030,7 +1042,7 @@ class CACEGui(ttk.Frame):
         dframe.stat_title.grid(column=8, row=n, sticky='ewns')
 
         # Check whether simulations are running
-        if self.simulation_manager.num_parameters() > 0:
+        if self.parameter_manager.num_parameters() > 0:
             self.allsimbutton = ttk.Button(
                 dframe,
                 text='Stop Simulations',
@@ -1083,15 +1095,15 @@ class CACEGui(ttk.Frame):
         self.parameter_widgets[pname] = RowWidget(
             param,
             dframe,
-            self.simulation_manager.get_runtime_options('netlist_source'),
+            self.parameter_manager.get_runtime_options('netlist_source'),
             n,
-            self.simulation_manager,
+            self.parameter_manager,
         )
 
         # Set functions
         self.parameter_widgets[pname].set_functions(
             self.simulate_param,
-            self.simulation_manager.cancel_parameter,
+            self.parameter_manager.cancel_parameter,
             self.edit_param,
             self.copy_param,
             self.delete_param,
@@ -1158,6 +1170,11 @@ def gui():
     # Capture the output
     if not args.terminal:
         app.capture_output()
+
+    info('Info')
+    warn('Warning')
+    verbose('Verbose')
+    verbose('Pass ✅')
 
     # Start the main loop
     root.mainloop()

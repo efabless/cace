@@ -971,8 +971,6 @@ def markdown_summary(datasheet):
 
             values = {'minimum': '', 'typical': '', 'maximum': ''}
 
-            print(eparam)
-
             # Get the results
             passing = None
             if 'results' in eparam:

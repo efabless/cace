@@ -16,9 +16,9 @@ import sys
 import json
 import time
 import signal
+import logging
 import argparse
 
-from rich.console import Console
 from rich.markdown import Markdown
 from rich.progress import (
     Progress,
@@ -30,7 +30,17 @@ from rich.progress import (
 )
 
 from .__version__ import __version__
-from .common.simulation_manager import SimulationManager
+from .parameter import ParameterManager
+from .logging import (
+    LevelFilter,
+    console,
+    info,
+    warn,
+    verbose,
+    register_additional_handler,
+    deregister_additional_handler,
+    options,
+)
 
 
 def cli():
@@ -124,44 +134,57 @@ def cli():
     (Warning: Does not check if simulations are out of date)""",
     )
     parser.add_argument(
-        '--no-progress',
+        '--no-progress-bar',
         action='store_true',
         help='do not display the progress bar',
-    )
-    parser.add_argument(
-        '--summary',
-        help='output path for the summary e.g. final/summary.md',
     )
 
     # Parse arguments
     args = parser.parse_args()
 
-    # Create the SimulationManager
-    simulation_manager = SimulationManager()
+    # Create the ParameterManager
+    parameter_manager = ParameterManager()
+
+    # Get the run dir
+    run_dir = parameter_manager.run_dir
+
+    # Log warnings and errors to files
+    handlers: List[logging.Handler] = []
+    for level in ['WARNING', 'ERROR']:
+        path = os.path.join(run_dir, f'{level.lower()}.log')
+        handler = logging.FileHandler(path, mode='a+')
+        handler.setLevel(level)
+        handler.addFilter(LevelFilter([level]))
+        handlers.append(handler)
+        register_additional_handler(handler)
+
+    # Log everything to a file
+    path = os.path.join(run_dir, 'flow.log')
+    handler = logging.FileHandler(path, mode='a+')
+    handler.setLevel('VERBOSE')
+    handlers.append(handler)
+    register_additional_handler(handler)
 
     # Load the datasheet
     if args.datasheet:
-        if simulation_manager.load_datasheet(args.datasheet, args.debug):
+        if parameter_manager.load_datasheet(args.datasheet, args.debug):
             sys.exit(0)
     # Else search for it starting from the cwd
     else:
-        if simulation_manager.find_datasheet(os.getcwd(), args.debug):
+        if parameter_manager.find_datasheet(os.getcwd(), args.debug):
             sys.exit(0)
 
     # Set runtime options
-    simulation_manager.set_runtime_options('debug', args.debug)
-    simulation_manager.set_runtime_options('force', args.force)
-    simulation_manager.set_runtime_options('keep', args.keep)
-    simulation_manager.set_runtime_options('noplot', args.no_plot)
-    simulation_manager.set_runtime_options('nosim', args.no_simulation)
-    simulation_manager.set_runtime_options('sequential', args.sequential)
-    simulation_manager.set_runtime_options('netlist_source', args.source)
-    simulation_manager.set_runtime_options(
+    parameter_manager.set_runtime_options('debug', args.debug)
+    parameter_manager.set_runtime_options('force', args.force)
+    parameter_manager.set_runtime_options('keep', args.keep)
+    parameter_manager.set_runtime_options('noplot', args.no_plot)
+    parameter_manager.set_runtime_options('nosim', args.no_simulation)
+    parameter_manager.set_runtime_options('sequential', args.sequential)
+    parameter_manager.set_runtime_options('netlist_source', args.source)
+    parameter_manager.set_runtime_options(
         'parallel_parameters', args.parallel_parameters
     )
-
-    # Rich console
-    console = Console()
 
     # Create the progress bar
     progress = Progress(
@@ -170,7 +193,7 @@ def cli():
         MofNCompleteColumn(),
         TimeElapsedColumn(),
         console=console,
-        disable=args.no_progress,
+        disable=args.no_progress_bar,
     )
 
     # Add a single task for all parameters
@@ -182,9 +205,9 @@ def cli():
     # Queue specified parameters
     if args.parameter:
         if args.debug:
-            print(f'Running simulation for: {args.parameter}')
+            info(f'Running simulation for: {args.parameter}')
         for pname in args.parameter:
-            simulation_manager.queue_parameter(
+            parameter_manager.queue_parameter(
                 pname,
                 cb=lambda pname, canceled=False: progress.update(
                     task_id, advance=1
@@ -192,11 +215,11 @@ def cli():
             )
     # Queue all parameters
     else:
-        pnames = simulation_manager.get_all_pnames()
+        pnames = parameter_manager.get_all_pnames()
         if args.debug:
-            print(f'Running simulation for: {pnames}')
+            info(f'Running simulation for: {pnames}')
         for pname in pnames:
-            simulation_manager.queue_parameter(
+            parameter_manager.queue_parameter(
                 pname,
                 cb=lambda pname, canceled=False: progress.update(
                     task_id, advance=1
@@ -204,27 +227,30 @@ def cli():
             )
 
     # Set the total number of parameters in the progress bar
-    progress.update(task_id, total=simulation_manager.num_queued_parameters())
+    progress.update(task_id, total=parameter_manager.num_queued_parameters())
 
     # Run the simulations
-    simulation_manager.run_parameters_async()
+    parameter_manager.run_parameters_async()
 
     # Wait for completion
-    simulation_manager.join_parameters()
+    parameter_manager.join_parameters()
 
     # Stop the progress bar
     progress.stop()
 
-    if args.debug:
-        print('Done with CACE simulations and evaluations.')
+    info('Done with CACE simulations and evaluations.')
 
     if args.output:
-        simulation_manager.save_datasheet(args.output)
+        parameter_manager.save_datasheet(args.output)
 
     # Print the summary to the console
-    summary = simulation_manager.summarize_datasheet()
+    summary = parameter_manager.summarize_datasheet()
     console.print(Markdown(summary))
 
+    with open(os.path.join(run_dir, 'summary.md'), 'w') as ofile:
+        ofile.write(summary)
+
+    """
     # Write the summary to a file
     if args.summary:
         dirname = os.path.dirname(args.summary) or os.getcwd()
@@ -238,6 +264,14 @@ def cli():
             print(
                 f"Couldn't write summary, invalid path: {os.path.dirname(args.summary)}"
             )
+    """
+
+    info('Info')
+    warn('Warning')
+    verbose('Verbose')
+
+    for registered_handlers in handlers:
+        deregister_additional_handler(registered_handlers)
 
 
 if __name__ == '__main__':
