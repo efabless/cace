@@ -1,3 +1,12 @@
+# 2.3.2
+
+## Common
+
+- Add portability checks for paths. Warn the user:
+     - If there are any paths containing `libs.tech`
+       or `libs.ref` that are not using `{PDK_ROOT}`
+     - If the path has the user's $HOME as a leading component
+
 # 2.3.1
 
 ## Common
