@@ -718,6 +718,34 @@ def substitute(
 
     simlines = simtext.replace('\n+', ' ').splitlines()
 
+    # Portability checks!
+    # Warn the user:
+    # - If there are any paths containing "libs.tech"
+    #   or "libs.ref" that are not using "{PDK_ROOT}"
+    # - If the path has the user's $HOME as a leading component
+
+    pathrex = re.compile(r'([\/]?(?:[^\s]+\/)+[^\s]+)')
+    for line in simlines:
+        paths = pathrex.findall(line)
+
+        for path in paths:
+            if (
+                'libs.tech' in path
+                or 'libs.ref' in path
+                and not '{PDK_ROOT}' in path
+            ):
+                print(f'Warning: This path may not be portable: {path}')
+                print(
+                    f'Reason: Contains "libs.tech" or "libs.ref" but {{PDK_ROOT}} is missing'
+                )
+
+            if (
+                path.startswith(os.path.expanduser('~'))
+                and not '** sch_path:' in line
+            ):
+                print(f'Warning: This path may not be portable: {path}')
+                print(f"Reason: Starts with the user's home directory")
+
     # Make initial pass over contents of template file, looking for conditions
     # with values (e.g., "Vdd|maximum").  These indicate that the condition is
     # not enumerated over testbenches, so collapse simvals accordingly.
