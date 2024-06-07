@@ -20,8 +20,6 @@ from ..logging import (
     warn,
     err,
 )
-
-# TODO
 from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
@@ -60,11 +58,11 @@ class SimulationJob(threading.Thread):
         super().__init__(*args, **kwargs)
         self._return = None
 
-    def cancel(self, cancel_cb):
+    def cancel(self, no_cb):
         # print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
         self.canceled = True
 
-        if cancel_cb:
+        if no_cb:
             self.cb = None
 
         if self.spiceproc:
@@ -359,7 +357,7 @@ class SimulationJob(threading.Thread):
             log_file = open(log_path, 'w')
 
             info(
-                f'Parameter {self.param["name"]}: Logging to [repr.filename][link=file://{os.path.abspath(log_path)}]{os.path.relpath(log_path)}[/link][/repr.filename]…'
+                f'Parameter {self.param["name"]}: Logging to \'[repr.filename][link=file://{os.path.abspath(log_path)}]{os.path.relpath(log_path)}[/link][/repr.filename]\'…'
             )
 
             self.spiceproc = subprocess.Popen(
@@ -393,11 +391,10 @@ class SimulationJob(threading.Thread):
                 for line in line_buffer:
                     concatenated += line
                 if concatenated.strip() != '':
-                    err(
-                        f'Last {len(line_buffer)} line(s):\n'
-                        + escape(concatenated)
-                    )
-                err(f"Full log file: '{os.path.relpath(log_path)}'")
+                    err(f'Last {len(line_buffer)} line(s):\n' + concatenated)
+                err(
+                    f"Full log file: '[repr.filename][link=file://{os.path.abspath(log_path)}]{os.path.relpath(log_path)}[/link][/repr.filename]'"
+                )
                 return result   # 0
 
             if self.canceled:

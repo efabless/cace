@@ -43,7 +43,6 @@ from ..logging import (
     warn,
     err,
 )
-
 from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
@@ -122,7 +121,9 @@ class ParameterManager:
 
         os.chdir(dspath)
 
-        info(f'Working directory set to {dspath} ({os.path.abspath(dspath)})')
+        info(
+            f"Working directory set to '{dspath}' ('{os.path.abspath(dspath)}')"
+        )
 
         if debug:
             import pprint
@@ -153,7 +154,7 @@ class ParameterManager:
                 basename = os.path.splitext(item)[0]
                 if fileext == '.yaml':
                     if basename == dirname:
-                        info(f'Loading datasheet from {item}')
+                        info(f"Loading datasheet from '{item}'")
                         self.load_datasheet(item, debug)
                         return 0
 
@@ -166,7 +167,7 @@ class ParameterManager:
                         basename = os.path.splitext(subitem)[0]
                         if fileext == '.yaml':
                             if basename == dirname:
-                                info(f'Loading datasheet from {subitemref}')
+                                info(f"Loading datasheet from '{subitemref}'")
                                 self.load_datasheet(subitemref, debug)
                                 return 0
 
@@ -177,7 +178,7 @@ class ParameterManager:
                 basename = os.path.splitext(item)[0]
                 if fileext == '.txt':
                     if basename == dirname:
-                        info(f'Loading datasheet from {item}')
+                        info(f"Loading datasheet from '{item}'")
                         self.load_datasheet(item, debug)
                         return 0
 
@@ -190,7 +191,7 @@ class ParameterManager:
                         basename = os.path.splitext(subitem)[0]
                         if fileext == '.txt':
                             if basename == dirname:
-                                info(f'Loading datasheet from {subitemref}')
+                                info(f"Loading datasheet from '{subitemref}'")
                                 self.load_datasheet(subitemref, debug)
                                 return 0
 
@@ -580,7 +581,9 @@ class ParameterManager:
         if param:
             param['status'] = status
 
-    def queue_parameter(self, pname, cb=None, sim_cb=None):
+    def queue_parameter(
+        self, pname, start_cb=None, end_cb=None, cancel_cb=None, step_cb=None
+    ):
         """Queue a parameter for later execution"""
 
         paths = self.datasheet['paths']
@@ -611,7 +614,10 @@ class ParameterManager:
                         paths,
                         runtime_options,
                         self.run_dir,
-                        end_cb=cb,
+                        start_cb,
+                        end_cb,
+                        cancel_cb,
+                        step_cb,
                     )
 
                     dbg(
@@ -649,7 +655,10 @@ class ParameterManager:
                         paths,
                         runtime_options,
                         self.run_dir,
-                        end_cb=cb,
+                        start_cb,
+                        end_cb,
+                        cancel_cb,
+                        step_cb,
                     )
 
                     dbg(
@@ -744,7 +753,7 @@ class ParameterManager:
         mkdirp(self.run_dir)
 
         # TODO make configurable
-        if len(runs) > 5:
+        if len(runs) >= 5:
             remove = runs[:-4]
             dbg(f'Removing run directories: {remove}')
 
@@ -812,7 +821,7 @@ class ParameterManager:
                             self.running_threads.append(param_thread)
 
                 if param_thread and not param_thread.canceled:
-                    info(f'Running parameter {param_thread.param["name"]}')
+                    dbg(f'Running parameter {param_thread.param["name"]}')
                     param_thread.start()
 
             # Else wait until another parameter has completed
@@ -843,13 +852,13 @@ class ParameterManager:
                 param_thread = self.queued_threads.pop()
                 param_thread.run()
 
-    def cancel_parameters(self, cancel_cb=False):
+    def cancel_parameters(self, no_cb=False):
         """Cancel all parameters"""
 
-        self.cancel_queued_parameters(cancel_cb)
-        self.cancel_running_parameters(cancel_cb)
+        self.cancel_queued_parameters(no_cb)
+        self.cancel_running_parameters(no_cb)
 
-    def cancel_queued_parameters(self, cancel_cb=False):
+    def cancel_queued_parameters(self, no_cb=False):
         """Cancel all queued parameters"""
 
         with self.queued_lock:
@@ -858,10 +867,10 @@ class ParameterManager:
 
                 # Cancel the thread and start it
                 # so that it directly calls its callback
-                param_thread.cancel(cancel_cb)
+                param_thread.cancel(no_cb)
                 param_thread.start()
 
-    def cancel_running_parameters(self, cancel_cb=False):
+    def cancel_running_parameters(self, no_cb=False):
         """Cancel all running parameters"""
 
         with self.running_lock:
@@ -870,15 +879,15 @@ class ParameterManager:
             self.prune_running_threads()
 
             for param_thread in self.running_threads:
-                param_thread.cancel(cancel_cb)
+                param_thread.cancel(no_cb)
 
-    def cancel_parameter(self, pname, cancel_cb=False):
+    def cancel_parameter(self, pname, no_cb=False):
         """Cancel a single parameter"""
 
-        self.cancel_queued_parameter(pname, cancel_cb)
-        self.cancel_running_parameter(pname, cancel_cb)
+        self.cancel_queued_parameter(pname, no_cb)
+        self.cancel_running_parameter(pname, no_cb)
 
-    def cancel_queued_parameter(self, pname, cancel_cb=False):
+    def cancel_queued_parameter(self, pname, no_cb=False):
         """Cancel a single running parameter"""
 
         with self.queued_lock:
@@ -896,10 +905,10 @@ class ParameterManager:
 
                 # Cancel the thread and start it
                 # so that it directly calls its callback
-                param_thread.cancel(cancel_cb)
+                param_thread.cancel(no_cb)
                 param_thread.start()
 
-    def cancel_running_parameter(self, pname, cancel_cb=False):
+    def cancel_running_parameter(self, pname, no_cb=False):
         """Cancel a single running parameter"""
 
         with self.running_lock:
@@ -910,4 +919,4 @@ class ParameterManager:
             for param_thread in self.running_threads:
                 # TODO also check source
                 if param_thread.param['name'] == pname:
-                    param_thread.cancel(cancel_cb)
+                    param_thread.cancel(no_cb)

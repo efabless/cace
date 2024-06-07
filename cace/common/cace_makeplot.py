@@ -34,7 +34,7 @@ from .spiceunits import spice_unit_unconvert
 # -----------------------------------------------------------------------------
 
 
-def cace_makeplot(dsheet, param, parent=None):
+def cace_makeplot(dsheet, param, plotdir, parent=None):
 
     # Regular expression for identifying digital values
     binrex = re.compile(r'([0-9]*)\'([bodh])', re.IGNORECASE)
@@ -570,10 +570,10 @@ def cace_makeplot(dsheet, param, parent=None):
 
     if parent == None:
         paths = dsheet['paths']
-        if 'plots' in paths:
+        """if 'plots' in paths:
             plotdir = paths['plots']
         else:
-            plotdir = paths['simulation']
+            plotdir = paths['simulation']"""
 
         netlist_source = runtime_options['netlist_source']
 

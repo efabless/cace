@@ -35,6 +35,8 @@ import tkinter
 from tkinter import ttk
 from tkinter import filedialog
 
+from rich.console import Console
+
 from .__version__ import __version__
 
 from .gui.style import init_style
@@ -54,15 +56,22 @@ from .common.cace_write import *
 from .parameter import ParameterManager
 
 from .logging import (
-    LevelFilter,
-    console,
-    info,
-    warn,
-    verbose,
+    set_console,
+    set_log_level,
+    initialize_logger,
     register_additional_handler,
     deregister_additional_handler,
-    options,
 )
+from .logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+from .logging import subprocess as subproc
+from .logging import debug as dbg
 
 # Application path (path where this script is located)
 apps_path = os.path.realpath(os.path.dirname(__file__))
@@ -97,12 +106,12 @@ class CACEGui(ttk.Frame):
             warning = 'Warning:  Simulation results have not been saved.'
             confirm = ConfirmDialog(self, warning).result
             if not confirm == 'okay':
-                print('Quit canceled.')
+                info('Quit canceled.')
                 return
 
         # Cancel all queued and running parameters and join them
-        print('Stopping all simulations for shutdown.')
-        self.parameter_manager.cancel_parameters(cancel_cb=True)
+        info('Stopping all simulations for shutdown.')
+        self.parameter_manager.cancel_parameters(no_cb=True)
         self.parameter_manager.join_parameters()
 
         if self.logfile:
@@ -414,13 +423,24 @@ class CACEGui(ttk.Frame):
         sys.stdout = ConsoleText.StdoutRedirector(self.text_box)
         sys.stderr = ConsoleText.StderrRedirector(self.text_box)
 
-    def update_param(self, pname, canceled=False):
+    def end_cb(self, param):
         """Update parameter with results, used as callback"""
 
-        if canceled:
-            print(f'Simulation of {pname} has been canceled.')
-        else:
-            print(f'Simulation of {pname} has completed.')
+        pname = param['name']
+        info(f'Simulation of {pname} has completed.')
+
+        self.parameter_widgets[pname].update_param(
+            self.parameter_manager.find_parameter(pname)
+        )
+        self.parameter_widgets[pname].update_widgets()
+
+        self.update_simulate_all_button(from_callback=True)
+
+    def cancel_cb(self, param):
+        """Update parameter with results, used as callback"""
+
+        pname = param['name']
+        info(f'Simulation of {pname} has been canceled.')
 
         self.parameter_widgets[pname].update_param(
             self.parameter_manager.find_parameter(pname)
@@ -457,11 +477,11 @@ class CACEGui(ttk.Frame):
         self.parameter_manager.param_set_status(pname, 'active')
 
         num_sims = self.parameter_manager.queue_parameter(
-            pname, cb=self.update_param
+            pname, end_cb=self.end_cb, cancel_cb=self.cancel_cb
         )
 
         if not num_sims:
-            print("Can't simulate parameter")
+            err("Can't simulate parameter")
             return
 
         # Set the "Simulate" button to say "in progress"
@@ -540,7 +560,7 @@ class CACEGui(ttk.Frame):
         self.filename = self.parameter_manager.get_runtime_options('filename')
 
         if not self.filename:
-            print('Error: Filename for datasheet not set!')
+            err('Filename for datasheet not set!')
 
         self.toppane.title_frame.datasheet_select.configure(
             text=os.path.split(self.filename)[1]
@@ -640,13 +660,13 @@ class CACEGui(ttk.Frame):
             if ematch:
                 errors += 1
             if ematch or wmatch:
-                print(line)
+                warn(line)
         return errors
 
     def sim_all(self):
         # Make sure no simulation is running
         if self.parameter_manager.num_parameters() > 0:
-            print('Simulation in progress must finish first.')
+            warn('Simulation in progress must finish first.')
             return
 
         # TODO set at startup and only change directly if necessary
@@ -681,7 +701,7 @@ class CACEGui(ttk.Frame):
     def stop_sims(self):
         # Check whether simulations are running
         if self.parameter_manager.num_parameters() == 0:
-            print('No simulation running.')
+            warn('No simulation running.')
         else:
             # Cancel all queued and running parameters
             self.parameter_manager.cancel_parameters()
@@ -716,7 +736,7 @@ class CACEGui(ttk.Frame):
             self.editparam.populate(param)
             self.editparam.open()
         else:
-            print(f'Parameter {pname} is not editable')
+            warn(f'Parameter {pname} is not editable')
 
     def copy_param(self, pname):
         # Make a copy of the parameter (for editing)
@@ -795,12 +815,12 @@ class CACEGui(ttk.Frame):
             mtimea = statbuf.st_mtime
             if checktime >= mtimea:
                 # print('original = ' + str(checktime) + ' annotated = ' + str(mtimea))
-                print(
+                err(
                     'Error in simulation, no update to results.',
                     file=sys.stderr,
                 )
             elif statbuf.st_size == 0:
-                print('Error in simulation, no results.', file=sys.stderr)
+                err('Error in simulation, no results.', file=sys.stderr)
             elif os.path.splitext(anno)[1] == '.json':
                 with open(anno, 'r') as file:
                     self.parameter_manager.set_datasheet(json.load(file))
@@ -808,9 +828,7 @@ class CACEGui(ttk.Frame):
                 debug = self.settings.get_debug()
                 self.parameter_manager.set_datasheet(cace_read(file, debug))
         else:
-            print(
-                'Error in simulation, no update to results.', file=sys.stderr
-            )
+            err('Error in simulation, no update to results.', file=sys.stderr)
 
         # Regenerate datasheet view
         self.create_datasheet_view()
@@ -847,7 +865,7 @@ class CACEGui(ttk.Frame):
 
         self.last_save = os.path.getmtime(doutfile)
 
-        print('Characterization results saved.')
+        info('Characterization results saved.')
 
     def check_saved(self):
         # Check if there is a file 'datasheet_save' and if it is more
@@ -871,20 +889,20 @@ class CACEGui(ttk.Frame):
                 savetime = os.path.getmtime(savefile)
                 # return True if (savetime > annotime) else False
                 if savetime > annotime:
-                    print('Save is more recent than sim, so no need to save.')
+                    info('Save is more recent than sim, so no need to save.')
                     return True
                 else:
-                    print('Sim is more recent than save, so need to save.')
+                    info('Sim is more recent than save, so need to save.')
                     return False
             else:
                 # There is a datasheet_anno file but no datasheet_save,
                 # so there are necessarily unsaved results.
-                print('no datasheet_save, so any results have not been saved.')
+                warn('no datasheet_save, so any results have not been saved.')
                 return False
         else:
             # There is no datasheet_anno file, so datasheet_save
             # is either current or there have been no simulations.
-            print('no datasheet_anno, so there are no results to save.')
+            warn('no datasheet_anno, so there are no results to save.')
             return True
 
     def save_manual(self, value={}):
@@ -924,7 +942,7 @@ class CACEGui(ttk.Frame):
             title='Find a datasheet',
         )
         if datasheet_path:
-            print('Reading file ' + datasheet_path)
+            info('Reading file ' + datasheet_path)
 
             if self.parameter_manager.load_datasheet(datasheet_path, debug):
                 self.on_quit()
@@ -939,7 +957,7 @@ class CACEGui(ttk.Frame):
 
         # Make sure no parameters are currently scheduled
         if self.parameter_manager.num_parameters() > 0:
-            print('Cannot change the netlist source: Parameters are running.')
+            warn('Cannot change the netlist source: Parameters are running.')
             self.origin.set(self.netlist_text)
             return
 
@@ -956,8 +974,8 @@ class CACEGui(ttk.Frame):
         elif self.netlist_text == 'R-C Extracted':
             netlist_source = 'rcx'
         else:
-            print(f'Unhandled netlist source {netlist_text}')
-            print('Reverting to schematic.')
+            warn(f'Unhandled netlist source {netlist_text}')
+            warn('Reverting to schematic.')
             netlist_source = 'schematic'
 
         # Update netlist source
@@ -1147,8 +1165,21 @@ def gui():
         help='generates additional diagnostic output',
     )
 
+    parser.add_argument(
+        '-l',
+        '--log-level',
+        type=str,
+        choices=['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        default='INFO',
+        help="""set the log level for a more fine-grained output""",
+    )
+
     # Parse arguments
     args = parser.parse_args()
+
+    # Set the log level
+    if args.log_level:
+        set_log_level(args.log_level)
 
     # Create tkinter root
     root = tkinter.Tk(className='CACE')
@@ -1156,25 +1187,23 @@ def gui():
 
     # Enable debug output
     if args.debug:
-        print('Enabling debug output.')
+        dbg('Enabling debug output.')
         app.settings.set_debug(True)
 
     # Load the datasheet
     if args.datasheet:
-        print('Setting datasheet to ' + args.datasheet)
+        dbg('Setting datasheet to ' + args.datasheet)
         if app.set_datasheet(args.datasheet):
             sys.exit(0)
     else:
         app.find_datasheet(os.getcwd())
 
-    # Capture the output
+    # Capture the output and create a dumb console
     if not args.terminal:
+        set_console(Console(width=150, force_terminal=False))
+        initialize_logger()
+        set_log_level(args.log_level)
         app.capture_output()
-
-    info('Info')
-    warn('Warning')
-    verbose('Verbose')
-    verbose('Pass ✅')
 
     # Start the main loop
     root.mainloop()

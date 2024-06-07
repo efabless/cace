@@ -24,6 +24,8 @@ from .logger import (
     LevelFilter,
     options,
     console,
+    set_console,
+    initialize_logger,
     set_log_level,
     reset_log_level,
     get_log_level,

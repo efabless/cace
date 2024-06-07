@@ -39,7 +39,6 @@ from ..logging import (
     warn,
     err,
 )
-
 from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
@@ -738,20 +737,18 @@ def substitute(
 
         for path in paths:
             if (
-                'libs.tech' in path
-                or 'libs.ref' in path
-                and not '{PDK_ROOT}' in path
-            ):
-                warn(f'This path may not be portable: {path}')
+                'libs.tech' in path or 'libs.ref' in path
+            ) and not '{PDK_ROOT}' in path:
+                warn(f"This path may not be portable: '{path}'")
                 warn(
-                    f'Reason: Contains "libs.tech" or "libs.ref" but {{PDK_ROOT}} is missing'
+                    f"Reason: Contains 'libs.tech' or 'libs.ref' but '{{PDK_ROOT}}' is missing"
                 )
 
             if (
                 path.startswith(os.path.expanduser('~'))
                 and not '** sch_path:' in line
             ):
-                warn(f'This path may not be portable: {path}')
+                warn(f"This path may not be portable: '{path}'")
                 warn(f"Reason: Starts with the user's home directory")
 
     # Make initial pass over contents of template file, looking for conditions

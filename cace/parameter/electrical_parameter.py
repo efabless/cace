@@ -36,7 +36,6 @@ from ..logging import (
     warn,
     err,
 )
-
 from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
@@ -79,11 +78,11 @@ class ElectricalParameter(Parameter):
             **kwargs,
         )
 
-    def cancel(self, cancel_cb):
-        super().cancel()
+    def cancel(self, no_cb):
+        super().cancel(no_cb)
 
-        for sim in self.queued_jobs:
-            sim.cancel(cancel_cb)
+        for job in self.queued_jobs:
+            job.cancel(no_cb)
 
     def implementation(self):
 
@@ -92,14 +91,14 @@ class ElectricalParameter(Parameter):
         # Run simulation jobs sequentially
         if self.runtime_options['sequential']:
 
-            for sim in self.queued_jobs:
+            for job in self.queued_jobs:
                 info(
-                    f'Parameter {self.param["name"]}: Starting task with id {sim.idx}'
+                    f'Parameter {self.param["name"]}: Starting task with id {job.idx}'
                 )
 
                 # Start simulation job as single thread
-                sim.start()
-                presult = sim.join()
+                job.start()
+                presult = job.join()
 
                 self.cancel_point()
 
@@ -107,7 +106,7 @@ class ElectricalParameter(Parameter):
                     self.new_testbenches[presult['sequence']] = presult
 
                 if self.step_cb:
-                    self.step_cb(self.param['name'])
+                    self.step_cb(self.param)
 
             dbg(f'Parameter {self.param["name"]}: All tasks done')
 
@@ -117,16 +116,14 @@ class ElectricalParameter(Parameter):
 
                 # Start the jobs
                 jobs = []
-                for sim in self.queued_jobs:
+                for job in self.queued_jobs:
                     info(
-                        f'Parameter {self.param["name"]}: Starting task with id {sim.idx}'
+                        f'Parameter {self.param["name"]}: Starting task with id {job.idx}'
                     )
                     jobs.append(
                         mypool.apply_async(
-                            sim.run,
-                            callback=lambda result: self.step_cb(
-                                self.param['name']
-                            )
+                            job.run,
+                            callback=lambda result: self.step_cb(self.param)
                             if self.step_cb
                             else None,
                         )
@@ -158,9 +155,7 @@ class ElectricalParameter(Parameter):
         # Check whether testbenches are valid
         for testbench in self.new_testbenches:
             if not testbench:
-                error(
-                    f'{self.param["name"]}: At least one testbench is invalid'
-                )
+                err(f'{self.param["name"]}: At least one testbench is invalid')
                 self.param['results'] = None
 
                 # Just cancel on error
@@ -253,8 +248,16 @@ class ElectricalParameter(Parameter):
 
         if 'plot' in self.param:
             dbg(f'Parameter {self.param["name"]}: Plotting results')
-            cace_makeplot(self.datasheet, self.param)
+
+            info(
+                f'Parameter {self.param["name"]}: Plotting to \'[repr.filename][link=file://{os.path.abspath(self.plot_dir)}]{os.path.relpath(self.plot_dir)}[/link][/repr.filename]\'…'
+            )
+
+            cace_makeplot(self.datasheet, self.param, self.plot_dir)
 
         if 'spec' in self.param:
             dbg(f'Parameter {self.param["name"]}: Collating results')
             self.param = cace_collate(self.datasheet, self.param)
+
+    def get_num_steps(self):
+        return len(self.param['testbenches'])

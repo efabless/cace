@@ -34,7 +34,7 @@ class LogLevels(IntEnum):
     CRITICAL = 50
 
 
-console = rich.console.Console()  # (force_terminal=False)
+console = rich.console.Console()
 atexit.register(lambda: rich.console.Console().show_cursor())
 __event_logger: logging.Logger = logging.getLogger('__cace__')
 
@@ -128,6 +128,11 @@ class LevelFilter(logging.Filter):
             return record.levelname not in self.levels
         else:
             return record.levelname in self.levels
+
+
+def set_console(new_console):
+    global console
+    console = new_console
 
 
 def initialize_logger():

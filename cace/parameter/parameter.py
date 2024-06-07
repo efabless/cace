@@ -21,11 +21,17 @@ from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 
 from ..common.misc import mkdirp
+
 from ..logging import (
-    info,
-    warn,
     verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
 )
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
 
 
 class Parameter(ABC, Thread):
@@ -59,20 +65,20 @@ class Parameter(ABC, Thread):
         self.cancel_cb = cancel_cb
         self.step_cb = step_cb
 
+        self.param_dir = os.path.abspath(
+            os.path.join(self.run_dir, 'parameters', self.param['name'])
+        )
+
+        self.plot_dir = os.path.abspath(
+            os.path.join(self.run_dir, 'plots', self.param['name'])
+        )
+
         self.result = {}
 
         self.canceled = False
         self.done = False
 
         super().__init__(*args, **kwargs)
-
-        # Create new parameter dir
-        self.param_dir = os.path.abspath(
-            os.path.join(self.run_dir, 'parameters', self.param['name'])
-        )
-
-        info(f'Creating directory: {self.param_dir}.')
-        mkdirp(self.param_dir)
 
     def cancel(self, no_cb):
         info(f'Parameter {self.param["name"]}: Canceled')
@@ -86,21 +92,31 @@ class Parameter(ABC, Thread):
 
         if self.canceled:
             if self.cancel_cb:
-                self.cancel_cb(self.param['name'])
+                self.cancel_cb(self.param)
             sys.exit()
 
     def run(self):
 
         info(f'Parameter {self.param["name"]}: Started')
 
-        self.cancel_point()
+        # Create new parameter dir
+        dbg(f"Creating directory: '{os.path.relpath(self.param_dir)}'.")
+        mkdirp(self.param_dir)
+
+        if 'plot' in self.param:
+
+            # Create new plot dir
+            dbg(f"Creating directory: '{os.path.relpath(self.plot_dir)}'.")
+            mkdirp(self.plot_dir)
 
         self.cancel_point()
 
-        if self.start_cb:
-            self.start_cb(self.param['name'])
+        self.cancel_point()
 
         self.preprocess()
+
+        if self.start_cb:
+            self.start_cb(self.param, self.get_num_steps())
 
         self.cancel_point()
 
@@ -114,7 +130,7 @@ class Parameter(ABC, Thread):
         self.done = True
 
         if self.end_cb:
-            self.end_cb(self.param['name'])
+            self.end_cb(self.param)
 
         info(f'Parameter {self.param["name"]}: Completed')
 
@@ -131,3 +147,6 @@ class Parameter(ABC, Thread):
     @abstractmethod
     def postprocess(self):
         pass
+
+    def get_num_steps(self):
+        return 1

@@ -40,7 +40,6 @@ from ..logging import (
     warn,
     err,
 )
-
 from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
@@ -86,6 +85,9 @@ class PhysicalParameter(Parameter):
 
         info(f'Parameter {self.param["name"]}: Evaluating physical parameter')
         self.cace_evaluate(self.datasheet, self.param)
+
+        if self.step_cb:
+            self.step_cb(self.param)
 
     def preprocess(self):
         pass
