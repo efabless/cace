@@ -2,9 +2,12 @@
 
 CACE can be run directly from your command line:
 
-	$ cace <filename_in> [<filename_out>] [options]
+```console
+$ cace [<datasheet>] [<output>] [options]
+```
 
-Where `<filename_in>` is a format 4.0 ASCII CACE file and `<filename_out>` is the name of the file to write.
+Where `<datasheet>` is an input specification in YAML (`*.yaml`) and `<output>` is an optional file path under which the output file is to be saved. If `<datasheet>` is not specified, CACE searches for a file with the same name as the current directory under `cace/` with the file extension `.yaml`.
+
 Options may be one of:
 
 ```console
@@ -19,34 +22,38 @@ Options may be one of:
 --summary
 ```
 
-When run from the top level, this program parses the CACE characterization file, runs simulations, and outputs a modified file annotated with characterization results.
+When run from the top level, this program parses the CACE characterization file, runs simulations for the specified parameters or all if none are given, and outputs a modified file annotated with characterization results.
 
-With option `-source`, restrict characterization to the specific netlist source, which is either schematic capture,
+The option `--source`, restricts characterization to the specific netlist source, which is either schematic capture,
 layout extracted, or full R-C parasitic extracted. If not specified, then characterization is run on the full R-C
 parasitic extracted layout netlist if available, and the schematic captured netlist if not (option "best").
 
 ```console
 positional arguments:
-  datasheet             format 4.0 ASCII CACE file
-  outfile               name of the file to write
+  datasheet             input specification datasheet (YAML)
+  output                output specification datasheet (YAML)
 
 options:
   -h, --help            show this help message and exit
+  --version             show program's version number and exit
   -s {schematic,layout,rcx,all,best}, --source {schematic,layout,rcx,all,best}
-                        restricts characterization to the specific netlist source, which is either schematic
-                        capture layout extracted, or full R-C parasitic extracted. If not specified, then
-                        characterization is run on the full R-C parasitic extracted layout netlist if available,
-                        and the schematic captured netlist if not (option "best")
+                        choose the netlist source for characterization. By default, or when using 'best', characterization is run on
+                        the full R-C parasitic extracted netlist if the layout is available, else on the schematic captured netlist.
   -p PARAMETER [PARAMETER ...], --parameter PARAMETER [PARAMETER ...]
-                        runs simulations on only the named electrical or physical parameters, by default it runs
-                        all parameters
-  -f, --force           forces new regeneration of all netlists
-  -j, --json            generates an output file in JSON format
-  -k, --keep            retains files generated for characterization
+                        run simulations on only the named parameters, by default run all parameters
+  --parallel_parameters PARALLEL_PARAMETERS
+                        the maximum number of parameters running in parallel
+  -f, --force           force new regeneration of all netlists
+  -k, --keep            retain files generated for characterization
   --no-plot             do not generate any graphs
-  --debug               generates additional diagnostic output
+  --debug               generate additional diagnostic output
+  -l {ALL,DEBUG,INFO,WARNING,ERROR}, --log-level {ALL,DEBUG,INFO,WARNING,ERROR}
+                        set the log level for a more fine-grained output
   --sequential          runs simulations sequentially
-  --no-simulation       does not re-run simulations if the output file exists. (Warning: Does not check if
-                        simulations are out of date)
-  --summary             prints a summary of results at the end
+  --no-simulation       do not re-run simulations if the output file exists. (Warning: Does not check if simulations are out of date)
+  --no-progress-bar     do not display the progress bar
 ```
+
+This is an example output of CACE running the characterization for a simple OTA:
+
+![CACE CLI Screenshot](img/cace_cli.png)

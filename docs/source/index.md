@@ -2,35 +2,29 @@
 
 ## Circuit Automatic Characterization Engine
 
-**! Please note that this documentation is still a work in progress !**
+<br>
 
-CACE is a set of python scripts that take an input file in the [CACE 4.0 format](formats/format_description) and uses the information found there in combination with CACE-compatible testbenches and analysis scripts to characterize a circuit and to produce a datasheet showing the circuit performance. The CACE python code is the part of CACE which is common to all circuit designs.
+CACE is a framework for analog and mixed-signal circuits that enables automatic characterization under various conditions and with Monte Carlo and mismatch analysis. After all parameters have been run under the given conditions, CACE produces a summary showing the circuit performance. CACE requires the designer to create a specification, called the _datasheet_ in CACE jargon, which contains the parameters, their conditions and limits. In addition, the designer must set up the directory structure of the design in a regular way and create template testbenches for the parameters. 
 
-The CACE python code does the following:
+Setting up CACE requires some additional effort, but the benefits of using CACE are clear.
 
-1. Reads the specification input file
-2. Determines how many simulations will need to be run for each electrical parameter
-3. Generates testbench templates from schematics
-4. Substitutes values for all parameters for each simulation
-5. Generates the circuit netlist to be tested (either pre-layout or post-layout)
-6. Runs simulations in parallel
-7. Runs additional scripts to analyze specific performance metrics, as specified in the input file
-8. Collates results and generates pass/fail results for all electrical parameters
-9. Generates graphs of results as specified in the input file 
-10. Runs additional measurements for DRC, LVS, and physical dimensions as specified in the input file
-11. Collates results and generates pass/fail results for all physical parameters
+- **Specification and project structure** Each circuit design requires a datasheet that serves both as documentation for the specifiation and also as input for CACE. Designs must adhere to a regular directory structure, thus other designs using CACE feel familiar.
 
-By necessity, every circuit will have its own set of testbench schematics, which no common code system can automatically generate, as every test bench will be specific to the circuit design. Certain general principles apply, and are covered by a number of example circuits available on github; each of these designs has a `cace/` directory containing the specification, testbench schematics, and any additional code needed to analyze the results.
+- **Reproducibility and re-use** Designs that have the CACE system set up can be fully and automatically characterized. This makes it easy to verify the correctness and completeness of analog circuits, facilitating the reuse of designs.
 
-The CACE input file describes the specification for the circuit in terms of electrical and physical parameters that need to be measured and analyzed. After simulation, a copy of the file is produced containing measured results and providing a pass/fail result for each parameter.
+- **Good design practices** Finally, CACE encourages good analog design practices, fostering trust in open source analog design.
+
+Follow the navigation element below (or check the sidebar on the left) to get started.
 
 ```{toctree}
 :glob:
 :hidden:
 :maxdepth: 3
 
+getting_started/index
 usage/index
-formats/index
-characterization
+reference_manual/index
+tutorial/index
+examples/index
 dev/index
 ```

@@ -1,9 +1,8 @@
-# Usage
+# Deprecated
 
 ```{toctree}
 :glob:
 :maxdepth: 2
 
-cace_cli
-cace_gui
+format_description
 ```
