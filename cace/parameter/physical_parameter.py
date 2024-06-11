@@ -249,7 +249,7 @@ class PhysicalParameter(Parameter):
             netlist_filename = os.path.join(netlist_path, projname + '.spice')
             namespace = self.get_magic_namespace(datasheet)
             layoutest = layout_estimate(
-                netlist_filename, namespace, rcfile, debug, keep
+                netlist_filename, namespace, rcfile, keep
             )
             try:
                 areaest = float(layoutest)
@@ -474,7 +474,7 @@ class PhysicalParameter(Parameter):
             return -1
         else:
             faillines = netlist_precheck(
-                schem_netlist, pdk_path, namespace, debug, keep
+                schem_netlist, pdk_path, namespace, keep
             )
             return len(faillines)
 
@@ -516,12 +516,7 @@ class PhysicalParameter(Parameter):
             verilog_path = paths['verilog']
             verilog_netlist = os.path.join(verilog_path, projname + '.v')
 
-        if 'reports' in paths:
-            reports_path = paths['reports']
-        elif 'simulation' in paths:
-            reports_path = paths['simulation']
-        else:
-            reports_path = 'reports'
+        reports_path = paths.get('reports', self.param_dir)
 
         if not os.path.isdir(reports_path):
             os.makedirs(reports_path)
@@ -631,8 +626,7 @@ class PhysicalParameter(Parameter):
             if lvsout:
                 dbg('Output from netgen:')
                 for line in lvsout.splitlines():
-                    if debug:
-                        dbg(line.rstrip())
+                    dbg(line.rstrip())
                     try:
                         pline = line.decode('ascii')
                         if 'Logging to file' in pline:

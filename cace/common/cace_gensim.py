@@ -710,7 +710,7 @@ def substitute(
     # Information about the DUT
     simfilepath = paths['simulation']
     schempath = paths['schematic']
-    testbenchpath = paths['testbench']
+    testbenchpath = paths.get('testbench', 'cace/schematic_templates')
     rootpath = paths['root']
     schempins = schemline.upper().split()[1:-1]
     simpins = [None] * len(schempins)
@@ -1329,7 +1329,7 @@ def cace_gensim(dataset, param):
 
     # Grab values held in 'paths'
     paths = dataset['paths']
-    testbenchpath = paths['testbench']
+    testbenchpath = paths.get('testbench', 'cace/schematic_templates')
     root_path = paths['root']
 
     paramname = param['name']

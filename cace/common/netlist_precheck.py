@@ -1,19 +1,22 @@
-#!/usr/bin/env python3
-# ----------------------------------------------------------------------
-# netlist_precheck.py
-# ----------------------------------------------------------------------
+# Copyright 2024 Efabless Corporation
 #
-# Do a pre-check on a schematic-captured netlist to see if it can
-# be made into a layout without generating errors due to devices that
-# cannot be physically realized.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# ----------------------------------------------------------------------
-# Written by Tim Edwards
-# Efabless Corporation
-# December 28, 2016
-# Version 1.0
-# Revised December 19, 2023
-# ----------------------------------------------------------------------
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Do a pre-check on a schematic-captured netlist to see if it can
+be made into a layout without generating errors due to devices that
+cannot be physically realized.
+"""
 
 import os
 import re
@@ -22,12 +25,16 @@ import subprocess
 
 from .safe_eval import safe_eval
 
-# ---------------------------------------------------------------
-# run_precheck
-#
-# This routine is called after the schematic-captured netlist
-# has been read and processed for the subcircuit information.
-# ---------------------------------------------------------------
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
 
 
 def run_precheck(
@@ -36,22 +43,15 @@ def run_precheck(
     complist,
     pdkpath,
     library,
-    debug=False,
     keep=False,
-    logname='',
 ):
+    """
+    This routine is called after the schematic-captured netlist
+    has been read and processed for the subcircuit information.
+    """
+
     parmrex = re.compile('([^=]+)=([^=]+)', re.IGNORECASE)
     exprrex = re.compile("'([^']+)'", re.IGNORECASE)
-
-    logfile = sys.stdout
-    if logname != '':
-        try:
-            logfile = open(logname, 'w')
-        except:
-            print(
-                'Cannot open log file ' + logname + ' for writing.',
-                file=sys.stderr,
-            )
 
     # Write out a TCL script to generate and measure component layouts
     #
@@ -159,17 +159,10 @@ def run_precheck(
             failline = re.compile('.*\[ \t\]*\[([0-9]+)\[ \t\]*')
             output = script.communicate()[0]
             for line in output.splitlines():
-                if debug:
-                    print(line)
-                else:
-                    lmatch = failline.match(line)
-                    if lmatch:
-                        faillines.append(line)
-                if logfile:
-                    print(line, file=logfile)
-
-    if logname != '':
-        logfile.close()
+                dbg(line)
+                lmatch = failline.match(line)
+                if lmatch:
+                    faillines.append(line)
 
     if not keep:
         os.remove('precheck_script.tcl')
@@ -183,16 +176,10 @@ def run_precheck(
 # Main routine for netlist_precheck.py if called from python
 #
 # 'inputfile' is the layout-extracted netlist
-# If 'debug' is True, then output diagnostic information and
-# retain all generated files.
-# If logfile is an empty string, then write results to stdout,
-# otherwise write results to the named log file.
 # ---------------------------------------------------------------
 
 
-def netlist_precheck(
-    inputfile, pdkpath, library, debug=False, keep=False, logfile=''
-):
+def netlist_precheck(inputfile, pdkpath, library, keep=False):
     # Read SPICE netlist
 
     with open(inputfile, 'r') as ifile:
@@ -284,22 +271,16 @@ def netlist_precheck(
     topname = os.path.splitext(toppath)[0]
 
     if topname == '':
-        print('Issue with schematic netlist: ')
-        print('Input filename is ' + toppath)
+        err('Issue with schematic netlist:')
+        err(f'Input filename is {toppath}')
 
     if topname not in pindict:
-        print(
-            'Precheck error:  Top cell name '
-            + topname
-            + ' not in pin dictionary!'
-        )
+        err(f'Precheck error: Top cell name {topname} not in pin dictionary!')
         return -1
 
     if topname not in subdict:
-        print(
-            'Precheck error:  Top cell name '
-            + topname
-            + ' not in subcircuit dictionary!'
+        err(
+            f'Precheck error:  Top cell name {topname} not in subcircuit dictionary!'
         )
         return -1
 
@@ -309,78 +290,5 @@ def netlist_precheck(
         subdict[topname],
         pdkpath,
         library,
-        debug,
         keep,
-        logfile,
     )
-
-
-# --------------------------------------------------------------------
-# Print usage information
-# --------------------------------------------------------------------
-
-
-def usage():
-    print('')
-    print('Usage:')
-    print('netlist_precheck.py <netlist_file> <pdk_library> [-options]')
-    print('   where [-options] can be one of:')
-    print('      -help')
-    print('      -debug')
-    print('      -keep')
-    print('      -log=<logfile>')
-    print('')
-
-
-# --------------------------------------------------------------------
-# Main routine for layout_precheck.py if called from the command line
-# --------------------------------------------------------------------
-
-if __name__ == '__main__':
-
-    # Parse command line for options and arguments
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item)
-        else:
-            arguments.append(item)
-
-    if len(arguments) > 1:
-        inputfile = arguments[0]
-        library = arguments[1]
-    else:
-        usage()
-        sys.exit(1)
-
-    debug = False
-    keep = False
-    logfile = ''
-    pdkpath = ''
-    for item in options:
-        result = item.split('=')
-        if result[0] == '-help':
-            usage()
-            sys.exit(0)
-        elif result[0] == '-debug':
-            debug = True
-        elif result[0] == '-keep':
-            keep = True
-        elif result[0] == '-log':
-            if len(result) == 2:
-                logfile = result[1]
-            else:
-                logfile = 'precheck.log'
-        elif result[0] == '-pdkpath':
-            if len(result) == 2:
-                pdkpath = result[1]
-            else:
-                usage()
-                sys.exit(1)
-        else:
-            print('Bad option ' + item)
-            usage()
-            sys.exit(1)
-
-    netlist_precheck(inputfile, pdkpath, library, debug, keep, logfile)

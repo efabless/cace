@@ -1,20 +1,29 @@
-#!/usr/bin/env python3
-# --------------------------------------------------------------------------
-# cace_measure.py
-# --------------------------------------------------------------------------
+# Copyright 2024 Efabless Corporation
 #
-# This script runs a measurement or sequence of measurements as specified
-# in the "measure" section of an electrical parameter, processing the
-# results of a specific testbench, and producing a new set of results,
-# potentially with a reduced set of results.  Ideally, for final collation
-# of results, each testbench resolves to a single result value.
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# Measurements can be either a tool such as 'octave', which is run using
-# subprocess and given a script input that is provided in the testbench
-# directory, or uses one of the CACE built-in measurements, defined in
-# cace_calculate.py.
+#      http://www.apache.org/licenses/LICENSE-2.0
 #
-# --------------------------------------------------------------------------
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+This script runs a measurement or sequence of measurements as specified
+in the "measure" section of an electrical parameter, processing the
+results of a specific testbench, and producing a new set of results,
+potentially with a reduced set of results.  Ideally, for final collation
+of results, each testbench resolves to a single result value.
+
+Measurements can be either a tool such as 'octave', which is run using
+subprocess and given a script input that is provided in the testbench
+directory, or uses one of the CACE built-in measurements, defined in
+cace_calculate.py.
+"""
 
 import os
 import sys
@@ -28,16 +37,24 @@ from .cace_calculate import *
 from .spiceunits import spice_unit_unconvert
 from .spiceunits import spice_unit_convert
 
-# ---------------------------------------------------------------------------
-# results_to_octave ---
-#
-#    Generate an output file named <testbench_name>.dat which contains the
-#    matrix of results for the testbench, in a format for input to an
-#    octave script.
-# ---------------------------------------------------------------------------
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
 
 
 def results_to_octave(testbench, units):
+    """
+    Generate an output file named <testbench_name>.dat which contains the
+    matrix of results for the testbench, in a format for input to an
+    octave script.
+    """
 
     testbenchname = os.path.splitext(testbench['filename'])[0]
     datfilename = testbenchname + '.dat'
@@ -189,16 +206,12 @@ def results_to_octave(testbench, units):
     return datfilename
 
 
-# ---------------------------------------------------------------------------
-# results_to_json:
-#
-#    Generate an output file named <testbench_name>.json which contains the
-#    matrix of results for the testbench, in JSON format for input to any
-#    script that can read JSON format.
-# ---------------------------------------------------------------------------
-
-
 def results_to_json(testbench):
+    """
+    Generate an output file named <testbench_name>.json which contains the
+    matrix of results for the testbench, in JSON format for input to any
+    script that can read JSON format.
+    """
 
     testbenchname = os.path.splitext(testbench['filename'])[0]
     datfilename = testbenchname + '.json'
@@ -210,14 +223,12 @@ def results_to_json(testbench):
     return datfilename
 
 
-# ---------------------------------------------------------------------------
-# Execute one measurement on the simulation data
-# ---------------------------------------------------------------------------
-
-
 def cace_run_measurement(param, measure, testbench, paths, debug=False):
+    """
+    Execute one measurement on the simulation data
+    """
 
-    testbench_path = paths['testbench']
+    testbench_path = paths.get('testbench', 'cace/schematic_templates')
     simulation_path = paths['simulation']
     root_path = paths['root']
 
@@ -255,7 +266,7 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
         # May want to watch stderr for error messages and/or handle
         # exit status.
 
-        print('Measuring with: ' + tool + ' ' + scriptname + ' ' + filename)
+        info(f'Measuring with: {tool} {scriptname} {filename}')
         postproc = subprocess.Popen(
             [tool, scriptname, filename], stdout=subprocess.PIPE, cwd=root_path
         )
@@ -266,27 +277,27 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
         return 1
 
     else:
-        print(
-            'Error: Measurement record does not contain either "tool" or "calc".'
-        )
+        err('Measurement record does not contain either "tool" or "calc".')
         return 0
 
 
 # ---------------------------------------------------------------------------
-# Main entry point for cace_measure
-#
-#    "param" is the dictionary from the datasheet for a single electrical
-# 	parameter.
-#    "testbench" is the dictionary for a single testbench of the parameter.
-#    "paths" is the dictionary from the datasheet defining a number of
-# 	locations of files in the workspace.
+
 # ---------------------------------------------------------------------------
 
 
 def cace_measure(param, testbench, paths, debug=False):
+    """
+    Main entry point for cace_measure
+
+    "param" is the dictionary from the datasheet for a single electrical parameter.
+    "testbench" is the dictionary for a single testbench of the parameter.
+    "paths" is the dictionary from the datasheet defining a number of locations of files in the workspace.
+    """
+
     measurements = 1
 
-    testbench_path = paths['testbench']
+    testbench_path = paths.get('testbench', 'cace/schematic_templates')
 
     if 'measure' in param:
         if isinstance(param['measure'], list):
@@ -317,11 +328,11 @@ def cace_measure(param, testbench, paths, debug=False):
         # results contain lists of only one item, the result.
         if 'spec' in param:
             if len(testbench['format']) != 1:
-                print('Error:  Testbench result contains variables!')
+                err('Testbench result contains variables!')
                 varlist = list(
                     item for item in testbench['format'] if item != 'result'
                 )
-                print('Variables found: ' + ' '.join(varlist))
+                err('Variables found: ' + ' '.join(varlist))
                 # However, don't terminate but pass this to collation anyway.
 
     return measurements

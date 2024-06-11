@@ -1292,10 +1292,7 @@ def make_symbol_primitive(dsheet):
         return
 
     # Testbench primitive symbol
-    if 'testbench' in paths:
-        testbenchpath = paths['testbench']
-    else:
-        testbenchpath = 'testbench'
+    testbenchpath = paths.get('testbench', 'cace/schematic_templates')
 
     primfilename = os.path.join(testbenchpath, xschemname)
 
@@ -1314,10 +1311,7 @@ def regenerate_testbenches(dsheet, paramname=None):
     """
 
     paths = dsheet['paths']
-    if 'testbench' in paths:
-        testbenchpath = paths['testbench']
-    else:
-        testbenchpath = 'testbench'
+    testbenchpath = paths.get('testbench', 'cace/schematic_templates')
 
     # Copy the circuit symbol from schematic directory to testbench
     # directory and make it a primitive.

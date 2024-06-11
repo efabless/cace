@@ -1,7 +1,31 @@
-#!/usr/bin/env python3
+# Copyright 2024 Efabless Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
 """spice_units.py: Converts tuple of (unit, value) into standard unit numeric value."""
 
 import re
+
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
 
 # set of metric prefixes and the value needed to multiply by to
 # get the "standard" unit for SPICE.  Only standard units will
@@ -93,7 +117,7 @@ def numeric(s):
             try:
                 return float(s)
             except ValueError:
-                print('CACE gensim error:  Value "' + s + '" is not numeric!')
+                err(f'CACE gensim error: Value "{s}" is not numeric!')
                 return 0
     else:
         return s
