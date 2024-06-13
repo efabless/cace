@@ -228,7 +228,7 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
     Execute one measurement on the simulation data
     """
 
-    testbench_path = paths['testbench']
+    testbench_path = paths.get('testbench', paths['templates'])
     simulation_path = paths['simulation']
     root_path = paths['root']
 
@@ -297,7 +297,7 @@ def cace_measure(param, testbench, paths, debug=False):
 
     measurements = 1
 
-    testbench_path = paths['testbench']
+    testbench_path = paths.get('testbench', paths['templates'])
 
     if 'measure' in param:
         if isinstance(param['measure'], list):

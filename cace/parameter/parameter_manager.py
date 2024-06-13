@@ -82,7 +82,6 @@ class ParameterManager:
         self.set_default_runtime_options()
 
         self.default_paths = {
-            'testbench': 'cace/templates',
             'templates': 'cace/templates',
             'scripts': 'cace/scripts',
         }
@@ -513,7 +512,7 @@ class ParameterManager:
 
     def get_runtime_options(self, key):
         if not key in self.datasheet['runtime_options']:
-            warn(f'Runtime option "{key}" not in runtime_options')
+            dbg(f'Runtime option "{key}" not in runtime_options')
             if key in self.default_options:
                 info(f'Setting runtime option "{key}" to default value')
                 self.datasheet['runtime_options'][key] = self.default_options[
@@ -524,8 +523,8 @@ class ParameterManager:
 
     def get_path(self, key):
         if not key in self.datasheet['paths']:
-            warn(f'Path "{key}" not in paths')
-            warn(f'Setting path "{key}" to "{key}"')
+            dbg(f'Path "{key}" not in paths')
+            dbg(f'Setting path "{key}" to "{key}"')
             self.datasheet['paths'][key] = key
 
         return self.datasheet['paths'][key]

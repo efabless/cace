@@ -313,15 +313,17 @@ def cace_read_yaml(filename, debug=False):
 
     # Convert dependencies
     new_datasheet['dependencies'] = []
-    for key, value in datasheet['dependencies'].items():
-        value['name'] = key
-        new_datasheet['dependencies'].append(value)
+    if 'dependencies' in datasheet:
+        for key, value in datasheet['dependencies'].items():
+            value['name'] = key
+            new_datasheet['dependencies'].append(value)
 
     # Convert pins
     new_datasheet['pins'] = []
-    for key, value in datasheet['pins'].items():
-        value['name'] = key
-        new_datasheet['pins'].append(value)
+    if 'pins' in datasheet:
+        for key, value in datasheet['pins'].items():
+            value['name'] = key
+            new_datasheet['pins'].append(value)
 
     # Convert conditions in electrical_parameters
     for parameter in datasheet['electrical_parameters'].values():
