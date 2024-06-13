@@ -7,8 +7,21 @@ import shutil
 import threading
 import subprocess
 
-from .cace_measure import *
-from .cace_regenerate import get_pdk_root
+from ..common.cace_measure import *
+from ..common.cace_regenerate import get_pdk_root
+from ..common.ring_buffer import RingBuffer
+
+from ..logging import (
+    verbose,
+    debug,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
 
 
 class SimulationJob(threading.Thread):
@@ -24,6 +37,8 @@ class SimulationJob(threading.Thread):
         pdk,
         paths,
         runtime_options,
+        param_dir,
+        idx,
         *args,
         **kwargs,
     ):
@@ -32,6 +47,8 @@ class SimulationJob(threading.Thread):
         self.pdk = pdk
         self.paths = paths
         self.runtime_options = runtime_options
+        self.param_dir = param_dir
+        self.idx = idx
 
         self.cb = None
 
@@ -41,11 +58,11 @@ class SimulationJob(threading.Thread):
         super().__init__(*args, **kwargs)
         self._return = None
 
-    def cancel(self, cancel_cb):
+    def cancel(self, no_cb):
         # print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
         self.canceled = True
 
-        if cancel_cb:
+        if no_cb:
             self.cb = None
 
         if self.spiceproc:
@@ -65,8 +82,8 @@ class SimulationJob(threading.Thread):
 
         self.cancel_point()
 
-        for testbench in self.testbenchlist:
-            simresult += self.simulate(testbench)
+        for i, testbench in enumerate(self.testbenchlist):
+            simresult += self.simulate(testbench, i)
 
             self.cancel_point()
 
@@ -92,26 +109,6 @@ class SimulationJob(threading.Thread):
             simulations = cace_measure(self.param, tbzero, self.paths, debug)
         else:
             simulations = 0
-
-        # Clean up simulation files if "keep" not specified as an option to CACE
-        keepmode = (
-            self.runtime_options['keep']
-            if 'keep' in self.runtime_options
-            else False
-        )
-
-        if not keepmode:
-            filename = testbench['filename']
-            if os.path.isfile(filename):
-                os.remove(filename)
-            # Check for output files---suffix given in the "format" record
-            simrec = self.param['simulate']
-            if 'format' in simrec:
-                formatline = simrec['format']
-                suffix = formatline[1]
-                outfilename = os.path.splitext(filename)[0] + suffix
-                if os.path.isfile(outfilename):
-                    os.remove(outfilename)
 
         # For when the join function is called
         self._return = tbzero if simulations > 0 else None
@@ -143,10 +140,8 @@ class SimulationJob(threading.Thread):
                         item for item in conditions if item[0] == name
                     )
                 except:
-                    print(
-                        'Error:  Attempt to collate over condition '
-                        + name
-                        + ' which is not in the testbench condition list!'
+                    err(
+                        f'Attempt to collate over condition {name} which is not in the testbench condition list!'
                     )
                 else:
                     value = condition[-1]
@@ -204,7 +199,7 @@ class SimulationJob(threading.Thread):
         if 'group_size' in simdict:
             simdict.pop('group_size')
 
-    def simulate(self, testbench):
+    def simulate(self, testbench, idy):
         result = 0
         filename = testbench['filename']
         fileprefix = self.param['name']
@@ -250,17 +245,10 @@ class SimulationJob(threading.Thread):
         for varname in formatvars:
             if varname != 'null' and varname != 'result':
                 if 'variables' not in self.param or varname not in varnamelist:
-                    print(
-                        'Error:  Variable '
-                        + varname
-                        + ' is not in the variables list for parameter '
-                        + self.param['name']
+                    err(
+                        f'Error:  Variable {varname} is not in the variables list for parameter {self.param["name"]}'
                     )
-                    if debug:
-                        print(
-                            'Variables list is: '
-                            + str(self.param['variables'])
-                        )
+                    dbg(f'Variables list is: {self.param["variables"]}')
                     vardict = {}
                     vardict['name'] = varname
                     self.param['variables'].append(vardict)
@@ -282,6 +270,9 @@ class SimulationJob(threading.Thread):
         if nosimmode:
             if os.path.exists(simoutputfile):
                 needsim = False
+                warn(
+                    'Output file exists and nosimmode is set. No simulation is run.'
+                )
 
         if needsim:
             # Cosimulation:  If there is a '.tv' file in the simulation directory
@@ -300,7 +291,7 @@ class SimulationJob(threading.Thread):
                 filename = cosimdict['filename']
 
                 # This section needs to be finished. . .
-                print('Error:  Cosimulation is not yet implemented in CACE!')
+                err('Cosimulation is not yet implemented in CACE!')
 
             simulator = simulatedict['tool'].split()[0]
             try:
@@ -317,7 +308,9 @@ class SimulationJob(threading.Thread):
                         pdk_root, self.pdk, 'libs.tech', 'ngspice', 'spinit'
                     )
                     if os.path.exists(spinitfile):
-                        print('Copying ngspice configuration file from PDK.')
+                        info(
+                            'Copying ngspice ".spiceinit" configuration file from PDK.'
+                        )
                         shutil.copy(spinitfile, '.spiceinit')
 
                 # Run simulations in batch mode
@@ -329,10 +322,19 @@ class SimulationJob(threading.Thread):
             # real-time, and flush the output buffer.  All output is ignored.
             # Note:  bufsize = 1 and universal_newlines = True sets line-buffered output
 
-            print(f'Running: {simulator} {" ".join(simargs)} {filename}')
-            print('Current working directory is: ' + os.getcwd())
+            dbg(f'Running: {simulator} {" ".join(simargs)} {filename}')
+            dbg('Current working directory is: ' + os.getcwd())
 
-            self.cancel_point()
+            log_path = os.path.join(
+                self.param_dir,
+                f'{os.path.splitext(testbench["filename"])[0]}.log',
+            )
+
+            log_file = open(log_path, 'w')
+
+            info(
+                f'Parameter {self.param["name"]}: Logging to \'[repr.filename][link=file://{os.path.abspath(log_path)}]{os.path.relpath(log_path)}[/link][/repr.filename]\'…'
+            )
 
             self.spiceproc = subprocess.Popen(
                 [simulator, *simargs, filename],
@@ -341,25 +343,39 @@ class SimulationJob(threading.Thread):
                 stderr=subprocess.STDOUT,
                 bufsize=1,
                 text=True,
-                preexec_fn=lambda: os.nice(10),
+                # preexec_fn=lambda: os.nice(10),
+                cwd=self.param_dir,
             )
 
+            line_buffer = RingBuffer(str, 10)
             for line in self.spiceproc.stdout:
-                print(line, end='')
-                sys.stdout.flush()
-                if 'Simulation interrupted' in line:
+                dbg(line.rstrip('\n'))
+                # sys.stdout.flush()
+                log_file.write(line)
+                line_buffer.push(line)
+
+                # TODO
+                """if 'Simulation interrupted' in line:
                     print('ngspice encountered an error. . . ending.')
-                    self.spiceproc.kill()
+                    self.spiceproc.kill()"""
 
             # self.spiceproc.stdout.close() TODO needed?
             return_code = self.spiceproc.wait()
 
+            if return_code != 0:
+                err('Subprocess ngspice exited with non-zero status.')
+                concatenated = ''
+                for line in line_buffer:
+                    concatenated += line
+                if concatenated.strip() != '':
+                    err(f'Last {len(line_buffer)} line(s):\n' + concatenated)
+                err(
+                    f"Full log file: '[repr.filename][link=file://{os.path.abspath(log_path)}]{os.path.relpath(log_path)}[/link][/repr.filename]'"
+                )
+                return result   # 0
+
             if self.canceled:
                 return result
-
-            if return_code != 0:
-                print('Error:  ngspice exited with non-zero status!')
-                return 0
 
             # Clean up pipe file after cosimulation, also the .lxt file and .tvo files
             if cosimdict:
@@ -370,8 +386,6 @@ class SimulationJob(threading.Thread):
         # NOTE:  Any column marked as 'result' in the simulation line is moved
         # to the first entry.  This makes the simulation['format'] incorrect,
         # and other routines (like cace_makeplot) will need to adjust it.
-
-        print(simoutputfile)
 
         if os.path.isfile(simoutputfile):
             result = 1
@@ -388,11 +402,11 @@ class SimulationJob(threading.Thread):
                                 newresult.append(token)
                             idx += 1
                         except:
-                            print(
-                                'CACE Simulation error:  format is missing entries'
+                            err(
+                                'CACE Simulation error: format is missing entries'
                             )
-                            print('simline is: ' + simline)
-                            print('formatvars are: ' + ' '.join(formatvars))
+                            err('simline is: ' + simline)
+                            err('formatvars are: ' + ' '.join(formatvars))
                             break
                     # Get the sweep condition values
                     idx = 0
@@ -416,7 +430,7 @@ class SimulationJob(threading.Thread):
             testbench['format'] = varnames
 
         else:
-            print(f'Error:  No output file {simoutputfile} from simulation!')
+            err(f'No output file {simoutputfile} from simulation')
             return 0
 
         return result

@@ -16,9 +16,9 @@ import sys
 import json
 import time
 import signal
+import logging
 import argparse
 
-from rich.console import Console
 from rich.markdown import Markdown
 from rich.progress import (
     Progress,
@@ -30,7 +30,49 @@ from rich.progress import (
 )
 
 from .__version__ import __version__
-from .common.simulation_manager import SimulationManager
+from .parameter import ParameterManager
+from .logging import (
+    LevelFilter,
+    console,
+    set_log_level,
+    info,
+    warn,
+    verbose,
+    register_additional_handler,
+    deregister_additional_handler,
+)
+
+
+def start_parameter(param, progress, task_ids, steps):
+    pname = param['name']
+    # Add a new task for the parameter
+    task_ids[pname] = progress.add_task(
+        param['display'] if 'display' in param else pname,
+    )
+    # Set total amount of steps
+    progress.update(task_ids[pname], total=steps)
+
+
+def step_parameter(param, progress, task_ids):
+    pname = param['name']
+
+    if pname in task_ids:
+        # Update task for parameter
+        progress.update(task_ids[pname], advance=1)
+    else:
+        warn('Step update for non existing parameter.')
+
+
+def end_parameter(param, progress, task_ids, task_id):
+    pname = param['name']
+    if pname in task_ids:
+        # Remove task for parameter
+        progress.remove_task(task_ids[pname])
+
+        # Update the main progress bar
+        progress.update(task_id, advance=1)
+    else:
+        warn('Cannot remove non existing parameter.')
 
 
 def cli():
@@ -72,37 +114,33 @@ def cli():
         type=str,
         choices=['schematic', 'layout', 'rcx', 'all', 'best'],
         default='best',
-        help="""restricts characterization to the
-        specific netlist source, which is either schematic capture
-        layout extracted, or full R-C parasitic extracted.  If not
-        specified, then characterization is run on the full R-C
-        parasitic extracted layout netlist if available, and the
-        schematic captured netlist if not (option "best")""",
+        help="""choose the netlist source for characterization. By default, or when using \'best\', characterization is run on the full R-C
+    parasitic extracted netlist if the layout is available, else on the schematic captured netlist.""",
     )
     parser.add_argument(
         '-p',
         '--parameter',
         nargs='+',
         default=None,
-        help='runs simulations on only the named electrical or physical parameters, by default it runs all parameters',
+        help='run simulations on only the named parameters, by default run all parameters',
     )
     parser.add_argument(
         '--parallel_parameters',
         type=int,
         default=4,
-        help='the number of parameters running in parallel',
+        help='the maximum number of parameters running in parallel',
     )
     parser.add_argument(
         '-f',
         '--force',
         action='store_true',
-        help='forces new regeneration of all netlists',
+        help='force new regeneration of all netlists',
     )
     parser.add_argument(
         '-k',
         '--keep',
         action='store_true',
-        help='retains files generated for characterization',
+        help='retain files generated for characterization',
     )
     parser.add_argument(
         '--no-plot', action='store_true', help='do not generate any graphs'
@@ -110,7 +148,15 @@ def cli():
     parser.add_argument(
         '--debug',
         action='store_true',
-        help='generates additional diagnostic output',
+        help='generate additional diagnostic output',
+    )
+    parser.add_argument(
+        '-l',
+        '--log-level',
+        type=str,
+        choices=['ALL', 'DEBUG', 'INFO', 'WARNING', 'ERROR'],
+        default='INFO',
+        help="""set the log level for a more fine-grained output""",
     )
     parser.add_argument(
         '--sequential',
@@ -120,48 +166,65 @@ def cli():
     parser.add_argument(
         '--no-simulation',
         action='store_true',
-        help="""does not re-run simulations if the output file exists.
+        help="""do not re-run simulations if the output file exists.
     (Warning: Does not check if simulations are out of date)""",
     )
     parser.add_argument(
-        '--no-progress',
+        '--no-progress-bar',
         action='store_true',
         help='do not display the progress bar',
-    )
-    parser.add_argument(
-        '--summary',
-        help='output path for the summary e.g. final/summary.md',
     )
 
     # Parse arguments
     args = parser.parse_args()
 
-    # Create the SimulationManager
-    simulation_manager = SimulationManager()
+    # Set the log level
+    if args.log_level:
+        set_log_level(args.log_level)
+
+    # Create the ParameterManager
+    parameter_manager = ParameterManager()
+
+    # Get the run dir
+    run_dir = parameter_manager.run_dir
+
+    # Log warnings and errors to files
+    handlers: List[logging.Handler] = []
+    for level in ['WARNING', 'ERROR']:
+        path = os.path.join(run_dir, f'{level.lower()}.log')
+        handler = logging.FileHandler(path, mode='a+')
+        handler.setLevel(level)
+        handler.addFilter(LevelFilter([level]))
+        handlers.append(handler)
+        register_additional_handler(handler)
+
+    # Log everything to a file
+    path = os.path.join(run_dir, 'flow.log')
+    handler = logging.FileHandler(path, mode='a+')
+    handler.setLevel('VERBOSE')
+    handlers.append(handler)
+    register_additional_handler(handler)
 
     # Load the datasheet
     if args.datasheet:
-        if simulation_manager.load_datasheet(args.datasheet, args.debug):
+        if parameter_manager.load_datasheet(args.datasheet, args.debug):
             sys.exit(0)
     # Else search for it starting from the cwd
     else:
-        if simulation_manager.find_datasheet(os.getcwd(), args.debug):
+        if parameter_manager.find_datasheet(os.getcwd(), args.debug):
             sys.exit(0)
 
     # Set runtime options
-    simulation_manager.set_runtime_options('debug', args.debug)
-    simulation_manager.set_runtime_options('force', args.force)
-    simulation_manager.set_runtime_options('keep', args.keep)
-    simulation_manager.set_runtime_options('noplot', args.no_plot)
-    simulation_manager.set_runtime_options('nosim', args.no_simulation)
-    simulation_manager.set_runtime_options('sequential', args.sequential)
-    simulation_manager.set_runtime_options('netlist_source', args.source)
-    simulation_manager.set_runtime_options(
+    parameter_manager.set_runtime_options('debug', args.debug)
+    parameter_manager.set_runtime_options('force', args.force)
+    parameter_manager.set_runtime_options('keep', args.keep)
+    parameter_manager.set_runtime_options('noplot', args.no_plot)
+    parameter_manager.set_runtime_options('nosim', args.no_simulation)
+    parameter_manager.set_runtime_options('sequential', args.sequential)
+    parameter_manager.set_runtime_options('netlist_source', args.source)
+    parameter_manager.set_runtime_options(
         'parallel_parameters', args.parallel_parameters
     )
-
-    # Rich console
-    console = Console()
 
     # Create the progress bar
     progress = Progress(
@@ -170,74 +233,89 @@ def cli():
         MofNCompleteColumn(),
         TimeElapsedColumn(),
         console=console,
-        disable=args.no_progress,
+        disable=args.no_progress_bar,
     )
 
     # Add a single task for all parameters
     progress.start()
     task_id = progress.add_task(
-        'Running parameters',
+        'Running Parameters',
     )
+    task_ids = {}
 
     # Queue specified parameters
     if args.parameter:
         if args.debug:
-            print(f'Running simulation for: {args.parameter}')
+            info(f'Running simulation for: {args.parameter}')
         for pname in args.parameter:
-            simulation_manager.queue_parameter(
+            parameter_manager.queue_parameter(
                 pname,
-                cb=lambda pname, canceled=False: progress.update(
-                    task_id, advance=1
+                start_cb=lambda param, steps: start_parameter(
+                    param, progress, task_ids, steps
+                ),
+                step_cb=lambda param: step_parameter(
+                    param, progress, task_ids
+                ),
+                cancel_cb=lambda param: end_parameter(
+                    param, progress, task_ids, task_id
+                ),
+                end_cb=lambda param: end_parameter(
+                    param, progress, task_ids, task_id
                 ),
             )
     # Queue all parameters
     else:
-        pnames = simulation_manager.get_all_pnames()
+        pnames = parameter_manager.get_all_pnames()
         if args.debug:
-            print(f'Running simulation for: {pnames}')
+            info(f'Running simulation for: {pnames}')
         for pname in pnames:
-            simulation_manager.queue_parameter(
+            parameter_manager.queue_parameter(
                 pname,
-                cb=lambda pname, canceled=False: progress.update(
-                    task_id, advance=1
+                start_cb=lambda param, steps: start_parameter(
+                    param, progress, task_ids, steps
+                ),
+                step_cb=lambda param: step_parameter(
+                    param, progress, task_ids
+                ),
+                cancel_cb=lambda param: end_parameter(
+                    param, progress, task_ids, task_id
+                ),
+                end_cb=lambda param: end_parameter(
+                    param, progress, task_ids, task_id
                 ),
             )
 
     # Set the total number of parameters in the progress bar
-    progress.update(task_id, total=simulation_manager.num_queued_parameters())
+    progress.update(task_id, total=parameter_manager.num_queued_parameters())
 
     # Run the simulations
-    simulation_manager.run_parameters_async()
+    parameter_manager.run_parameters_async()
 
     # Wait for completion
-    simulation_manager.join_parameters()
+    parameter_manager.join_parameters()
+
+    # Remove main progress bar
+    progress.remove_task(task_id)
 
     # Stop the progress bar
     progress.stop()
 
-    if args.debug:
-        print('Done with CACE simulations and evaluations.')
-
-    if args.output:
-        simulation_manager.save_datasheet(args.output)
+    info('Done with CACE simulations and evaluations.')
 
     # Print the summary to the console
-    summary = simulation_manager.summarize_datasheet()
+    summary = parameter_manager.summarize_datasheet()
     console.print(Markdown(summary))
 
-    # Write the summary to a file
-    if args.summary:
-        dirname = os.path.dirname(args.summary) or os.getcwd()
-        filename = os.path.basename(args.summary)
+    # Save the summary
+    with open(os.path.join(run_dir, 'summary.md'), 'w') as ofile:
+        ofile.write(summary)
 
-        # Check whether path to file exists
-        if os.path.isdir(dirname):
-            with open(os.path.join(dirname, filename), 'w') as ofile:
-                ofile.write(summary)
-        else:
-            print(
-                f"Couldn't write summary, invalid path: {os.path.dirname(args.summary)}"
-            )
+    # Save the datasheet, this may manipulate the datasheet
+    if args.output:
+        parameter_manager.save_datasheet(args.output)
+
+    for registered_handlers in handlers:
+        deregister_additional_handler(registered_handlers)
 
 
 if __name__ == '__main__':

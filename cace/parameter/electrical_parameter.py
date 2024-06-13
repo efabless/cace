@@ -19,16 +19,28 @@ import threading
 from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 
-from .cace_regenerate import *
-from .cace_gensim import *
-from .cace_collate import *
-from .cace_makeplot import *
-from .cace_evaluate import *
+from ..common.cace_regenerate import regenerate_testbenches
+from ..common.cace_gensim import *
+from ..common.cace_collate import *
+from ..common.cace_makeplot import *
 
 from .simulation_job import SimulationJob
 
+from .parameter import Parameter
 
-class ElectricalParameter(threading.Thread):
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+)
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
+
+
+class ElectricalParameter(Parameter):
     """
     The ElectricalParameter simulates an electrical parameter
     """
@@ -40,73 +52,63 @@ class ElectricalParameter(threading.Thread):
         pdk,
         paths,
         runtime_options,
-        cb=None,
-        cb_sims=None,
+        run_dir,
+        start_cb=None,
+        end_cb=None,
+        cancel_cb=None,
+        step_cb=None,
         *args,
         **kwargs,
     ):
-        self.param = param
-        self.datasheet = datasheet
-        self.cb = cb
-        self.cb_sims = cb_sims
-        self.pdk = pdk
-        self.paths = paths
-        self.runtime_options = runtime_options
-
         self.queued_jobs = []
         self.new_testbenches = []
 
-        self.canceled = False
-        self.done = False
+        super().__init__(
+            param,
+            datasheet,
+            pdk,
+            paths,
+            runtime_options,
+            run_dir,
+            start_cb,
+            end_cb,
+            cancel_cb,
+            step_cb,
+            *args,
+            **kwargs,
+        )
 
-        super().__init__(*args, **kwargs)
+    def cancel(self, no_cb):
+        super().cancel(no_cb)
 
-    def cancel(self, cancel_cb):
-        print(f'Cancel electrical parameter: {self.param["name"]}')
-        self.canceled = True
+        for job in self.queued_jobs:
+            job.cancel(no_cb)
 
-        if cancel_cb:
-            self.cb = None
-
-        for sim in self.queued_jobs:
-            sim.cancel(cancel_cb)
-
-    def cancel_point(self):
-        """If canceled, call the cb and exit the thread"""
-
-        if self.canceled:
-            if self.cb:
-                self.cb(self.param['name'], True)
-            sys.exit()
-
-    def run(self):
-
-        self.cancel_point()
-
-        # Preprocess: create netlists and testbenches
-        # TODO: removes results from testbenches
-        # this is a problem when a testbench is canceled
-        self.preprocess()
+    def implementation(self):
 
         self.cancel_point()
 
         # Run simulation jobs sequentially
         if self.runtime_options['sequential']:
 
-            for sim in self.queued_jobs:
-                print(f'{self.param["name"]}: Starting task')
+            for job in self.queued_jobs:
+                info(
+                    f'Parameter {self.param["name"]}: Starting task with id {job.idx}'
+                )
 
                 # Start simulation job as single thread
-                sim.start()
-                presult = sim.join()
+                job.start()
+                presult = job.join()
 
                 self.cancel_point()
 
                 if presult:
                     self.new_testbenches[presult['sequence']] = presult
 
-                if self.cb_sims:
-                    self.cb_sims()
+                if self.step_cb:
+                    self.step_cb(self.param)
+
+            dbg(f'Parameter {self.param["name"]}: All tasks done')
 
         # Run simulation jobs in parallel
         else:
@@ -114,10 +116,17 @@ class ElectricalParameter(threading.Thread):
 
                 # Start the jobs
                 jobs = []
-                for sim in self.queued_jobs:
-                    print(f'{self.param["name"]}: Starting task')
+                for job in self.queued_jobs:
+                    info(
+                        f'Parameter {self.param["name"]}: Starting task with id {job.idx}'
+                    )
                     jobs.append(
-                        mypool.apply_async(sim.run, callback=self.cb_sims)
+                        mypool.apply_async(
+                            job.run,
+                            callback=lambda result: self.step_cb(self.param)
+                            if self.step_cb
+                            else None,
+                        )
                     )
 
                 # Wait for completion
@@ -126,7 +135,7 @@ class ElectricalParameter(threading.Thread):
 
                     # Check if all tasks have completed
                     if all([job.ready() for job in jobs]):
-                        print(f'{self.param["name"]}: All tasks done')
+                        dbg(f'Parameter {self.param["name"]}: All tasks done')
                         break
 
                     time.sleep(0.1)
@@ -146,9 +155,7 @@ class ElectricalParameter(threading.Thread):
         # Check whether testbenches are valid
         for testbench in self.new_testbenches:
             if not testbench:
-                print(
-                    f'{self.param["name"]}: Error: At least one testbench is invalid'
-                )
+                err(f'{self.param["name"]}: At least one testbench is invalid')
                 self.param['results'] = None
 
                 # Just cancel on error
@@ -159,63 +166,39 @@ class ElectricalParameter(threading.Thread):
         # (cancel is not possible anymore)
         self.param['testbenches'] = self.new_testbenches
 
-        self.postprocess()
-
-        # Set done before calling cb
-        self.done = True
-
-        if self.cb:
-            self.cb(self.param['name'])
-
-        print(f'{self.param["name"]}: Completed')
-
     def add_simulation_job(self, job):
         self.queued_jobs.append(job)
 
+    # Preprocess: create netlists and testbenches
+    # TODO: removes results from testbenches
+    # this is a problem when a testbench is canceled
     def preprocess(self):
 
         # Get the set of paths from the characterization file
         paths = self.datasheet['paths']
 
-        # Simulation path is where the output is dumped.  If it doesn't
-        # exist, then create it.
-        root_path = paths['root']
-        simulation_path = paths['simulation']
-
-        if not os.path.isdir(os.path.join(root_path, simulation_path)):
-            print('Creating simulation path ' + simulation_path)
-            os.makedirs(os.path.join(root_path, simulation_path))
-
-        # Start by regenerating the netlists for the circuit-under-test
-        # (This may not be quick but all tests depend on the existence
-        # of the netlist, so it has to be done here and cannot be
-        # parallelized).
-
-        fullnetlistpath = regenerate_netlists(self.datasheet)
-        if not fullnetlistpath:
-            print('Failed to regenerate project netlist;  stopping.')
-            return 1
-
         # Generate testbench netlists if needed
         result = regenerate_testbenches(self.datasheet, self.param['name'])
         if result == 1:
-            print('Failed to regenerate testbench netlists;  stopping.')
+            err(
+                f'Parameter {self.param["name"]}: Failed to regenerate testbench netlists'
+            )
             return 1
 
-        print('Evaluating electrical parameter ' + self.param['name'])
-        cace_gensim(self.datasheet, self.param)
+        dbg(f'Parameter {self.param["name"]}: Evaluating electrical parameter')
+        cace_gensim(self.datasheet, self.param, self.param_dir)
 
         # Diagnostic:  find and print the number of files to be simulated
         # Names are methodname, pinname, and simulation number.
         totalsims = 0
         if 'testbenches' in self.param:
             totalsims += len(self.param['testbenches'])
-            print('Total files to simulate: ' + str(totalsims))
+            dbg(
+                f'Parameter {self.param["name"]}: Total files to simulate: {str(totalsims)}'
+            )
         else:
-            print(
-                'Skipping parameter '
-                + self.param['name']
-                + ' (no testbenches).'
+            warn(
+                f'Parameter {self.param["name"]}: Skipping (no testbenches to simulate)'
             )
             return
 
@@ -248,6 +231,8 @@ class ElectricalParameter(threading.Thread):
                 self.pdk,
                 self.paths,
                 self.runtime_options,
+                self.param_dir,
+                idx,
             )
             self.add_simulation_job(new_sim_job)
 
@@ -262,9 +247,17 @@ class ElectricalParameter(threading.Thread):
     def postprocess(self):
 
         if 'plot' in self.param:
-            print('Plotting results')
-            cace_makeplot(self.datasheet, self.param)
+            dbg(f'Parameter {self.param["name"]}: Plotting results')
+
+            info(
+                f'Parameter {self.param["name"]}: Plotting to \'[repr.filename][link=file://{os.path.abspath(self.plot_dir)}]{os.path.relpath(self.plot_dir)}[/link][/repr.filename]\'…'
+            )
+
+            cace_makeplot(self.datasheet, self.param, self.plot_dir)
 
         if 'spec' in self.param:
-            print('Collating results')
+            dbg(f'Parameter {self.param["name"]}: Collating results')
             self.param = cace_collate(self.datasheet, self.param)
+
+    def get_num_steps(self):
+        return len(self.param['testbenches'])

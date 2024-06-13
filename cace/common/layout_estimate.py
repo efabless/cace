@@ -1,20 +1,24 @@
-#!/usr/bin/env python3
-# ---------------------------------------------------------------
-# layout_estimate.py
-# ---------------------------------------------------------------
-# Generate an estimate of layout area from a SPICE netlist by
-# running magic in batch mode and calling up the PDK selections
-# non-interactively for each component in the netlist, and
-# querying the total device area.  It is up to the caller to
-# determine what overhead to apply for total layout area.
-# ---------------------------------------------------------------
-# Written by Tim Edwards
-# Efabless Corporation
-# December 2, 2016
-# Updated December 17, 2016
-# Version 1.0
-# Revised December 19, 2023
-# -----------------------------------------------------
+# Copyright 2024 Efabless Corporation
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+"""
+Generate an estimate of layout area from a SPICE netlist by
+running magic in batch mode and calling up the PDK selections
+non-interactively for each component in the netlist, and
+querying the total device area.  It is up to the caller to
+determine what overhead to apply for total layout area.
+"""
 
 import os
 import re
@@ -24,12 +28,18 @@ import subprocess
 from .cace_regenerate import get_magic_rcfile
 from .safe_eval import safe_eval
 
-# -----------------------------------------------------------------------------
-# run_estimate
-#
-# This routine is called by layout_estimate after the netlist has been read
-# in and the subcircuit has been identified and parsed.
-# -----------------------------------------------------------------------------
+from ..logging import (
+    verbose,
+    info,
+    rule,
+    success,
+    warn,
+    err,
+    get_log_level,
+    LogLevels,
+)
+from ..logging import subprocess as subproc
+from ..logging import debug as dbg
 
 
 def run_estimate(
@@ -38,21 +48,16 @@ def run_estimate(
     complist,
     library,
     rcfile,
-    debug=False,
     keep=False,
-    logname='',
 ):
+    """
+    This routine is called by layout_estimate after the netlist has been read
+    in and the subcircuit has been identified and parsed.
+    """
+
     parmrex = re.compile('([^=]+)=([^=]+)', re.IGNORECASE)
 
     areaum2 = 0
-
-    logfile = sys.stdout
-    if logname != '':
-        try:
-            logfile = open(logname, 'w')
-        except:
-            print('Cannot open log file ' + logname + ' for writing.')
-            return areaum2
 
     # Write out a TCL script to generate the layout estimate
     #
@@ -154,11 +159,13 @@ def run_estimate(
             print('set w [expr [lindex $v 2] - [lindex $v 0]]', file=ofile)
             print('set h [expr [lindex $v 3] - [lindex $v 1]]', file=ofile)
             print('set area [expr $w * $h]', file=ofile)
-            if debug:
+
+            if get_log_level() <= LogLevels.DEBUG:
                 print(
                     'puts stdout "single device ' + instname + ' area is $a"',
                     file=ofile,
                 )
+
             print('set totalarea [expr $totalarea + $area]', file=ofile)
 
         print('resumeall', file=ofile)
@@ -182,17 +189,10 @@ def run_estimate(
             arealine = re.compile('.*=[ \t]*([0-9]+)[ \t]*um\^2')
             output = script.communicate()[0]
             for line in output.splitlines():
-                if debug:
-                    print(line)
-                else:
-                    lmatch = arealine.match(line)
-                    if lmatch:
-                        areaum2 = lmatch.group(1)
-                if logfile:
-                    print(line, file=logfile)
-
-    if logname != '':
-        logfile.close()
+                dbg(line)
+                lmatch = arealine.match(line)
+                if lmatch:
+                    areaum2 = lmatch.group(1)
 
     if not keep:
         os.remove('estimate_script.tcl')
@@ -200,19 +200,13 @@ def run_estimate(
     return areaum2
 
 
-# ------------------------------------------------------------------------
-# layout_estimate
-#
-# This is the main routine if layout_estimate.py is called from python.
-#
-# 'inputfile' is the name of a schematic-captured netlist to read.
-# If 'debug' is true, then generate diagnostic output and retain any
-# generated files.
-# If logfile is an empty string, then write output to stdout.
-# ------------------------------------------------------------------------
+def layout_estimate(inputfile, library, rcfile, keep):
+    """
+    This is the main routine if layout_estimate.py is called from python.
 
+    'inputfile' is the name of a schematic-captured netlist to read.
+    """
 
-def layout_estimate(inputfile, library, rcfile, debug, logfile=''):
     # Read SPICE netlist
 
     with open(inputfile, 'r') as ifile:
@@ -299,81 +293,5 @@ def layout_estimate(inputfile, library, rcfile, debug, logfile=''):
     toppath = os.path.split(inputfile)[1]
     topname = os.path.splitext(toppath)[0]
     return run_estimate(
-        topname,
-        pindict[topname],
-        subdict[topname],
-        library,
-        rcfile,
-        debug,
-        logfile,
+        topname, pindict[topname], subdict[topname], library, rcfile, keep
     )
-
-
-# -----------------------------------------------------------------------------
-# Print usage information
-# -----------------------------------------------------------------------------
-
-
-def usage():
-    print('')
-    print('Usage:')
-    print('layout_estimate.py <netlist_file> [-options]\n')
-    print('   where [-options] can be one of:')
-    print('        -help')
-    print('        -debug')
-    print('        -keep')
-    print('        -log=<logfile>')
-    print('')
-
-
-# -----------------------------------------------------------------------------
-# This is the main entrypoint of layout_estimate.py if called from the
-# command line.
-# -----------------------------------------------------------------------------
-
-if __name__ == '__main__':
-
-    # Parse command line for options and arguments
-    options = []
-    arguments = []
-    for item in sys.argv[1:]:
-        if item.find('-', 0) == 0:
-            options.append(item)
-        else:
-            arguments.append(itsm)
-
-    if len(arguments) > 1:
-        inputfile = arguments[0]
-        library = arguments[1]
-    else:
-        usage()
-        sys.exit(1)
-
-    debug = False
-    keep = False
-    logfile = ''
-    for item in options:
-        result = item.split('=')
-        if result[0] == '-help':
-            usage()
-            sys.exit(0)
-        elif result[0] == '-debug':
-            debug = True
-        elif result[0] == '-keep':
-            keep = True
-        elif result[0] == '-log':
-            if len(result) == 2:
-                logfile = result[1]
-            else:
-                logfile = 'estimate.log'
-        elif result[0] == '-rcfile':
-            if len(result) == 2:
-                rcfile = result[1]
-            else:
-                rcfile = '.magicrc'
-        else:
-            print('Bad option ' + item)
-            usage()
-            sys.exit(1)
-
-    layout_estimate(inputfile, library, rcfile, debug, keep, logfile)
