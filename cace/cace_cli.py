@@ -302,9 +302,6 @@ def cli():
 
     info('Done with CACE simulations and evaluations.')
 
-    if args.output:
-        parameter_manager.save_datasheet(args.output)
-
     # Print the summary to the console
     summary = parameter_manager.summarize_datasheet()
     console.print(Markdown(summary))
@@ -312,6 +309,10 @@ def cli():
     # Save the summary
     with open(os.path.join(run_dir, 'summary.md'), 'w') as ofile:
         ofile.write(summary)
+
+    # Save the datasheet, this may manipulate the datasheet
+    if args.output:
+        parameter_manager.save_datasheet(args.output)
 
     for registered_handlers in handlers:
         deregister_additional_handler(registered_handlers)

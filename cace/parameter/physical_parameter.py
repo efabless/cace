@@ -382,10 +382,11 @@ class PhysicalParameter(Parameter):
             stdin=subprocess.PIPE,
             stdout=subprocess.PIPE,
             env=newenv,
-            cwd=layout_path,
+            cwd=self.param_dir,
             text=True,
         )
 
+        drcproc.stdin.write('addpath ' + os.path.abspath(layout_path) + '\n')
         if is_mag:
             drcproc.stdin.write('load ' + layout_cellname + '\n')
         else:
@@ -408,6 +409,13 @@ class PhysicalParameter(Parameter):
         drcproc.stdin.write('drc catchup\n')
         drcproc.stdin.write('set dcount [drc list count total]\n')
         drcproc.stdin.write('puts stdout "drc = $dcount"\n')
+        drcproc.stdin.write('set outfile [open "magic_drc.out" w+]\n')
+        drcproc.stdin.write('set drc_why [drc listall why]\n')
+        drcproc.stdin.write('puts stdout $drc_why\n')
+        drcproc.stdin.write('foreach x $drc_why {\n')
+        drcproc.stdin.write('   puts $outfile $x\n')
+        drcproc.stdin.write('   puts stdout $x\n')
+        drcproc.stdin.write('}\n')
         outlines = drcproc.communicate()[0]
         retcode = drcproc.returncode
 
@@ -521,10 +529,8 @@ class PhysicalParameter(Parameter):
         if not os.path.isdir(reports_path):
             os.makedirs(reports_path)
 
-        if 'testbench' in paths:
-            testbenchpath = paths['testbench']
-        else:
-            testbenchpath = None
+        testbenchpath = paths.get('testbench', None)
+        scriptspath = paths.get('scripts', None)
 
         if not layout_netlist or not os.path.isfile(layout_netlist):
             err('Layout-extracted netlist does not exist. Cannot run LVS')
@@ -569,21 +575,35 @@ class PhysicalParameter(Parameter):
         # Run LVS as a subprocess and wait for it to finish.  Use the -json
         # switch to get a file that is easy to parse.
 
+        dbg(toolargs)
+        dbg(testbenchpath)
         if toolargs:
             if not isinstance(toolargs, list):
                 toolargs = [toolargs]
 
         outfilename = projname + '_comp.out'
-        outfilepath = os.path.join(reports_path, outfilename)
+        outfilepath = os.path.join(self.param_dir, outfilename)
         jsonfilename = projname + '_comp.json'
-        jsonfilepath = os.path.join(reports_path, jsonfilename)
+        jsonfilepath = os.path.join(self.param_dir, jsonfilename)
 
         if toolargs:
             lvsargs = ['netgen', '-batch', 'source']
-            if testbenchpath:
-                lvsargs.append(os.path.join(testbenchpath, toolargs[0]))
+            if scriptspath:
+                lvsargs.append(
+                    os.path.abspath(os.path.join(scriptspath, toolargs[0]))
+                )
+            elif testbenchpath:
+                lvsargs.append(
+                    os.path.abspath(os.path.join(testbenchpath, toolargs[0]))
+                )
             else:
-                lvsargs.append(toolargs[0])
+                lvsargs.append(
+                    os.path.abspath(
+                        os.path.join(
+                            paths['root'], 'cace/scripts', toolargs[0]
+                        )
+                    )
+                )
             if len(toolargs) > 1:
                 lvsargs.extend(toolargs[1:])
             dbg('cace_evaluate.py:  running ' + ' '.join(lvsargs))
@@ -596,7 +616,7 @@ class PhysicalParameter(Parameter):
             lvsargs.append('-json')
 
             dbg('cace_evaluate.py:  running ' + ' '.join(lvsargs))
-
+        dbg(os.getcwd())
         newenv = os.environ.copy()
         pdk_root = get_pdk_root()
         if pdk_root and 'PDK_ROOT' not in newenv:
@@ -606,7 +626,7 @@ class PhysicalParameter(Parameter):
 
         with subprocess.Popen(
             lvsargs,
-            cwd=root_path,
+            cwd=self.param_dir,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
             env=newenv,
@@ -631,8 +651,10 @@ class PhysicalParameter(Parameter):
                         pline = line.decode('ascii')
                         if 'Logging to file' in pline:
                             outfilepath = pline.split()[3].strip('"')
-                            jsonfilepath = (
-                                os.path.splitext(outfilepath)[0] + '.json'
+                            # TODO really necessary to change again?
+                            jsonfilepath = os.path.join(
+                                self.param_dir,
+                                os.path.splitext(outfilepath)[0] + '.json',
                             )
                     except:
                         # Might happen if non-ASCII characters are output from netgen

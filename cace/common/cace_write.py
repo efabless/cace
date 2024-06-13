@@ -910,10 +910,10 @@ def markdown_summary(datasheet):
 
     result += ''.join(
         [
-            f'**authorship**\n\n'
-            f'- designer: {datasheet["authorship"]["designer"]}\n'
-            f'- company: {datasheet["authorship"]["company"]}\n'
-            f'- creation_date: {datasheet["authorship"]["creation_date"]}\n'
+            f'**authorship**\n\n',
+            f'- designer: {datasheet["authorship"]["designer"]}\n',
+            f'- company: {datasheet["authorship"]["company"]}\n',
+            f'- creation_date: {datasheet["authorship"]["creation_date"]}\n',
             f'- license: {datasheet["authorship"]["license"]}\n\n',
         ]
     )
@@ -1000,8 +1000,8 @@ def markdown_summary(datasheet):
                 status = skip_msg
 
             # Get the testbench
-            testbench = ''
-            if 'simulate' in eparam:
+            testbench = None
+            if 'simulate' in eparam and 'template' in eparam['simulate']:
                 testbench = eparam['simulate']['template']
 
             # Don't print any unit if empty or any
@@ -1048,14 +1048,14 @@ def markdown_summary(datasheet):
             inv_char = '\u200B'
             result += ''.join(
                 [
-                    f'| {parameter_str if parameter_str else inv_char: <{sp[0]}} '
-                    f'| {testbench_str if testbench_str else inv_char: <{sp[1]}} '
-                    f'| {min_limit_str if min_limit_str else inv_char: >{sp[2]}} '
-                    f'| {min_value_str if min_value_str else inv_char: >{sp[3]}} '
-                    f'| {typ_limit_str if typ_limit_str else inv_char: >{sp[4]}} '
-                    f'| {typ_value_str if typ_value_str else inv_char: >{sp[5]}} '
-                    f'| {max_limit_str if max_limit_str else inv_char: >{sp[6]}} '
-                    f'| {max_value_str if max_value_str else inv_char: >{sp[7]}} '
+                    f'| {parameter_str if parameter_str else inv_char: <{sp[0]}} ',
+                    f'| {testbench_str if testbench_str else inv_char: <{sp[1]}} ',
+                    f'| {min_limit_str if min_limit_str else inv_char: >{sp[2]}} ',
+                    f'| {min_value_str if min_value_str else inv_char: >{sp[3]}} ',
+                    f'| {typ_limit_str if typ_limit_str else inv_char: >{sp[4]}} ',
+                    f'| {typ_value_str if typ_value_str else inv_char: >{sp[5]}} ',
+                    f'| {max_limit_str if max_limit_str else inv_char: >{sp[6]}} ',
+                    f'| {max_value_str if max_value_str else inv_char: >{sp[7]}} ',
                     f'| {status_str if status_str else inv_char: ^{sp[8]-1}} |\n',
                 ]
             )
@@ -1067,28 +1067,28 @@ def markdown_summary(datasheet):
         # Print the table headings
         result += ''.join(
             [
-                f'| {"Parameter": ^{sp[0]}} '
-                f'| {"Tool": ^{sp[1]}} '
-                f'| {"Min Limit": ^{sp[2]}} '
-                f'| {"Min Value": ^{sp[3]}} '
-                f'| {"Typ Target": ^{sp[4]}} '
-                f'| {"Typ Value": ^{sp[5]}} '
-                f'| {"Max Limit": ^{sp[6]}} '
-                f'| {"Max Value": ^{sp[7]}} '
+                f'| {"Parameter": ^{sp[0]}} ',
+                f'| {"Tool": ^{sp[1]}} ',
+                f'| {"Min Limit": ^{sp[2]}} ',
+                f'| {"Min Value": ^{sp[3]}} ',
+                f'| {"Typ Target": ^{sp[4]}} ',
+                f'| {"Typ Value": ^{sp[5]}} ',
+                f'| {"Max Limit": ^{sp[6]}} ',
+                f'| {"Max Value": ^{sp[7]}} ',
                 f'| {"Status": ^{sp[8]}} |\n',
             ]
         )
         # Print the separators
         result += ''.join(
             [
-                f'| :{"-"*(sp[0]-1)} '
-                f'| :{"-"*(sp[1]-1)} '
-                f'| {"-"*(sp[2]-1)}: '
-                f'| {"-"*(sp[3]-1)}: '
-                f'| {"-"*(sp[4]-1)}: '
-                f'| {"-"*(sp[5]-1)}: '
-                f'| {"-"*(sp[6]-1)}: '
-                f'| {"-"*(sp[7]-1)}: '
+                f'| :{"-"*(sp[0]-1)} ',
+                f'| :{"-"*(sp[1]-1)} ',
+                f'| {"-"*(sp[2]-1)}: ',
+                f'| {"-"*(sp[3]-1)}: ',
+                f'| {"-"*(sp[4]-1)}: ',
+                f'| {"-"*(sp[5]-1)}: ',
+                f'| {"-"*(sp[6]-1)}: ',
+                f'| {"-"*(sp[7]-1)}: ',
                 f'| :{"-"*(sp[8]-2)}: |\n',
             ]
         )
@@ -1134,8 +1134,8 @@ def markdown_summary(datasheet):
                 status = skip_msg
 
             # Get the tool
-            tool = ''
-            if 'evaluate' in pparam:
+            tool = None
+            if 'evaluate' in pparam and 'tool' in pparam['evaluate']:
                 tool = pparam['evaluate']['tool']
                 if isinstance(tool, list):
                     tool = tool[0]
@@ -1184,14 +1184,14 @@ def markdown_summary(datasheet):
             inv_char = '\u200B'
             result += ''.join(
                 [
-                    f'| {parameter_str if parameter_str else inv_char: <{sp[0]}} '
-                    f'| {tool_str if tool_str else inv_char: <{sp[1]}} '
-                    f'| {min_limit_str if min_limit_str else inv_char: >{sp[2]}} '
-                    f'| {min_value_str if min_value_str else inv_char: >{sp[3]}} '
-                    f'| {typ_limit_str if typ_limit_str else inv_char: >{sp[4]}} '
-                    f'| {typ_value_str if typ_value_str else inv_char: >{sp[5]}} '
-                    f'| {max_limit_str if max_limit_str else inv_char: >{sp[6]}} '
-                    f'| {max_value_str if max_value_str else inv_char: >{sp[7]}} '
+                    f'| {parameter_str if parameter_str else inv_char: <{sp[0]}} ',
+                    f'| {tool_str if tool_str else inv_char: <{sp[1]}} ',
+                    f'| {min_limit_str if min_limit_str else inv_char: >{sp[2]}} ',
+                    f'| {min_value_str if min_value_str else inv_char: >{sp[3]}} ',
+                    f'| {typ_limit_str if typ_limit_str else inv_char: >{sp[4]}} ',
+                    f'| {typ_value_str if typ_value_str else inv_char: >{sp[5]}} ',
+                    f'| {max_limit_str if max_limit_str else inv_char: >{sp[6]}} ',
+                    f'| {max_value_str if max_value_str else inv_char: >{sp[7]}} ',
                     f'| {status_str if status_str else inv_char: ^{sp[8]-1}} |\n',
                 ]
             )

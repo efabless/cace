@@ -110,26 +110,6 @@ class SimulationJob(threading.Thread):
         else:
             simulations = 0
 
-        # Clean up simulation files if "keep" not specified as an option to CACE
-        keepmode = (
-            self.runtime_options['keep']
-            if 'keep' in self.runtime_options
-            else False
-        )
-
-        if not keepmode:
-            filename = testbench['filename']
-            if os.path.isfile(filename):
-                os.remove(filename)
-            # Check for output files---suffix given in the "format" record
-            simrec = self.param['simulate']
-            if 'format' in simrec:
-                formatline = simrec['format']
-                suffix = formatline[1]
-                outfilename = os.path.splitext(filename)[0] + suffix
-                if os.path.isfile(outfilename):
-                    os.remove(outfilename)
-
         # For when the join function is called
         self._return = tbzero if simulations > 0 else None
         return self._return
@@ -345,14 +325,10 @@ class SimulationJob(threading.Thread):
             dbg(f'Running: {simulator} {" ".join(simargs)} {filename}')
             dbg('Current working directory is: ' + os.getcwd())
 
-            if len(self.testbenchlist) == 1:
-                log_path = os.path.join(
-                    self.param_dir, f'ngspice_{self.idx}.log'
-                )
-            else:
-                log_path = os.path.join(
-                    self.param_dir, f'ngspice_{self.idx}_{idy}.log'
-                )
+            log_path = os.path.join(
+                self.param_dir,
+                f'{os.path.splitext(testbench["filename"])[0]}.log',
+            )
 
             log_file = open(log_path, 'w')
 
@@ -367,7 +343,8 @@ class SimulationJob(threading.Thread):
                 stderr=subprocess.STDOUT,
                 bufsize=1,
                 text=True,
-                preexec_fn=lambda: os.nice(10),
+                # preexec_fn=lambda: os.nice(10),
+                cwd=self.param_dir,
             )
 
             line_buffer = RingBuffer(str, 10)

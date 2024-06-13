@@ -186,7 +186,7 @@ class ElectricalParameter(Parameter):
             return 1
 
         dbg(f'Parameter {self.param["name"]}: Evaluating electrical parameter')
-        cace_gensim(self.datasheet, self.param)
+        cace_gensim(self.datasheet, self.param, self.param_dir)
 
         # Diagnostic:  find and print the number of files to be simulated
         # Names are methodname, pinname, and simulation number.

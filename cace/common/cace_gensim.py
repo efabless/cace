@@ -655,6 +655,7 @@ def get_condition_names_used(testbenchpath, testbench):
 # template schematic.
 #
 # 	filename:  Root name of the simulatable output file
+#   simfilepath: Path to where to save the substituded files
 # 	paths:	   Dictionary of paths from the characterization file
 # 	tool:	   Name of tool that uses the template (e.g., "ngspice")
 # 	template:  Name of the template file to be substituted
@@ -668,6 +669,7 @@ def get_condition_names_used(testbenchpath, testbench):
 
 def substitute(
     filename,
+    simfilepath,
     paths,
     tool,
     template,
@@ -708,9 +710,9 @@ def substitute(
     brackrex = re.compile(r'(\[[^]]+\])')
 
     # Information about the DUT
-    simfilepath = paths['simulation']
+    # simfilepath = paths['simulation'] # this is now in the run/ dir
     schempath = paths['schematic']
-    testbenchpath = paths.get('testbench', 'cace/schematic_templates')
+    testbenchpath = paths['testbench']
     rootpath = paths['root']
     schempins = schemline.upper().split()[1:-1]
     simpins = [None] * len(schempins)
@@ -913,10 +915,14 @@ def substitute(
                                     maxtime = simvals('Tmax')
                                     repl = str(maxtime / 100)
                                 elif condition == 'DUT_path':
-                                    repl = dutpath + '\n'
+                                    repl = os.path.abspath(dutpath) + '\n'
                                 elif condition == 'include_DUT':
                                     if len(functional) == 0:
-                                        repl = '.include ' + dutpath + '\n'
+                                        repl = (
+                                            '.include '
+                                            + os.path.abspath(dutpath)
+                                            + '\n'
+                                        )
                                     else:
                                         inline_dut(
                                             dutpath,
@@ -935,7 +941,7 @@ def substitute(
                                 elif condition == 'filename':
                                     repl = filename
                                 elif condition == 'simpath':
-                                    repl = simfilepath
+                                    repl = os.path.abspath(simfilepath)
                                 elif condition == 'random':
                                     repl = str(
                                         int(time.time() * 1000) & 0x7FFFFFFF
@@ -1320,7 +1326,7 @@ def substitute(
 # -----------------------------------------------------------------------
 
 
-def cace_gensim(dataset, param):
+def cace_gensim(dataset, param, simfilepath):
 
     runtime_options = dataset['runtime_options']
     debug = runtime_options['debug']
@@ -1329,7 +1335,7 @@ def cace_gensim(dataset, param):
 
     # Grab values held in 'paths'
     paths = dataset['paths']
-    testbenchpath = paths.get('testbench', 'cace/schematic_templates')
+    testbenchpath = paths['testbench']
     root_path = paths['root']
 
     paramname = param['name']
@@ -1726,6 +1732,7 @@ def cace_gensim(dataset, param):
         if os.path.isfile(template):
             param['testbenches'] = substitute(
                 paramname,
+                simfilepath,
                 paths,
                 tool,
                 template,

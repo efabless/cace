@@ -311,8 +311,11 @@ def cace_read_yaml(filename, debug=False):
     new_datasheet['authorship'] = datasheet['authorship']
     new_datasheet['paths'] = datasheet['paths']
 
-    if 'dependencies' in datasheet:
-        new_datasheet['dependencies'] = datasheet['dependencies']
+    # Convert dependencies
+    new_datasheet['dependencies'] = []
+    for key, value in datasheet['dependencies'].items():
+        value['name'] = key
+        new_datasheet['dependencies'].append(value)
 
     # Convert pins
     new_datasheet['pins'] = []

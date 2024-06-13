@@ -67,19 +67,27 @@ class ParameterManager:
         self.running_threads = []
         self.running_lock = threading.Lock()
 
-        self.default_options = {
+        self.default_runtime_options = {
             'netlist_source': 'schematic',
             'force': False,
             'keep': False,
             'nosim': False,
-            'sequential': False,  # TODO implement
+            'sequential': False,
             'noplot': False,  # TODO test
             'parallel_parameters': 4,
             'debug': False,
             'filename': 'Unknown',
         }
 
-        self.default_runtime_options()
+        self.set_default_runtime_options()
+
+        self.default_paths = {
+            'testbench': 'cace/templates',
+            'templates': 'cace/templates',
+            'scripts': 'cace/scripts',
+        }
+
+        self.set_default_paths()
 
         # Create a new run dir for logs
         self.prepare_run_dir()
@@ -120,10 +128,10 @@ class ParameterManager:
             paths['root'] = '.'
 
         os.chdir(dspath)
-
         info(
             f"Working directory set to '{dspath}' ('{os.path.abspath(dspath)}')"
         )
+        os.environ['CACE_ROOT'] = os.path.abspath(dspath)
 
         if debug:
             import pprint
@@ -132,7 +140,11 @@ class ParameterManager:
             pp.pprint(self.datasheet)
 
         # Make sure all runtime options exist
-        self.default_runtime_options()
+        self.set_default_runtime_options()
+
+        # Make sure all paths exist
+        self.set_default_paths()
+
         return 0
 
     def find_datasheet(self, search_dir, debug):
@@ -216,6 +228,12 @@ class ParameterManager:
 
             # TODO Remove this step and change the remaining code
             # in CACE to work with dictionaries
+
+            # Convert dependencies
+            new_datasheet['dependencies'] = {}
+            for dependency in self.datasheet['dependencies']:
+                name = dependency.pop('name')
+                new_datasheet['dependencies'][name] = dependency
 
             # Convert pins
             new_datasheet['pins'] = {}
@@ -463,7 +481,7 @@ class ParameterManager:
         eidx = eparams.index(param)
         eparams.pop(eidx)
 
-    def default_runtime_options(self):
+    def set_default_runtime_options(self):
         """Sane default values"""
 
         # Make sure runtime options exist
@@ -471,9 +489,21 @@ class ParameterManager:
             self.datasheet['runtime_options'] = {}
 
         # Init with default value if key does not exist
-        for key, value in self.default_options.items():
+        for key, value in self.default_runtime_options.items():
             if not key in self.datasheet['runtime_options']:
                 self.datasheet['runtime_options'][key] = value
+
+    def set_default_paths(self):
+        """Sane default values"""
+
+        # Make sure runtime options exist
+        if not 'paths' in self.datasheet:
+            self.datasheet['paths'] = {}
+
+        # Init with default value if key does not exist
+        for key, value in self.default_paths.items():
+            if not key in self.datasheet['paths']:
+                self.datasheet['paths'][key] = value
 
     def set_runtime_options(self, key, value):
         self.datasheet['runtime_options'][key] = value
@@ -767,12 +797,12 @@ class ParameterManager:
 
         # Simulation path is where the output is dumped.  If it doesn't
         # exist, then create it.
-        root_path = paths['root']
+        """root_path = paths['root']
         simulation_path = paths['simulation']
 
         if not os.path.isdir(os.path.join(root_path, simulation_path)):
             info(f'Creating simulation path {simulation_path}')
-            os.makedirs(os.path.join(root_path, simulation_path))
+            os.makedirs(os.path.join(root_path, simulation_path))"""
 
         # Start by regenerating the netlists for the circuit-under-test
         # (This may not be quick but all tests depend on the existence
