@@ -228,16 +228,16 @@ class FailReport(tkinter.Toplevel):
         for widget in self.plotframe.winfo_children():
             widget.destroy()
 
-        dsheet = self.parent.simulation_manager.get_datasheet()
+        dsheet = self.parent.parameter_manager.get_datasheet()
 
         # Find parameter
         if pname:
-            param = self.parent.simulation_manager.find_parameter(pname)
+            param = self.parent.parameter_manager.find_parameter(pname)
         # Reuse the last parameter
         else:
             param = self.data
 
-        filename = self.parent.simulation_manager.get_runtime_options(
+        filename = self.parent.parameter_manager.get_runtime_options(
             'filename'
         )
 
@@ -284,16 +284,16 @@ class FailReport(tkinter.Toplevel):
         # (Diagnostic)
         # print('failure report:  passed parameter ' + str(param))
 
-        dsheet = self.parent.simulation_manager.get_datasheet()
+        dsheet = self.parent.parameter_manager.get_datasheet()
 
         # Find parameter
         if pname:
-            param = self.parent.simulation_manager.find_parameter(pname)
+            param = self.parent.parameter_manager.find_parameter(pname)
         # Reuse the last parameter
         else:
             param = self.data
 
-        filename = self.parent.simulation_manager.get_runtime_options(
+        filename = self.parent.parameter_manager.get_runtime_options(
             'filename'
         )
 

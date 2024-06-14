@@ -628,13 +628,18 @@ def get_condition_names_used(testbenchpath, testbench):
     # Vectors in name[number|range] format
     vectrex = re.compile(r'([^\[]+)\[([0-9:]+)\]')
 
+    # List for {cond=value} syntax
+    default_cond = {}
+
     for line in simlines:
         for patmatch in varex.finditer(line):
             pattern = patmatch.group(1)
 
             # For condition names in the form {cond=value}, use only the name
             if '=' in pattern:
-                pattern = pattern.split('=')[0]
+                (pattern, default) = pattern.split('=')
+                # Add the default value
+                default_cond[pattern] = default
 
             # For condition names in the form {cond|value}, use only the name
             if '|' in pattern:
@@ -647,7 +652,7 @@ def get_condition_names_used(testbenchpath, testbench):
                 pattern = pmatch.group(1) + '['
             condlist[pattern] = True
 
-    return condlist
+    return (condlist, default_cond)
 
 
 # -----------------------------------------------------------------------
@@ -1481,7 +1486,9 @@ def cace_gensim(dataset, param, simfilepath):
     # Get the list of parameters that get substituted in the template
     condnames = []
     for testbench in testbenches:
-        newnames = get_condition_names_used(testbenchpath, testbench)
+        (newnames, default_cond) = get_condition_names_used(
+            testbenchpath, testbench
+        )
         if not newnames:
             err('No conditions for testbench ' + testbench)
         else:
@@ -1489,6 +1496,17 @@ def cace_gensim(dataset, param, simfilepath):
             for name in newnames:
                 if name not in condnames:
                     condnames.append(name)
+
+            # Add new default conditions (if not already exist)
+            for cond, value in default_cond.items():
+                if not cond in defcondnames:
+                    defcondnames.append(cond)
+                    defcondlist.append(
+                        {
+                            'name': cond,
+                            'typical': value,
+                        }
+                    )
 
     # Get the list of parameters specific to the electrical parameter
     # definition

@@ -223,13 +223,15 @@ def results_to_json(testbench):
     return datfilename
 
 
-def cace_run_measurement(param, measure, testbench, paths, debug=False):
+def cace_run_measurement(
+    param, measure, testbench, paths, simulation_path, debug=False
+):
     """
     Execute one measurement on the simulation data
     """
 
-    testbench_path = paths.get('testbench', paths['templates'])
-    simulation_path = paths['simulation']
+    testbench_path = paths.get('testbench', paths['scripts'])
+    # simulation_path = paths['simulation']
     root_path = paths['root']
 
     testbenchname = param['name']
@@ -286,7 +288,7 @@ def cace_run_measurement(param, measure, testbench, paths, debug=False):
 # ---------------------------------------------------------------------------
 
 
-def cace_measure(param, testbench, paths, debug=False):
+def cace_measure(param, testbench, paths, simulation_path, debug=False):
     """
     Main entry point for cace_measure
 
@@ -308,7 +310,9 @@ def cace_measure(param, testbench, paths, debug=False):
         measurelist = []
 
     for measure in measurelist:
-        result = cace_run_measurement(param, measure, testbench, paths, debug)
+        result = cace_run_measurement(
+            param, measure, testbench, paths, simulation_path, debug
+        )
         if result == 0:
             measurements = 0
             break

@@ -278,8 +278,8 @@ def check_layout_out_of_date(spicepath, layoutpath, debug=False):
             dbg('Layout netlist is older than top-level layout.')
             laytime = datetime.fromtimestamp(lay_statbuf.st_mtime)
             nettime = datetime.fromtimestamp(spi_statbuf.st_mtime)
-            dbg('---Layout  datestamp = ' + laytime)
-            dbg('---Netlist datestamp = ' + nettime)
+            dbg('---Layout  datestamp = ' + str(laytime))
+            dbg('---Netlist datestamp = ' + str(nettime))
             need_capture = True
         elif os.path.splitext(layoutpath)[1] == '.mag':
             # If layoutpath points to a .mag file, then above we only

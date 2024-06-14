@@ -858,10 +858,10 @@ class CACEGui(ttk.Frame):
             with open(doutfile, 'w') as ofile:
                 json.dump(
                     dsheet, ofile, indent=4
-                )   # TODO inside simulation_manager
+                )   # TODO inside parameter_manager
         else:
             # NOTE:  This file contains the run-time settings dictionary
-            cace_write(dsheet, doutfile)   # TODO inside simulation_manager
+            cace_write(dsheet, doutfile)   # TODO inside parameter_manager
 
         self.last_save = os.path.getmtime(doutfile)
 

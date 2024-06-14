@@ -229,10 +229,15 @@ class ParameterManager:
             # in CACE to work with dictionaries
 
             # Convert dependencies
-            new_datasheet['dependencies'] = {}
-            for dependency in self.datasheet['dependencies']:
-                name = dependency.pop('name')
-                new_datasheet['dependencies'][name] = dependency
+            if 'dependencies' in self.datasheet and self.datasheet[
+                'dependencies'
+            ] != [{}]:
+                new_datasheet['dependencies'] = {}
+                for dependency in self.datasheet['dependencies']:
+                    name = dependency.pop('name')
+                    new_datasheet['dependencies'][name] = dependency
+            else:
+                new_datasheet.pop('dependencies')
 
             # Convert pins
             new_datasheet['pins'] = {}
