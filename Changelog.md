@@ -1,3 +1,9 @@
+# 2.3.4
+
+## Common
+
+- Abort early if netlist generation fails
+
 # 2.3.3
 
 ## Common

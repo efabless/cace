@@ -86,6 +86,12 @@ class ElectricalParameter(Parameter):
 
     def implementation(self):
 
+        # Something went wrong in preprocess
+        # better abort early
+        if not self.get_num_steps():
+            err(f'Parameter {self.param["name"]}: Error in preprocess')
+            self.cancel(False)
+
         self.cancel_point()
 
         # Run simulation jobs sequentially
@@ -254,4 +260,7 @@ class ElectricalParameter(Parameter):
             self.param = cace_collate(self.datasheet, self.param)
 
     def get_num_steps(self):
-        return len(self.param['testbenches'])
+        if 'testbenches' in self.param:
+            return len(self.param['testbenches'])
+        else:
+            return None
