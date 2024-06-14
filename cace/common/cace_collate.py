@@ -95,13 +95,13 @@ def find_limits(spectype, spec, results, units, debug=False):
     # calctype = "typical" alone implies "average-exact"
 
     dbg('Diagnostic:  find_limits')
-    dbg('spectype = ' + spectype)
-    dbg('spec = ' + str(spec))
-    dbg('results = ' + str(results))
-    dbg('units = ' + units)
-    dbg('target = ' + target)
-    dbg('penalty = ' + penalty)
-    dbg('calcrec = ' + calcrec)
+    dbg(f'spectype = {spectype}')
+    dbg(f'spec = {spec}')
+    dbg(f'results = {results}')
+    dbg(f'units = {units}')
+    dbg(f'target = {target}')
+    dbg(f'penalty = {penalty}')
+    dbg(f'calcrec = {calcrec}')
 
     try:
         calctype, limittype = calcrec.split('-')

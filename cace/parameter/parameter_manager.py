@@ -794,19 +794,8 @@ class ParameterManager:
             for run in remove:
                 shutil.rmtree(run)
 
-    def prepare_parameters(self):
-
-        # Get the set of paths from the characterization file
-        paths = self.datasheet['paths']
-
-        # Simulation path is where the output is dumped.  If it doesn't
-        # exist, then create it.
-        """root_path = paths['root']
-        simulation_path = paths['simulation']
-
-        if not os.path.isdir(os.path.join(root_path, simulation_path)):
-            info(f'Creating simulation path {simulation_path}')
-            os.makedirs(os.path.join(root_path, simulation_path))"""
+    def run_parameters_async(self):
+        """Start a worker thread to start parameter threads"""
 
         # Start by regenerating the netlists for the circuit-under-test
         # (This may not be quick but all tests depend on the existence
@@ -815,14 +804,9 @@ class ParameterManager:
 
         fullnetlistpath = regenerate_netlists(self.datasheet)
         if not fullnetlistpath:
-            err('Failed to regenerate project netlist')
-            return 1
-
-    def run_parameters_async(self):
-        """Start a worker thread to start parameter threads"""
-
-        # TODO
-        self.prepare_parameters()
+            err('Failed to regenerate project netlist, aborting.')
+            self.cancel_parameters(True)
+            return
 
         # Only start a new worker thread, if
         # the previous one hasn't completed yet
