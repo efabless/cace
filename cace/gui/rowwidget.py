@@ -47,9 +47,9 @@ class RowWidget:
     redbutton = 'red.TButton'
     greenbutton = 'green.TButton'
 
-    def __init__(self, param, dframe, netlist_source, row, simulation_manager):
+    def __init__(self, param, dframe, netlist_source, row, parameter_manager):
 
-        self.simulation_manager = simulation_manager
+        self.parameter_manager = parameter_manager
         self.netlist_source = netlist_source
 
         # Set the new parameter
@@ -582,17 +582,17 @@ class RowWidget:
             )
         # Physical: LVS
         elif self.testbench_text() == 'cace_lvs':
-            filename = self.simulation_manager.get_runtime_options('filename')
+            filename = self.parameter_manager.get_runtime_options('filename')
             dspath = os.path.split(filename)[0]
             datasheet = os.path.split(filename)[1]
-            dsheet = self.simulation_manager.get_datasheet()
+            dsheet = self.parameter_manager.get_datasheet()
             designname = dsheet['name']
 
-            root_path = self.simulation_manager.get_path('root')
+            root_path = self.parameter_manager.get_path('root')
 
             lvs_file = os.path.join(
                 root_path,
-                self.simulation_manager.run_dir,
+                self.parameter_manager.run_dir,
                 'parameters',
                 pname,
                 f'{designname}_comp.out',

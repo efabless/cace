@@ -38,6 +38,7 @@ class SimulationJob(threading.Thread):
         paths,
         runtime_options,
         param_dir,
+        step_cb,
         idx,
         *args,
         **kwargs,
@@ -48,6 +49,7 @@ class SimulationJob(threading.Thread):
         self.paths = paths
         self.runtime_options = runtime_options
         self.param_dir = param_dir
+        self.step_cb = step_cb
         self.idx = idx
 
         self.cb = None
@@ -85,6 +87,10 @@ class SimulationJob(threading.Thread):
         for i, testbench in enumerate(self.testbenchlist):
             simresult += self.simulate(testbench, i)
 
+            # Call the step cb -> advance progress bar
+            if self.step_cb:
+                self.step_cb(self.param)
+
             self.cancel_point()
 
         debug = (
@@ -106,7 +112,9 @@ class SimulationJob(threading.Thread):
 
         if simresult != 0:
             tbzero = self.testbenchlist[0]
-            simulations = cace_measure(self.param, tbzero, self.paths, debug)
+            simulations = cace_measure(
+                self.param, tbzero, self.paths, self.param_dir, debug
+            )
         else:
             simulations = 0
 

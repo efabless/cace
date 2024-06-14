@@ -105,8 +105,8 @@ class ElectricalParameter(Parameter):
                 if presult:
                     self.new_testbenches[presult['sequence']] = presult
 
-                if self.step_cb:
-                    self.step_cb(self.param)
+                """if self.step_cb:
+                    self.step_cb(self.param)"""
 
             dbg(f'Parameter {self.param["name"]}: All tasks done')
 
@@ -120,14 +120,7 @@ class ElectricalParameter(Parameter):
                     info(
                         f'Parameter {self.param["name"]}: Starting task with id {job.idx}'
                     )
-                    jobs.append(
-                        mypool.apply_async(
-                            job.run,
-                            callback=lambda result: self.step_cb(self.param)
-                            if self.step_cb
-                            else None,
-                        )
-                    )
+                    jobs.append(mypool.apply_async(job.run))
 
                 # Wait for completion
                 while 1:
@@ -145,6 +138,7 @@ class ElectricalParameter(Parameter):
                     presult = job.get()
 
                     if presult:
+
                         # TODO make testbench name the key for easier access
                         self.new_testbenches[presult['sequence']] = presult
 
@@ -219,6 +213,7 @@ class ElectricalParameter(Parameter):
 
         alltestbenches = []
         results = []
+        self.new_testbenches = []
 
         for i in range(0, len(testbenches), group_size):
             testbenchlist = testbenches[i : i + group_size]
@@ -232,17 +227,16 @@ class ElectricalParameter(Parameter):
                 self.paths,
                 self.runtime_options,
                 self.param_dir,
+                self.step_cb,
                 idx,
             )
             self.add_simulation_job(new_sim_job)
 
-            idx += 1
+            # Create an empty testbench list to hold
+            # the testbenches that are returned
+            self.new_testbenches.append([None])
 
-        # Create an empty testbench list to hold the testbenches
-        # that are returned
-        self.new_testbenches = [None] * (
-            len(self.param['testbenches']) // group_size
-        )
+            idx += 1
 
     def postprocess(self):
 

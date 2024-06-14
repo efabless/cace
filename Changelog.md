@@ -1,3 +1,12 @@
+# 2.3.3
+
+## Common
+
+- Add a new logging system (adopted from OpenLane 2)
+- Store output under `run/timestamp/`
+- New recommended design directory structure
+- Add support for `{cond=value}`
+
 # 2.3.2
 
 ## Common
