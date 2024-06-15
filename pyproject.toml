@@ -35,3 +35,5 @@ include = ["cace*"]
 [project.scripts]
 cace = "cace.cace_cli:cli"
 #cace-gui = "cace.cace_gui:gui"
+
+[tool.setuptools_scm]

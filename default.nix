@@ -21,81 +21,83 @@
   # Tools
   klayout,
   klayout-pymod,
-  magic,
+  magic-vlsi,
   netgen,
   volare,
   octave,
   xschem,
   ngspice,
   
-  # PIP
+  # Python
   matplotlib,
   numpy,
   pillow,
   tkinter,
   rich,
-}:
-buildPythonPackage rec {
-  name = "cace";
-  format = "pyproject";
+}: let
+  self = buildPythonPackage rec {
+    name = "cace";
+      format = "pyproject";
 
-  version_file = builtins.readFile ./cace/__version__.py;
-  version_list = builtins.match ''.+''\n__version__ = '([^']+)'.+''\n.+''$'' version_file;
-  version = builtins.head version_list;
+      version_file = builtins.readFile ./cace/__version__.py;
+      version_list = builtins.match ''.+''\n__version__ = '([^']+)'.+''\n.+''$'' version_file;
+      version = builtins.head version_list;
 
-  src = [
-    ./README.md
-    ./pyproject.toml
-    (nix-gitignore.gitignoreSourcePure "__pycache__" ./cace)
-    ./requirements.txt
-  ];
-  
-  unpackPhase = ''
-    echo $src
-    for file in $src; do
-      BASENAME=$(python3 -c "import os; print('$file'.split('-', maxsplit=1)[1], end='$EMPTY')")
-      cp -r $file $PWD/$BASENAME
-    done
-    ls -lah
-  '';
+      src = [
+        ./README.md
+        ./pyproject.toml
+        (nix-gitignore.gitignoreSourcePure "__pycache__" ./cace)
+        ./requirements.txt
+      ];
+      
+      unpackPhase = ''
+        echo $src
+        for file in $src; do
+          BASENAME=$(python3 -c "import os; print('$file'.split('-', maxsplit=1)[1], end='$EMPTY')")
+          cp -r $file $PWD/$BASENAME
+        done
+        ls -lah
+      '';
 
-  buildInputs = [
-    setuptools
-    setuptools_scm
-  ];
-  
-  includedTools = [
-    klayout
-    magic
-    netgen
-    octave
-    ngspice
-    xschem
-  ];
+      buildInputs = [
+        setuptools
+        setuptools_scm
+      ];
+      
+      includedTools = [
+        klayout
+        magic-vlsi
+        netgen
+        octave
+        ngspice
+        xschem
+      ];
 
-  propagatedBuildInputs = [
-    # Python
-    matplotlib
-    numpy
-    pillow
-    volare
-    tkinter
-    rich
-  ]
-  ++ includedTools;
-  
-  computed_PATH = lib.makeBinPath propagatedBuildInputs;
+      propagatedBuildInputs = [
+        # Python
+        matplotlib
+        numpy
+        pillow
+        volare
+        tkinter
+        rich
+      ]
+      ++ self.includedTools;
+      
+      computed_PATH = lib.makeBinPath self.propagatedBuildInputs;
 
-  # Make PATH available to OpenLane subprocesses
-  makeWrapperArgs = [
-    "--prefix PATH : ${computed_PATH}"
-  ];
+      # Make PATH available to CACE subprocesses
+      makeWrapperArgs = [
+        "--prefix PATH : ${self.computed_PATH}"
+      ];
 
-  meta = with lib; {
-    description = "Circuit Automatic Characterization Engine";
-    homepage = "https://github.com/efabless/cace";
-    license = licenses.asl20;
-    mainProgram = "cace";
-    platforms = platforms.linux ++ platforms.darwin;
-  };
-}
+      meta = with lib; {
+        description = "Circuit Automatic Characterization Engine";
+        homepage = "https://github.com/efabless/cace";
+        mainProgram = "cace";
+        license = licenses.asl20;
+        platforms = platforms.linux ++ platforms.darwin;
+      };
+    };
+  in
+    self
