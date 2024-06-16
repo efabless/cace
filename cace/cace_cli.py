@@ -112,7 +112,7 @@ def cli():
         '-s',
         '--source',
         type=str,
-        choices=['schematic', 'layout', 'rcx', 'all', 'best'],
+        choices=['schematic', 'layout', 'pex', 'rcx', 'best'],
         default='best',
         help="""choose the netlist source for characterization. By default, or when using \'best\', characterization is run on the full R-C
     parasitic extracted netlist if the layout is available, else on the schematic captured netlist.""",

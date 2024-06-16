@@ -45,7 +45,7 @@ from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
 
-def cace_makeplot(dsheet, param, plotdir, parent=None):
+def cace_makeplot(dsheet, param, plotdir=None, parent=None):
     """
     Given a plot record from a spec sheet and a full set of testbenches, generate
     a plot.  The name of the plot file and the vectors to plot, labels, legends,
@@ -583,7 +583,7 @@ def cace_makeplot(dsheet, param, plotdir, parent=None):
     if legend:
         legend.set_draggable(True)
 
-    if parent == None:
+    if plotdir:
         paths = dsheet['paths']
         """if 'plots' in paths:
             plotdir = paths['plots']

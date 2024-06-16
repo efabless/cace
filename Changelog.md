@@ -1,3 +1,10 @@
+# 2.3.5
+
+## Common
+
+- Improve netlist generation
+    * Schematic netlist is always generated to get the correct port order for the extracted netlists
+
 # 2.3.4
 
 ## Common
