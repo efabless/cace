@@ -31,7 +31,10 @@ from ..common.cace_write import (
     markdown_summary,
     cace_generate_html,
 )
-from ..common.cace_regenerate import regenerate_netlists
+from ..common.cace_regenerate import (
+    regenerate_netlists,
+    regenerate_testbenches,
+)
 from .physical_parameter import PhysicalParameter
 from .electrical_parameter import ElectricalParameter
 
@@ -807,6 +810,17 @@ class ParameterManager:
             err('Failed to regenerate project netlist, aborting.')
             self.cancel_parameters(True)
             return
+
+        # Next, for each parameter generate testbench netlists if needed
+        for thread in self.queued_threads:
+            result = regenerate_testbenches(
+                self.datasheet, thread.param['name']
+            )
+            if result == 1:
+                err(
+                    f'Parameter {self.param["name"]}: Failed to regenerate testbench netlists'
+                )
+                return 1
 
         # Only start a new worker thread, if
         # the previous one hasn't completed yet

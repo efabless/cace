@@ -1,3 +1,9 @@
+# 2.3.6
+
+## Common
+
+- Do not generate testbench netlists in parallel, this leads to race conditions
+
 # 2.3.5
 
 ## Common
