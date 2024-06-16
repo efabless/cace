@@ -19,7 +19,6 @@ import threading
 from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 
-from ..common.cace_regenerate import regenerate_testbenches
 from ..common.cace_gensim import *
 from ..common.cace_collate import *
 from ..common.cace_makeplot import *
@@ -174,18 +173,9 @@ class ElectricalParameter(Parameter):
     # this is a problem when a testbench is canceled
     def preprocess(self):
 
-        # Get the set of paths from the characterization file
-        paths = self.datasheet['paths']
+        dbg(f'Parameter {self.param["name"]}: Generating simulation files')
 
-        # Generate testbench netlists if needed
-        result = regenerate_testbenches(self.datasheet, self.param['name'])
-        if result == 1:
-            err(
-                f'Parameter {self.param["name"]}: Failed to regenerate testbench netlists'
-            )
-            return 1
-
-        dbg(f'Parameter {self.param["name"]}: Evaluating electrical parameter')
+        # Generate the spice netlists for simulation from the template
         cace_gensim(self.datasheet, self.param, self.param_dir)
 
         # Diagnostic:  find and print the number of files to be simulated
@@ -219,6 +209,9 @@ class ElectricalParameter(Parameter):
 
         alltestbenches = []
         results = []
+
+        # Create an empty testbench list to hold
+        # the testbenches that are returned
         self.new_testbenches = []
 
         for i in range(0, len(testbenches), group_size):
@@ -238,8 +231,7 @@ class ElectricalParameter(Parameter):
             )
             self.add_simulation_job(new_sim_job)
 
-            # Create an empty testbench list to hold
-            # the testbenches that are returned
+            # Append an empty testbench
             self.new_testbenches.append([None])
 
             idx += 1
