@@ -1225,42 +1225,31 @@ def regenerate_netlists(dsheet):
     runtime_options = dsheet['runtime_options']
     source = runtime_options['netlist_source']
 
-    # PEX (parasitic capacitance-only) netlists are generated only by request.
-    if source == 'pex':
-        result = regenerate_lvs_netlist(dsheet, pex=True)
-        # Also make sure LVS netlist is generated, in case LVS is run
-        regenerate_lvs_netlist(dsheet)
-        regenerate_schematic_netlist(dsheet)
+    # Always generate the schematic netlist
+    # Either the netlist source is "schematic", or we need it
+    # to get the correct port order for the extracted netlists
+    result = regenerate_schematic_netlist(dsheet)
+
+    # Layout extracted netlist
+    if source == 'layout':
+        result = regenerate_lvs_netlist(dsheet)
         return result
 
+    # PEX (parasitic capacitance-only) netlist
+    if source == 'pex':
+        result = regenerate_lvs_netlist(dsheet, pex=True)
+
+        # Also make sure LVS netlist is generated, in case LVS is run
+        regenerate_lvs_netlist(dsheet)
+        return result
+
+    # RCX (R-C-extraction) netlist
     if source == 'all' or source == 'rcx' or source == 'best':
         result = regenerate_rcx_netlist(dsheet)
 
-    made_lvs_netlist = False
-    if (
-        source == 'all'
-        or source == 'layout'
-        or (source == 'best' and result == False)
-    ):
-        made_lvs_netlist = True
-        result = regenerate_lvs_netlist(dsheet)
-
-    made_schem_netlist = False
-    if (
-        source == 'all'
-        or source == 'schematic'
-        or (source == 'best' and result == False)
-    ):
-        made_schem_netlist = True
-        result = regenerate_schematic_netlist(dsheet)
-
-    # If LVS is run while netlist source is RCX, then the LVS netlist should
-    # also be generated.
-    if source == 'rcx':
-        if not made_lvs_netlist:
-            regenerate_lvs_netlist(dsheet)
-        if not made_schem_netlist:
-            regenerate_schematic_netlist(dsheet)
+        # Also make sure LVS netlist is generated, in case LVS is run
+        regenerate_lvs_netlist(dsheet)
+        return result
 
     return result
 
