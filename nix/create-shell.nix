@@ -26,6 +26,7 @@
   graphviz,
   python3,
   mkShell,
+  glibcLocales,
 }: let
   cace-env = (
     python3.withPackages (pp:
@@ -57,6 +58,7 @@ in
       ++ cace.includedTools;
 
     PYTHONPATH = "${cace-env-sitepackages}"; # Allows venvs to work properly
+    LOCALE_ARCHIVE = "${glibcLocales}/lib/locale/locale-archive";
     shellHook = ''
       export PS1="\n\[\033[1;32m\][nix-shell:\w]\$\[\033[0m\] ";
     '';

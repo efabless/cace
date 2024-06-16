@@ -1,5 +1,9 @@
 # Version 4.0 format description
 
+```{warning}
+Prior to June 2024 CACE used the datasheet version 4.0 text format. This format is now deprecated, please export your datasheet in the new YAML format.
+```
+
 ## NOTE
 
 CACE files prior to version 4 (November 2023) are in JSON format

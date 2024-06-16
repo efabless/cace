@@ -11,119 +11,51 @@
     <a href="https://invite.skywater.tools"><img src="https://img.shields.io/badge/Community-Open%20Source%20Silicon%20Slack-ff69b4?logo=slack" alt="Invite to the Open Source Silicon Slack"/></a>
 </p>
 
-CACE is a set of python scripts that take an input file in the
-CACE 4.0 format and uses the information found there in combination with CACE-compatible testbenches and analysis scripts to characterize a circuit and to produce a datasheet showing the circuit performance.
-
-## Installation
-
-You'll need the following:
-
-- Python 3.8 or higher with PIP and Tkinter
-
-CACE can be installed directly from PyPI:
-
-	$ python3 -m pip install --upgrade cace
-Prerequisite design tools:
-
-- xschem:  [https://github.com/stefanschippers/xschem](https://github.com/stefanschippers/xschem)
-- ngspice: git://git.code.sf.net/p/ngspice/ngspice
-- magic:	 [https://github.com/RTimothyEdwards/magic](https://github.com/RTimothyEdwards/magic)
-
-Some of the measurements require:
-
-- octave: [https://octave.org/](https://octave.org/)
-
-## Usage
-
-If installed as Python package, CACE can be started from the command line using:
-
-```
-$ cace
-```
-
-Or to start the GUI:
-
-```
-$ cace-gui
-```
-
-Information on how to use CACE can be found in the documentation at [cace.readthedocs.io](https://cace.readthedocs.io/). 
-
-## Development
-
-### Dependencies
-
-> [!IMPORTANT]
-> You may need to set up a Python [virtual environment](https://docs.python.org/3/library/venv.html).
-
-To install the dependencies for CACE, run:
-
-	$ make dependencies
-
-### Python Package
-
-To build the Python package, run:
-
-```
-$ make build
-```
-
-To install the package, run:
-
-```
-$ make install
-```
-
-To install the package in editable mode, run:
-
-```
-$ make editable
-```
-
-### Documentation
-
-To build the documentation, run:
-
-```
-$ make docs
-```
-
-To host the docs, run:
-
-```
-$ make host-docs
-```
-
-To automatically refresh the docs upon changes, run:
-
-```
-$ make auto-docs
-```
+CACE is a framework for analog and mixed-signal circuits that enables automatic characterization under various conditions and with Monte Carlo and mismatch analysis. After all parameters have been run under the given conditions, CACE will generate a summary showing the circuit performance.
 
 > [!NOTE]
 > The latest documentation can be viewed online at [cace.readthedocs.io](https://cace.readthedocs.io/). 
 
+## Installation
+
+CACE currently supports two primary methods of installation for it and its dependencies.
+
+Please read the installation instruction in the documentation under ["Installation Overview"](https://cace.readthedocs.io/en/latest/getting_started/index.html).
+
+### Nix (Recommended)
+
+Works for macOS and Linux (x86-64 and aarch64) as well for Windows via WSL2. Recommended, as it is more integrated with your filesystem and overall has less upload and download deltas.
+
+See [Nix-based installation](https://cace.readthedocs.io/en/latest/getting_started/common/nix_installation/index.html) in the docs for more info.
+
+### Python-only Installation
+
+You'll need to bring your own compiled utilities, but otherwise, simply install CACE as follows:
+
+```console
+	python3 -m pip install --upgrade cace
+```
+
+## Usage
+
+To invoke the CLI:
+
+```console
+cace [datasheet] [output] [options]
+```
+
+To invoke the GUI:
+
+```console
+cace-gui [datasheet] [options]
+```
+
+For more information about the usage of CACE with either the CLI or the GUI please have a look at ["Usage Guides"](https://cace.readthedocs.io/en/latest/usage_guides/index.html) in the documentation.
+
 ## Examples
 
-The following repositories contain example circuit designs, each having a "cace/" subdirectory with a specification input file in the format described below, and a set of testbench schematics which are used by CACE to measure all specified electrical and physical parameters, generate results, and analyze them to determine circuit performance over corners.
+There exist already numerous designs that use CACE. We have assembled a list of different designs that you can use as reference: [Example Designs](https://cace.readthedocs.io/examples/index.html). 
 
-> [!NOTE]
-> Example repositories, like CACE itself, are currently a work in progress.
+## License
 
-All repositories are rooted at: [https://github.com/RTimothyEdwards/](https://github.com/RTimothyEdwards/).
-
-Example circuit repositories:
-
-- [sky130_ef_ip__instramp](https://github.com/RTimothyEdwards/sky130_ef_ip__instramp)		Instrumentation amplifier
-- [sky130_ef_ip__rdac3v_8bit](https://github.com/RTimothyEdwards/sky130_ef_ip__rdac3v_8bit)	8-bit resistor ladder DAC
-- sky130_ef_ip__samplehold	sample-and-hold circuit
-- sky130_ef_ip__driveramp		Rail-to-rail driver amplifier
-- sky130_ef_ip__ccomp3v		Rail-to-rail continuous comparator
-- sky130_ef_ip__rc_osc_500k	R-C oscillator, 500kHz nominal output
-- sky130_ef_ip__xtal_osc_16M	Crystal oscillator, 4 to 15MHz
-- sky130_ef_ip__xtal_osc_32k	Crystal oscillator, 32kHz
-
-Each of these repositories contains a circuit designed with the SkyWater sky130 process open PDK, and contains schematics, layout, and CACE characterization.
-
-> [!NOTE]
-> These repositories are a work in progress, and may not exist yet or may not have a characterization setup for CACE.
+[The Apache License, version 2.0](https://www.apache.org/licenses/LICENSE-2.0.txt).
