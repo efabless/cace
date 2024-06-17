@@ -93,10 +93,10 @@ class ConfirmDialog(Dialog):
 class CACEGui(ttk.Frame):
     """Main class for this application"""
 
-    def __init__(self, parent, *args, **kwargs):
+    def __init__(self, parent, jobs=None, *args, **kwargs):
         ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.root = parent
-        self.parameter_manager = ParameterManager()
+        self.parameter_manager = ParameterManager(jobs=jobs)
         self.init_gui()
         parent.protocol('WM_DELETE_WINDOW', self.on_quit)
 
@@ -1151,6 +1151,14 @@ def gui():
         help='input specification datasheet (YAML)',
     )
 
+    # total number of jobs, optional
+    parser.add_argument(
+        '-j',
+        '--jobs',
+        type=int,
+        help="""total number of jobs running in parallel""",
+    )
+
     # on/off flag, optional
     parser.add_argument(
         '--terminal',
@@ -1183,7 +1191,7 @@ def gui():
 
     # Create tkinter root
     root = tkinter.Tk(className='CACE')
-    app = CACEGui(root)
+    app = CACEGui(root, args.jobs)
 
     # Enable debug output
     if args.debug:

@@ -16,14 +16,13 @@ import os
 import re
 import sys
 import threading
-from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 
 from ..common.cace_gensim import *
 from ..common.cace_collate import *
 from ..common.cace_makeplot import *
 
-from .simulation_job import SimulationJob
+from .simulation_job import SimulationTask
 
 from .parameter import Parameter
 
@@ -52,6 +51,7 @@ class ElectricalParameter(Parameter):
         paths,
         runtime_options,
         run_dir,
+        jobs_sem,
         start_cb=None,
         end_cb=None,
         cancel_cb=None,
@@ -69,6 +69,7 @@ class ElectricalParameter(Parameter):
             paths,
             runtime_options,
             run_dir,
+            jobs_sem,
             start_cb,
             end_cb,
             cancel_cb,
@@ -103,9 +104,8 @@ class ElectricalParameter(Parameter):
 
                 # Start simulation job as single thread
                 job.start()
-                presult = job.join()
-
                 self.cancel_point()
+                presult = job.join()
 
                 if presult:
                     self.new_testbenches[presult['sequence']] = presult
@@ -117,7 +117,7 @@ class ElectricalParameter(Parameter):
 
         # Run simulation jobs in parallel
         else:
-            with ThreadPool(processes=max(cpu_count() - 1, 1)) as mypool:
+            with ThreadPool(processes=None) as mypool:
 
                 # Start the jobs
                 jobs = []
@@ -219,17 +219,18 @@ class ElectricalParameter(Parameter):
             for testbench in testbenchlist:
                 testbench['sequence'] = idx
 
-            new_sim_job = SimulationJob(
+            new_sim_task = SimulationTask(
                 self.param,
                 testbenchlist,
                 self.pdk,
                 self.paths,
                 self.runtime_options,
                 self.param_dir,
+                self.jobs_sem,
                 self.step_cb,
                 idx,
             )
-            self.add_simulation_job(new_sim_job)
+            self.add_simulation_job(new_sim_task)
 
             # Append an empty testbench
             self.new_testbenches.append([None])

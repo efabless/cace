@@ -57,6 +57,7 @@ class PhysicalParameter(Parameter):
         paths,
         runtime_options,
         run_dir,
+        jobs_sem,
         start_cb=None,
         end_cb=None,
         cancel_cb=None,
@@ -71,6 +72,7 @@ class PhysicalParameter(Parameter):
             paths,
             runtime_options,
             run_dir,
+            jobs_sem,
             start_cb,
             end_cb,
             cancel_cb,
@@ -828,19 +830,30 @@ class PhysicalParameter(Parameter):
         else:
             toolargs = None
 
-        if tool == 'cace_area':
-            resultdict = self.cace_area(datasheet, param, 'area', toolargs)
-        elif tool == 'cace_width':
-            resultdict = self.cace_area(datasheet, param, 'width', toolargs)
-        elif tool == 'cace_height':
-            resultdict = self.cace_area(datasheet, param, 'height', toolargs)
-        elif tool == 'cace_drc':
-            resultdict = self.cace_drc(datasheet, param, toolargs)
-        elif tool == 'cace_lvs':
-            resultdict = self.cace_lvs(datasheet, param, toolargs)
-        else:
-            err('Unknown evaluation procedure ' + tool + ';  not evaluating.')
-            return param
+        # Acquire a job from the global jobs semaphore
+        with self.jobs_sem:
+
+            if tool == 'cace_area':
+                resultdict = self.cace_area(datasheet, param, 'area', toolargs)
+            elif tool == 'cace_width':
+                resultdict = self.cace_area(
+                    datasheet, param, 'width', toolargs
+                )
+            elif tool == 'cace_height':
+                resultdict = self.cace_area(
+                    datasheet, param, 'height', toolargs
+                )
+            elif tool == 'cace_drc':
+                resultdict = self.cace_drc(datasheet, param, toolargs)
+            elif tool == 'cace_lvs':
+                resultdict = self.cace_lvs(datasheet, param, toolargs)
+            else:
+                err(
+                    'Unknown evaluation procedure '
+                    + tool
+                    + ';  not evaluating.'
+                )
+                return param
 
         resultdict['name'] = runtime_options['netlist_source']
         addnewresult(param, resultdict)

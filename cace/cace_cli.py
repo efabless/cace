@@ -108,6 +108,13 @@ def cli():
         help='output specification datasheet (YAML)',
     )
 
+    # total number of jobs, optional
+    parser.add_argument(
+        '-j',
+        '--jobs',
+        type=int,
+        help="""total number of jobs running in parallel""",
+    )
     parser.add_argument(
         '-s',
         '--source',
@@ -183,7 +190,7 @@ def cli():
         set_log_level(args.log_level)
 
     # Create the ParameterManager
-    parameter_manager = ParameterManager()
+    parameter_manager = ParameterManager(jobs=args.jobs)
 
     # Get the run dir
     run_dir = parameter_manager.run_dir
