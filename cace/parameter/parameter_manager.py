@@ -58,7 +58,7 @@ class ParameterManager:
     manipulate it.
     """
 
-    def __init__(self, datasheet={}):
+    def __init__(self, datasheet={}, jobs=None):
         """Initialize the object with a datasheet"""
         self.datasheet = datasheet
 
@@ -90,6 +90,19 @@ class ParameterManager:
         }
 
         self.set_default_paths()
+
+        # Set the number of jobs to the number of cores
+        # if jobs=None
+        if not jobs:
+            jobs = os.cpu_count()
+
+        # Fallback jobs
+        if not jobs:
+            jobs = 4
+
+        self.jobs_sem = threading.Semaphore(value=jobs)
+
+        dbg(f'Parameter manager: total number of jobs is {jobs}')
 
         # Create a new run dir for logs
         self.prepare_run_dir()
@@ -651,6 +664,7 @@ class ParameterManager:
                         paths,
                         runtime_options,
                         self.run_dir,
+                        self.jobs_sem,
                         start_cb,
                         end_cb,
                         cancel_cb,
@@ -692,6 +706,7 @@ class ParameterManager:
                         paths,
                         runtime_options,
                         self.run_dir,
+                        self.jobs_sem,
                         start_cb,
                         end_cb,
                         cancel_cb,

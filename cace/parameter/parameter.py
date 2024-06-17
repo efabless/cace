@@ -47,6 +47,7 @@ class Parameter(ABC, Thread):
         paths,
         runtime_options,
         run_dir,
+        jobs_sem,
         start_cb=None,
         end_cb=None,
         cancel_cb=None,
@@ -60,6 +61,7 @@ class Parameter(ABC, Thread):
         self.paths = paths
         self.runtime_options = runtime_options
         self.run_dir = run_dir
+        self.jobs_sem = jobs_sem
         self.start_cb = start_cb
         self.end_cb = end_cb
         self.cancel_cb = cancel_cb

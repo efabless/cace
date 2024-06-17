@@ -1,3 +1,10 @@
+# 2.3.7
+
+## Common
+
+- Add support for the `-j`/`--jobs` flag to limit the maximum number of jobs running in parallel
+- Parallelized simulations with collated conditions (Monte Carlo for example)
+
 # 2.3.6
 
 ## Common

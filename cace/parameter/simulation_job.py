@@ -3,9 +3,11 @@
 import os
 import re
 import sys
+import time
 import shutil
 import threading
 import subprocess
+from multiprocessing.pool import ThreadPool
 
 from ..common.cace_measure import *
 from ..common.cace_regenerate import get_pdk_root
@@ -24,10 +26,10 @@ from ..logging import subprocess as subproc
 from ..logging import debug as dbg
 
 
-class SimulationJob(threading.Thread):
+class SimulationTask(threading.Thread):
     """
-    The SimulationJob represents one simulation as part of
-    an ElectricalParameter that is run via ngspice
+    The SimulationTask runs one or, in the case of collated
+    conditions, several simulations
     """
 
     def __init__(
@@ -38,6 +40,7 @@ class SimulationJob(threading.Thread):
         paths,
         runtime_options,
         param_dir,
+        jobs_sem,
         step_cb,
         idx,
         *args,
@@ -49,13 +52,13 @@ class SimulationJob(threading.Thread):
         self.paths = paths
         self.runtime_options = runtime_options
         self.param_dir = param_dir
+        self.jobs_sem = jobs_sem
         self.step_cb = step_cb
         self.idx = idx
 
-        self.cb = None
-
         self.canceled = False
-        self.spiceproc = None
+
+        self.queued_jobs = []
 
         super().__init__(*args, **kwargs)
         self._return = None
@@ -64,34 +67,63 @@ class SimulationJob(threading.Thread):
         # print(f'{self.param["name"]}: Cancel simulation: {self.testbenchlist}')
         self.canceled = True
 
-        if no_cb:
-            self.cb = None
-
-        if self.spiceproc:
-            self.spiceproc.kill()
+        for job in self.queued_jobs:
+            job.cancel(no_cb)
 
     def cancel_point(self):
         """If canceled, call the cb and exit the thread"""
 
         if self.canceled:
-            if self.cb:
-                self.cb(self.param['name'], self.testbenchlist, True)
             sys.exit()
 
+    def add_simulation_job(self, job):
+        self.queued_jobs.append(job)
+
     def run(self):
+
         paramname = self.param['name']
         simresult = 0
 
         self.cancel_point()
 
-        for i, testbench in enumerate(self.testbenchlist):
-            simresult += self.simulate(testbench, i)
+        jobs = []
 
-            # Call the step cb -> advance progress bar
-            if self.step_cb:
-                self.step_cb(self.param)
+        # Use a thread pool to get the return value
+        with ThreadPool(processes=None) as pool:
 
-            self.cancel_point()
+            # Schedule all simulations
+            for i, testbench in enumerate(self.testbenchlist):
+
+                new_sim_job_job = SimulationJob(
+                    self.param,
+                    self.pdk,
+                    self.paths,
+                    self.runtime_options,
+                    self.param_dir,
+                    self.jobs_sem,
+                    self.step_cb,
+                )
+                self.add_simulation_job(new_sim_job_job)
+
+                jobs.append(
+                    pool.apply_async(new_sim_job_job.run, (testbench, i))
+                )
+
+            # Wait for completion
+            while 1:
+                self.cancel_point()
+
+                # Check if all tasks have completed
+                if all([job.ready() for job in jobs]):
+                    break
+
+                time.sleep(0.1)
+
+            # Get the results
+            for job in jobs:
+                simresult += job.get()
+
+        self.cancel_point()
 
         debug = (
             self.runtime_options['debug']
@@ -207,7 +239,66 @@ class SimulationJob(threading.Thread):
         if 'group_size' in simdict:
             simdict.pop('group_size')
 
+
+class SimulationJob(threading.Thread):
+
+    """
+    The SimulationJob runs exactly one simulation via ngspice
+    """
+
+    def __init__(
+        self,
+        param,
+        pdk,
+        paths,
+        runtime_options,
+        param_dir,
+        jobs_sem,
+        step_cb,
+        *args,
+        **kwargs,
+    ):
+        self.param = param
+        self.pdk = pdk
+        self.paths = paths
+        self.runtime_options = runtime_options
+        self.param_dir = param_dir
+        self.jobs_sem = jobs_sem
+        self.step_cb = step_cb
+
+        self.canceled = False
+
+        self.spiceproc = None
+
+        super().__init__(*args, **kwargs)
+        self._return = None
+
+    def cancel(self, no_cb):
+        self.canceled = True
+
+        if self.spiceproc:
+            self.spiceproc.kill()
+
+    def cancel_point(self):
+        """If canceled, exit the thread"""
+
+        if self.canceled:
+            sys.exit()
+
+    def run(self, testbench, idy):
+
+        self.cancel_point()
+
+        # Acquire a job from the global jobs semaphore
+        with self.jobs_sem:
+            self.cancel_point()
+            self._return = self.simulate(testbench, idy)
+
+        # For when the join function is called
+        return self._return
+
     def simulate(self, testbench, idy):
+
         result = 0
         filename = testbench['filename']
         fileprefix = self.param['name']
@@ -440,5 +531,9 @@ class SimulationJob(threading.Thread):
         else:
             err(f'No output file {simoutputfile} from simulation')
             return 0
+
+        # Call the step cb -> advance progress bar
+        if self.step_cb:
+            self.step_cb(self.param)
 
         return result

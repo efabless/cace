@@ -154,7 +154,7 @@ def cace_makeplot(dsheet, param, plotdir=None, parent=None):
         notfound = True
         for cond in conditions:
             if cond[0] == xname:
-                condvalue = cond[2]
+                condvalue = str(cond[2])
                 notfound = False
                 break
 
@@ -173,9 +173,9 @@ def cace_makeplot(dsheet, param, plotdir=None, parent=None):
             condstr = ''
             for cond in conditions:
                 if cond[0] == xname:
-                    condvalue = cond[2]
+                    condvalue = str(cond[2])
                 else:
-                    condstr += cond[2]
+                    condstr += str(cond[2])
             thistb['condstr'] = condstr
             newtbresults = []
             for result in tbresults:
@@ -370,7 +370,7 @@ def cace_makeplot(dsheet, param, plotdir=None, parent=None):
         slist = []
         for i in range(0, len(conditions)):
             if stepped[i] == True:
-                klist.append(conditions[i][2])
+                klist.append(str(conditions[i][2]))
                 slist.append(
                     conditions[i][0]
                     + '='
