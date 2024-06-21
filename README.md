@@ -54,7 +54,7 @@ For more information about the usage of CACE with either the CLI or the GUI plea
 
 ## Examples
 
-There exist already numerous designs that use CACE. We have assembled a list of different designs that you can use as reference: [Example Designs](https://cace.readthedocs.io/examples/index.html). 
+There exist already numerous designs that use CACE. We have assembled a list of different designs that you can use as reference: [Example Designs](https://cace.readthedocs.io/en/latest/examples/index.html). 
 
 ## License
 
