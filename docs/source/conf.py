@@ -36,3 +36,7 @@ exclude_patterns = []
 html_title = 'CACE Documentation'
 html_theme = 'furo'
 html_static_path = ['_static']
+
+# Auto-generated header anchors.
+# https://myst-parser.readthedocs.io/en/stable/syntax/optional.html#syntax-header-anchors
+myst_heading_anchors = 2
