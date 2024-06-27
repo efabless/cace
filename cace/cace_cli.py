@@ -18,6 +18,7 @@ import time
 import signal
 import logging
 import argparse
+from datetime import timedelta
 
 from rich.markdown import Markdown
 from rich.progress import (
@@ -132,7 +133,7 @@ def cli():
         help='run simulations on only the named parameters, by default run all parameters',
     )
     parser.add_argument(
-        '--parallel_parameters',
+        '--parallel-parameters',
         type=int,
         default=4,
         help='the maximum number of parameters running in parallel',
@@ -148,6 +149,12 @@ def cli():
         '--keep',
         action='store_true',
         help='retain files generated for characterization',
+    )
+    # total number of jobs, optional
+    parser.add_argument(
+        '--max-runs',
+        type=lambda value : int(value) if int(value) > 0 else 1,
+        help="""the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted""",
     )
     parser.add_argument(
         '--no-plot', action='store_true', help='do not generate any graphs'
@@ -170,12 +177,13 @@ def cli():
         action='store_true',
         help='runs simulations sequentially',
     )
+    '''TODO purge from code
     parser.add_argument(
         '--no-simulation',
         action='store_true',
         help="""do not re-run simulations if the output file exists.
     (Warning: Does not check if simulations are out of date)""",
-    )
+    )'''
     parser.add_argument(
         '--no-progress-bar',
         action='store_true',
@@ -190,7 +198,7 @@ def cli():
         set_log_level(args.log_level)
 
     # Create the ParameterManager
-    parameter_manager = ParameterManager(jobs=args.jobs)
+    parameter_manager = ParameterManager(max_runs=args.max_runs, jobs=args.jobs)
 
     # Get the run dir
     run_dir = parameter_manager.run_dir
@@ -226,7 +234,7 @@ def cli():
     parameter_manager.set_runtime_options('force', args.force)
     parameter_manager.set_runtime_options('keep', args.keep)
     parameter_manager.set_runtime_options('noplot', args.no_plot)
-    parameter_manager.set_runtime_options('nosim', args.no_simulation)
+    parameter_manager.set_runtime_options('nosim', False)
     parameter_manager.set_runtime_options('sequential', args.sequential)
     parameter_manager.set_runtime_options('netlist_source', args.source)
     parameter_manager.set_runtime_options(
@@ -249,6 +257,9 @@ def cli():
         'Running Parameters',
     )
     task_ids = {}
+
+    # Get the start timestamp
+    timestamp_start = time.time()
 
     # Queue specified parameters
     if args.parameter:
@@ -307,7 +318,9 @@ def cli():
     # Stop the progress bar
     progress.stop()
 
-    info('Done with CACE simulations and evaluations.')
+    # Get the runtime and print it
+    delta = str(timedelta(seconds=time.time() - timestamp_start)).split(".")[0]
+    info(f'Done with CACE simulations and evaluations in {delta}.')
 
     # Print the summary to the console
     summary = parameter_manager.summarize_datasheet()

@@ -93,10 +93,10 @@ class ConfirmDialog(Dialog):
 class CACEGui(ttk.Frame):
     """Main class for this application"""
 
-    def __init__(self, parent, jobs=None, *args, **kwargs):
+    def __init__(self, parent, max_runs=None, jobs=None, *args, **kwargs):
         ttk.Frame.__init__(self, parent, *args, **kwargs)
         self.root = parent
-        self.parameter_manager = ParameterManager(jobs=jobs)
+        self.parameter_manager = ParameterManager(max_runs=max_runs, jobs=jobs)
         self.init_gui()
         parent.protocol('WM_DELETE_WINDOW', self.on_quit)
 
@@ -1159,6 +1159,12 @@ def gui():
         help="""total number of jobs running in parallel""",
     )
 
+    parser.add_argument(
+        '--max-runs',
+        type=lambda value : int(value) if int(value) > 0 else 1,
+        help="""the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted""",
+    )
+
     # on/off flag, optional
     parser.add_argument(
         '--terminal',
@@ -1191,7 +1197,7 @@ def gui():
 
     # Create tkinter root
     root = tkinter.Tk(className='CACE')
-    app = CACEGui(root, args.jobs)
+    app = CACEGui(root, args.max_runs, args.jobs)
 
     # Enable debug output
     if args.debug:
