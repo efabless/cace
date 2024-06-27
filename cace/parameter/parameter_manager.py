@@ -807,9 +807,9 @@ class ParameterManager:
 
         # Delete the oldest runs if max_runs set TODO only works for >=2
         if self.max_runs and len(runs) >= self.max_runs:
-            runs = runs[::-1] # Reverse runs
+            runs = runs[::-1]   # Reverse runs
             # Select runs to remove
-            remove = runs[self.max_runs-1:]
+            remove = runs[self.max_runs - 1 :]
             dbg(f'Removing run directories: {remove}')
 
             for run in remove:

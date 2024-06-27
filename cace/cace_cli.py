@@ -153,7 +153,7 @@ def cli():
     # total number of jobs, optional
     parser.add_argument(
         '--max-runs',
-        type=lambda value : int(value) if int(value) > 0 else 1,
+        type=lambda value: int(value) if int(value) > 0 else 1,
         help="""the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted""",
     )
     parser.add_argument(
@@ -198,7 +198,9 @@ def cli():
         set_log_level(args.log_level)
 
     # Create the ParameterManager
-    parameter_manager = ParameterManager(max_runs=args.max_runs, jobs=args.jobs)
+    parameter_manager = ParameterManager(
+        max_runs=args.max_runs, jobs=args.jobs
+    )
 
     # Get the run dir
     run_dir = parameter_manager.run_dir
@@ -319,7 +321,7 @@ def cli():
     progress.stop()
 
     # Get the runtime and print it
-    delta = str(timedelta(seconds=time.time() - timestamp_start)).split(".")[0]
+    delta = str(timedelta(seconds=time.time() - timestamp_start)).split('.')[0]
     info(f'Done with CACE simulations and evaluations in {delta}.')
 
     # Print the summary to the console

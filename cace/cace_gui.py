@@ -1161,7 +1161,7 @@ def gui():
 
     parser.add_argument(
         '--max-runs',
-        type=lambda value : int(value) if int(value) > 0 else 1,
+        type=lambda value: int(value) if int(value) > 0 else 1,
         help="""the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted""",
     )
 
