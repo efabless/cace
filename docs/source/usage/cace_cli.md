@@ -24,20 +24,20 @@ options:
   --version             show program's version number and exit
   -j JOBS, --jobs JOBS  total number of jobs running in parallel
   -s {schematic,layout,pex,rcx,best}, --source {schematic,layout,pex,rcx,best}
-                        choose the netlist source for characterization. By default, or when using 'best', characterization is run on the full R-C parasitic
-                        extracted netlist if the layout is available, else on the schematic captured netlist.
+                        choose the netlist source for characterization. By default, or when using 'best', characterization is run on the full R-C parasitic extracted netlist if the layout is available, else on the schematic
+                        captured netlist.
   -p PARAMETER [PARAMETER ...], --parameter PARAMETER [PARAMETER ...]
                         run simulations on only the named parameters, by default run all parameters
-  --parallel_parameters PARALLEL_PARAMETERS
+  --parallel-parameters PARALLEL_PARAMETERS
                         the maximum number of parameters running in parallel
   -f, --force           force new regeneration of all netlists
   -k, --keep            retain files generated for characterization
+  --max-runs MAX_RUNS   the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted
   --no-plot             do not generate any graphs
   --debug               generate additional diagnostic output
   -l {ALL,DEBUG,INFO,WARNING,ERROR}, --log-level {ALL,DEBUG,INFO,WARNING,ERROR}
                         set the log level for a more fine-grained output
   --sequential          runs simulations sequentially
-  --no-simulation       do not re-run simulations if the output file exists. (Warning: Does not check if simulations are out of date)
   --no-progress-bar     do not display the progress bar
 ```
 

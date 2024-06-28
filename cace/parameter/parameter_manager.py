@@ -58,9 +58,10 @@ class ParameterManager:
     manipulate it.
     """
 
-    def __init__(self, datasheet={}, jobs=None):
+    def __init__(self, datasheet={}, max_runs=None, jobs=None):
         """Initialize the object with a datasheet"""
         self.datasheet = datasheet
+        self.max_runs = max_runs
 
         self.worker_thread = None
 
@@ -804,9 +805,11 @@ class ParameterManager:
         info(f"Starting a new run with the tag '{tag}'.")
         mkdirp(self.run_dir)
 
-        # TODO make configurable
-        if len(runs) >= 5:
-            remove = runs[:-4]
+        # Delete the oldest runs if max_runs set TODO only works for >=2
+        if self.max_runs and len(runs) >= self.max_runs:
+            runs = runs[::-1]   # Reverse runs
+            # Select runs to remove
+            remove = runs[self.max_runs - 1 :]
             dbg(f'Removing run directories: {remove}')
 
             for run in remove:

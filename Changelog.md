@@ -1,3 +1,16 @@
+# 2.3.8
+
+## GUI
+
+- Added `--max-runs` to limit the maximum number of runs in the run folder
+
+## CLI
+
+- Print the total runtime after completion
+- Removed `--no-simulation` as the output files never exist in a new timestamp
+- Renamed `--parallel_parameters` to `--parallel-parameters`
+- Added `--max-runs` to limit the maximum number of runs in the run folder
+
 # 2.3.7
 
 ## Common
