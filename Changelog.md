@@ -1,3 +1,9 @@
+# 2.3.9
+
+## Common
+
+- Fix paths in default LVS setup
+
 # 2.3.8
 
 ## GUI
