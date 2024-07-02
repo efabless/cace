@@ -516,15 +516,18 @@ class PhysicalParameter(Parameter):
             layout_netlist = os.path.join(
                 layout_netlist_path, projname + '.spice'
             )
+            layout_netlist = os.path.abspath(layout_netlist)
 
             schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
             schem_netlist = os.path.join(
                 schem_netlist_path, projname + '.spice'
             )
+            schem_netlist = os.path.abspath(schem_netlist)
 
         if 'verilog' in paths:
             verilog_path = paths['verilog']
             verilog_netlist = os.path.join(verilog_path, projname + '.v')
+            verilog_netlist = os.path.abspath(verilog_netlist)
 
         reports_path = paths.get('reports', self.param_dir)
 
@@ -577,8 +580,8 @@ class PhysicalParameter(Parameter):
         # Run LVS as a subprocess and wait for it to finish.  Use the -json
         # switch to get a file that is easy to parse.
 
-        dbg(toolargs)
-        dbg(testbenchpath)
+        dbg(f'toolargs {toolargs}')
+        dbg(f'testbenchpath {testbenchpath}')
         if toolargs:
             if not isinstance(toolargs, list):
                 toolargs = [toolargs]
@@ -603,8 +606,8 @@ class PhysicalParameter(Parameter):
 
         else:
             lvsargs = ['netgen', '-batch', 'lvs']
-            lvsargs.extend(layout_arg)
-            lvsargs.extend(schem_arg)
+            lvsargs.append(layout_arg)
+            lvsargs.append(schem_arg)
             lvsargs.append(lvs_setup)
             lvsargs.append(outfilepath)
             lvsargs.append('-json')
