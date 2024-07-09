@@ -2,6 +2,12 @@
 
 ## Common
 
+- Improve the .txt to .yaml conversion: export numbers as integers or float
+
+# 2.3.9
+
+## Common
+
 - Fix paths in default LVS setup
 
 # 2.3.8

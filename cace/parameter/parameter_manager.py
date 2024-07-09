@@ -264,10 +264,28 @@ class ParameterManager:
                 if 'Vmax' in pin:
                     if isinstance(pin['Vmax'], list):
                         pin['Vmax'] = ' '.join(pin['Vmax'])
+                    else:
+                        # Convert to float
+                        try:
+                            pin['Vmax'] = int(pin['Vmax'])
+                        except:
+                            try:
+                                pin['Vmax'] = float(pin['Vmax'])
+                            except:
+                                pass
 
                 if 'Vmin' in pin:
                     if isinstance(pin['Vmin'], list):
                         pin['Vmin'] = ' '.join(pin['Vmin'])
+                    else:
+                        # Convert to float
+                        try:
+                            pin['Vmin'] = int(pin['Vmin'])
+                        except:
+                            try:
+                                pin['Vmin'] = float(pin['Vmin'])
+                            except:
+                                pass
 
                 new_datasheet['pins'][name] = pin
 
@@ -276,6 +294,18 @@ class ParameterManager:
                 new_conditions = {}
                 for condition in parameter['conditions']:
                     name = condition.pop('name')
+
+                    # Convert to float
+                    for limit in ['minimum', 'typical', 'maximum']:
+                        if limit in condition:
+                            try:
+                                condition[limit] = int(condition[limit])
+                            except:
+                                try:
+                                    condition[limit] = float(condition[limit])
+                                except:
+                                    pass
+
                     new_conditions[name] = condition
                 parameter['conditions'] = new_conditions
 
@@ -311,32 +341,47 @@ class ParameterManager:
                             new_limit = {}
                             if not isinstance(parameter['spec'][limit], list):
                                 try:
-                                    new_limit[
-                                        'value'
-                                    ] = f'{float(parameter["spec"][limit]):g}'
+                                    new_limit['value'] = int(
+                                        parameter['spec'][limit]
+                                    )
                                 except:
-                                    new_limit['value'] = parameter['spec'][
-                                        limit
-                                    ]
+                                    try:
+                                        new_limit['value'] = float(
+                                            parameter['spec'][limit]
+                                        )
+                                    except:
+                                        new_limit['value'] = parameter['spec'][
+                                            limit
+                                        ]
                             elif len(parameter['spec'][limit]) == 2:
                                 try:
-                                    new_limit[
-                                        'value'
-                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                    new_limit['value'] = int(
+                                        parameter['spec'][limit][0]
+                                    )
                                 except:
-                                    new_limit['value'] = parameter['spec'][
-                                        limit
-                                    ][0]
+                                    try:
+                                        new_limit['value'] = float(
+                                            parameter['spec'][limit][0]
+                                        )
+                                    except:
+                                        new_limit['value'] = parameter['spec'][
+                                            limit
+                                        ][0]
                                 new_limit['fail'] = True
                             elif len(parameter['spec'][limit]) == 3:
                                 try:
-                                    new_limit[
-                                        'value'
-                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                    new_limit['value'] = int(
+                                        parameter['spec'][limit][0]
+                                    )
                                 except:
-                                    new_limit['value'] = parameter['spec'][
-                                        limit
-                                    ][0]
+                                    try:
+                                        new_limit['value'] = float(
+                                            parameter['spec'][limit][0]
+                                        )
+                                    except:
+                                        new_limit['value'] = parameter['spec'][
+                                            limit
+                                        ][0]
                                 new_limit['fail'] = True
                                 new_limit['calculation'] = parameter['spec'][
                                     limit
@@ -371,32 +416,47 @@ class ParameterManager:
                             new_limit = {}
                             if not isinstance(parameter['spec'][limit], list):
                                 try:
-                                    new_limit[
-                                        'value'
-                                    ] = f'{float(parameter["spec"][limit]):g}'
+                                    new_limit['value'] = int(
+                                        parameter['spec'][limit]
+                                    )
                                 except:
-                                    new_limit['value'] = parameter['spec'][
-                                        limit
-                                    ]
+                                    try:
+                                        new_limit['value'] = float(
+                                            parameter['spec'][limit]
+                                        )
+                                    except:
+                                        new_limit['value'] = parameter['spec'][
+                                            limit
+                                        ]
                             elif len(parameter['spec'][limit]) == 2:
                                 try:
-                                    new_limit[
-                                        'value'
-                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                    new_limit['value'] = int(
+                                        parameter['spec'][limit][0]
+                                    )
                                 except:
-                                    new_limit['value'] = parameter['spec'][
-                                        limit
-                                    ][0]
+                                    try:
+                                        new_limit['value'] = float(
+                                            parameter['spec'][limit][0]
+                                        )
+                                    except:
+                                        new_limit['value'] = parameter['spec'][
+                                            limit
+                                        ][0]
                                 new_limit['fail'] = True
                             elif len(parameter['spec'][limit]) == 3:
                                 try:
-                                    new_limit[
-                                        'value'
-                                    ] = f'{float(parameter["spec"][limit][0]):g}'
+                                    new_limit['value'] = int(
+                                        parameter['spec'][limit][0]
+                                    )
                                 except:
-                                    new_limit['value'] = parameter['spec'][
-                                        limit
-                                    ][0]
+                                    try:
+                                        new_limit['value'] = float(
+                                            parameter['spec'][limit][0]
+                                        )
+                                    except:
+                                        new_limit['value'] = parameter['spec'][
+                                            limit
+                                        ][0]
                                 new_limit['fail'] = True
                                 new_limit['calculation'] = parameter['spec'][
                                     limit
@@ -408,6 +468,22 @@ class ParameterManager:
             new_datasheet['default_conditions'] = {}
             for default_condition in self.datasheet['default_conditions']:
                 name = default_condition.pop('name')
+
+                # Convert to float
+                for limit in ['minimum', 'typical', 'maximum']:
+                    if limit in default_condition:
+                        try:
+                            default_condition[limit] = int(
+                                default_condition[limit]
+                            )
+                        except:
+                            try:
+                                default_condition[limit] = float(
+                                    default_condition[limit]
+                                )
+                            except:
+                                pass
+
                 new_datasheet['default_conditions'][name] = default_condition
 
             # Convert electrical_parameters
