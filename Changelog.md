@@ -1,4 +1,11 @@
-# 2.3.9
+# 2.3.11
+
+## Common
+
+- Bugfix: Do not crash if certain entries are missing from authorship
+- Improvement: Allow to specify `'null'` as `null`
+
+# 2.3.10
 
 ## Common
 

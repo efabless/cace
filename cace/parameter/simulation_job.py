@@ -342,6 +342,10 @@ class SimulationJob(threading.Thread):
 
         # Format variables *must* exist in the parameter's "variables".
         for varname in formatvars:
+            # Support real null in yaml
+            if varname == None:
+                varname = 'null'
+
             if varname != 'null' and varname != 'result':
                 if 'variables' not in self.param or varname not in varnamelist:
                     err(

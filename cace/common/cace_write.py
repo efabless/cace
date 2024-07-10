@@ -900,21 +900,21 @@ def markdown_summary(datasheet):
     result += ''.join(
         [
             f'**general**\n\n',
-            f'- name: {datasheet["name"]}\n',
-            f'- description: {datasheet["description"]}\n',
-            f'- commit: {datasheet["commit"]}\n',
-            f'- PDK: {datasheet["PDK"]}\n',
-            f'- cace_format: {datasheet["cace_format"]}\n\n',
+            f'- name: {datasheet["name"] if "name" in datasheet else ""}\n',
+            f'- description: {datasheet["description"] if "description" in datasheet else ""}\n',
+            f'- commit: {datasheet["commit"] if "commit" in datasheet else ""}\n',
+            f'- PDK: {datasheet["PDK"] if "PDK" in datasheet else ""}\n',
+            f'- cace_format: {datasheet["cace_format"] if "cace_format" in datasheet else ""}\n\n',
         ]
     )
 
     result += ''.join(
         [
             f'**authorship**\n\n',
-            f'- designer: {datasheet["authorship"]["designer"]}\n',
-            f'- company: {datasheet["authorship"]["company"]}\n',
-            f'- creation_date: {datasheet["authorship"]["creation_date"]}\n',
-            f'- license: {datasheet["authorship"]["license"]}\n\n',
+            f'- designer: {datasheet["authorship"]["designer"] if "designer" in datasheet["authorship"] else ""}\n',
+            f'- company: {datasheet["authorship"]["company"] if "company" in datasheet["authorship"] else ""}\n',
+            f'- creation_date: {datasheet["authorship"]["creation_date"] if "creation_date" in datasheet["authorship"] else ""}\n',
+            f'- license: {datasheet["authorship"]["license"] if "license" in datasheet["authorship"] else ""}\n\n',
         ]
     )
 
