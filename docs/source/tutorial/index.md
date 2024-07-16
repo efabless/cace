@@ -43,14 +43,32 @@ Adding a `README.md` and `LICENSE` to your repository is good practice.
 
 For schematic entry we choose to use [xschem](https://github.com/StefanSchippers/xschem).
 
-Create the folder `xschem` in the root directory of the project and start xschem from `ota-5t/xschem/`:
+Create the folder `xschem` in the root directory, before we start xschem we need to create an xschemrc file here.
 
-```console
-xschem --rcfile $PDK_ROOT/$PDK/libs.tech/xschem/xschemrc ota-5t.sch
+```
+# Source the PDK xschemrc file
+if {![info exists PDK]} {
+    source $env(PDK_ROOT)/$env(PDK)/libs.tech/xschem/xschemrc
+}
+
+# Add current directory to xschem library path
+append XSCHEM_LIBRARY_PATH :[file dirname [info script]]
 ```
 
-This command starts xschem and instructs it to load an rcfile from the PDK so that we have the PDK's symbols available.
-You will be greeted by a blank window as `ota-5t.sch` did not exist before. Save the schematic to create this file.
+This file will be automatically sourced if you start xschem in the same directory. If not you need to specify it via `--rcfile`.
+
+```{note}
+Why is this necessary? The reasons are twofold: Firstly, the PDK is automatically sourced and secondly, the `xschem/` directory is added to the XSCHEM_LIBRARY_PATH. This is necessary so that all symbol references in the schematic are relative and therefore portable.
+```
+
+Next, go to `ota-5t/xschem/` and start xschem using:
+
+```console
+xschem ota-5t.sch
+```
+
+This command starts xschem and automatically sources the xschemrc file we created before.
+You will be greeted by a blank window since `ota-5t.sch` did not exist before. Save the schematic to create this file.
 
 We need to replicate this schematic:
 
@@ -87,7 +105,7 @@ The template testbench contains placeholder variables and cannot be run on its o
 Start xschem from `ota-5t/xschem/`:
 
 ```console
-xschem --rcfile $PDK_ROOT/$PDK/libs.tech/xschem/xschemrc ota-5t_tb.sch
+xschem ota-5t_tb.sch
 ```
 
 Again, try to replicate the design testbench:
@@ -135,7 +153,6 @@ Let's start with the header. As you can see, it contains basic information about
 
 name:           ota-5t
 description:    A simple 5-transistor OTA
-commit:         n/a
 PDK:            sky130A
 
 cace_format:    5.0
@@ -223,32 +240,31 @@ default_conditions:
     typical: 27
 ```
 
-Finally, we arrive at the electrical parameters, these are the parameters for which CACE runs simulations. Each entry consists of a description, limits for the parameter so that it can be evaluated (✅/❌), the simulation section and the conditions for this parameter.
+Finally, we arrive at the parameters section. Here you can specify parameters for which CACE runs simulations using the `ngspice` tool. Each entry consists of a description, limits for the parameter so that it can be evaluated (✅/❌), the simulation section and the conditions for this parameter.
 
 The simulate section specifies which simulator and template testbench to use (`ota-5t_tb.spice`, we will create it in the next section) and the format of the output (`ascii`) as well as its file extension (`.data`). The output file can contain multiple values, therefore we need to tell CACE which one to use. In the case of the first parameter, the first value is the result (`[result, 'null', 'null']`).
 
 Finally, the conditions are specified in either `minimum`/`typical`/`maximum` notation, or by enumeration. For the `corner` condition, we could also add the remaining corners `fs` and `sf` if we would like to. These conditions replace the corresponding default conditions. CACE generates a simulation testbench for each combination of conditions. Since we have specified 3 values for `corner` and 3 values for `temperature`, a total of 3*3=9 simulations are started and evaluated against the limits. If we were to add `vdd` as a condition with 3 different values, we would have a total of 3*3*3=27 simulations for this parameter.
 
 ```yaml
-electrical_parameters:
-  A0:
+parameters:
+  a0:
     description: DC gain
-    display: A0
+    display: DC gain
     unit: V/V
     spec:
       minimum:
         value: 50
-        fail: true
       typical:
         value: any
       maximum:
         value: any
-    simulate:
+    tool:
       ngspice:
-        template: ota-5t_tb.spice
+        template: ac.sch
         format: ascii
         suffix: .data
-        variables: [result, 'null', 'null']
+        variables: [result, null, null]
     conditions:
       corner:
         enumerate: [tt, ff, ss] # fs, sf
@@ -257,24 +273,23 @@ electrical_parameters:
         typical: 27
         maximum: 130
 
-  UGF:
+  ugf:
     description: Unity Gain Frequency
-    display: UGF
+    display: Unity Gain Frequency
     unit: Hz
     spec:
       minimum:
         value: 1e6
-        fail: true
       typical:
         value: any
       maximum:
         value: any
-    simulate:
+    tool:
       ngspice:
-        template: ota-5t_tb.spice
+        template: ac.sch
         format: ascii
         suffix: .data
-        variables: ['null', result, 'null']
+        variables: [null, result, null]
     conditions:
       corner:
         enumerate: [tt, ff, ss] # fs, sf
@@ -283,24 +298,23 @@ electrical_parameters:
         typical: 27
         maximum: 130
 
-  PM:
+  pm:
     description: Phase Margin
-    display: PM
+    display: Phase Margin
     unit: °
     spec:
       minimum:
         value: 60
-        fail: true
       typical:
         value: any
       maximum:
         value: any
-    simulate:
+    tool:
       ngspice:
-        template: ota-5t_tb.spice
+        template: ac.sch
         format: ascii
         suffix: .data
-        variables: ['null', 'null', result]
+        variables: [null, null, result]
     conditions:
       corner:
         enumerate: [tt, ff, ss] # fs, sf
@@ -310,10 +324,9 @@ electrical_parameters:
         maximum: 130
 ```
 
-CACE also supports physical parameters, which evaluate properties of the layout such as area, width, length, DRC and LVS. They also specify a limit, whereby for DRC and LVS only a maximum of 0 makes any sense at all.
+CACE has also support for other tools which evaluate properties of the layout such as area, width, length, DRC and LVS. They also specify a limit, whereby for DRC and LVS only a maximum of 0 makes any sense at all.
 
 ```yaml
-physical_parameters:
   area:
     description: Total circuit layout area
     display: Area
@@ -321,38 +334,56 @@ physical_parameters:
     spec:
       maximum:
         value: 600
-        fail: true
-    evaluate: cace_area
+    tool:
+      magic_area
 
-  LVS_errors:
-    description: LVS errors
-    display: LVS errors
+  magic_drc:
+    description: Magic DRC
+    display: Magic DRC
     spec:
       maximum:
         value: 0
-        fail: true
-    evaluate:
-      cace_lvs:
+    tool:
+      magic_drc
+
+  netgen_lvs:
+    description: Netgen LVS
+    display: Netgen LVS
+    spec:
+      maximum:
+        value: 0
+    tool:
+      netgen_lvs:
         script: run_project_lvs.tcl
 
-  DRC_errors:
-    description: DRC errors
-    display: DRC errors
+  klayout_drc_full:
+    description: KLayout DRC full
+    display: KLayout DRC full
     spec:
       maximum:
         value: 0
-        fail: true
-    evaluate: cace_drc
+    tool:
+        klayout_drc:
+            args: ['-rd', 'feol=true', '-rd', 'beol=true', '-rd', 'offgrid=true']
 ```
 
-And that's it! Adding a new parameter is as simple as duplicating an existing parameter and customizing it (and perhaps creating a new template testbench).
+And that's it! Adding a new parameter is as simple as duplicating an existing parameter and customizing it (and perhaps creating a new template testbench). If you take a look at the example repository you will find even more parameter definitions.
 
 ## Creating the Template Testbench
 
-Create the `templates` folder under `ota-5t/cace/` and start xschem from `ota-5t/cace/templates/`:
+Create the `templates` folder under `ota-5t/cace/` and create an xschemrc file with the following content:
+
+```
+# Source project xschemrc
+source [file dirname [info script]]/../../xschem/xschemrc
+```
+
+This makes sure that the xschemrc file under `xschem/` is sourced so that we have access to the symbol of our design.
+
+Next, start xschem from `ota-5t/cace/templates/`:
 
 ```console
-xschem --rcfile $PDK_ROOT/$PDK/libs.tech/xschem/xschemrc ota-5t_tb.sch
+xschem ota-5t_tb.sch
 ```
 
 Try to replicate the template testbench:
@@ -384,15 +415,17 @@ After CACE has finished, you will get a summary for all parameters, telling you 
 By default, CACE uses the "best" netlist available. Since we provided a layout, this is the R-C-extracted netlist of our design called "rcx". You can also explicitly pass the netlist source to be used, e.g. for "schematic", via `--source`. CACE also supports running of only a subset of the available parameters with `--parameter`.
 
 ```console
-$ cace --source schematic --parameter A0 PM
+$ cace --source schematic --parameter a0 pm
 ```
 
 For troubleshooting, I like to lower the log level to "DEBUG" and only ever run one parameter in parallel. Since the simulations of a parameter also run in parallel, I set `--sequential` to run them one after another.
 
 ```console
 $ cace --source rcx --log-level DEBUG \
-       --parallel_parameters 1 --sequential
+       --parallel-parameters 1 --sequential
 ```
+
+<!---
 
 ### Graphical User Interface
 
@@ -422,3 +455,4 @@ We hope this tutorial was able to give you an introduction to setting up and usi
 Did you notice any issues with this tutorial or have ideas for improvements? Please open an [issue](https://github.com/efabless/cace/issues) so we can improve this tutorial. Thank you!
 ```
 
+-->

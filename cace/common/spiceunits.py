@@ -17,15 +17,15 @@
 import re
 
 from ..logging import (
+    dbg,
     verbose,
     info,
+    subproc,
     rule,
     success,
     warn,
     err,
 )
-from ..logging import subprocess as subproc
-from ..logging import debug as dbg
 
 # set of metric prefixes and the value needed to multiply by to
 # get the "standard" unit for SPICE.  Only standard units will
@@ -155,8 +155,8 @@ def spice_unit_convert(valuet, restrict=[]):
 
     if '\u00b2' in valuet[0]:  	# squared
         part = valuet[0].split('\u00b2')[0]
-        result = numeric(spice_unit_unconvert([part, valuet[1]], restrict))
-        result *= numeric(spice_unit_unconvert([part, '1.0'], restrict))
+        result = numeric(spice_unit_convert([part, valuet[1]], restrict))
+        result *= numeric(spice_unit_convert([part, '1.0'], restrict))
         return str(result)
 
     if valuet[0] == '':  # null case, no units

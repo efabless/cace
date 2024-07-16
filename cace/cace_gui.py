@@ -51,8 +51,8 @@ from .gui.settings import Settings
 from .gui.simhints import SimHints
 from .gui.rowwidget import RowWidget
 
-from .common.cace_read import *
-from .common.cace_write import *
+# from .common.cace_read import *
+# from .common.cace_write import *
 from .parameter import ParameterManager
 
 from .logging import (
@@ -63,15 +63,15 @@ from .logging import (
     deregister_additional_handler,
 )
 from .logging import (
+    dbg,
     verbose,
     info,
+    subproc,
     rule,
     success,
     warn,
     err,
 )
-from .logging import subprocess as subproc
-from .logging import debug as dbg
 
 # Application path (path where this script is located)
 apps_path = os.path.realpath(os.path.dirname(__file__))
@@ -476,13 +476,9 @@ class CACEGui(ttk.Frame):
         # be set to "active" before simulating.
         self.parameter_manager.param_set_status(pname, 'active')
 
-        num_sims = self.parameter_manager.queue_parameter(
+        self.parameter_manager.queue_parameter(
             pname, end_cb=self.end_cb, cancel_cb=self.cancel_cb
         )
-
-        if not num_sims:
-            err("Can't simulate parameter")
-            return
 
         # Set the "Simulate" button to say "in progress"
         self.parameter_widgets[pname].simulate_widget.configure(
@@ -763,10 +759,8 @@ class CACEGui(ttk.Frame):
 
         # Remove results from the window by clearing parameter results
         paramstodo = []
-        if 'electrical_parameters' in dsheet:
-            paramstodo.extend(dsheet['electrical_parameters'])
-        if 'physical_parameters' in dsheet:
-            paramstodo.extend(dsheet['physical_parameters'])
+        if 'parameters' in dsheet:
+            paramstodo.extend(dsheet['parameters'])
 
         for param in paramstodo:
             # Fill frame with electrical parameter information
@@ -1045,7 +1039,7 @@ class CACEGui(ttk.Frame):
         )
         dframe.desc_title.grid(column=0, row=n, sticky='ewns')
         dframe.method_title = ttk.Label(
-            dframe, text='Testbench', style='title.TLabel'
+            dframe, text='Tool', style='title.TLabel'
         )
         dframe.method_title.grid(column=1, row=n, sticky='ewns')
         dframe.min_title = ttk.Label(dframe, text='Min', style='title.TLabel')
@@ -1085,18 +1079,13 @@ class CACEGui(ttk.Frame):
 
         # Parse the file for electrical parameters
         n += 1
-        paramstodo = []
-        if 'electrical_parameters' in dsheet:
-            paramstodo.extend(dsheet['electrical_parameters'])
-        if 'physical_parameters' in dsheet:
-            paramstodo.extend(dsheet['physical_parameters'])
 
         if self.origin.get() == 'Schematic Capture':
             isschem = True
         else:
             isschem = False
 
-        for param in paramstodo:
+        for param in dsheet['parameters'].values():
             self.add_param_to_list(param, n, isschem)
             n += 1
 
@@ -1206,7 +1195,7 @@ def gui():
 
     # Load the datasheet
     if args.datasheet:
-        dbg('Setting datasheet to ' + args.datasheet)
+        dbg(f'Setting datasheet to {args.datasheet}')
         if app.set_datasheet(args.datasheet):
             sys.exit(0)
     else:
