@@ -32,16 +32,6 @@ that is substituted by CACE.  The syntax follows three essential rules:
 	
 	> The full path to the DUT subcircuit definition netlist.
 
-- `{include_DUT}`
-	
-	> A shorthand that inserts a ".include" statement with the
-	DUT path, or else in the case of a functional block,
-	in-lines the functional definition of the block. 
-
-- `{DUT_call}`
-	
-	> The pin list from the DUT schematic
-
 - `{DUT_name}`
 	
 	> The name of the DUT subcircuit
@@ -59,6 +49,27 @@ that is substituted by CACE.  The syntax follows three essential rules:
 	> This is substituted with the simulation index.  Most often
 	used as a filename suffix for the output data file.
 
+- `{cond=value}`
+	
+		For any condition cond, this form indicates that "value" is
+		to be subsituted for the condition if the condition is not
+		declared in the CACE project file.
+
+- `{cond|minimum}` `{cond|maximum}` `{cond|stepsize}` `{cond|steps}`
+	
+	> Instead of substituting one value for a condition, a value
+	over all conditions is substituted, including the maximum
+	over all conditions, minimum over all conditions, the
+	step size between neighboring condition values, or the
+	number of steps over all values of the condition.
+	This is used most often in cases where a condition is handled
+	entirely inside a testbench netlist (such as in a sweep), and
+	not iterated over multiple netlists.
+
+<!---
+
+## Planned support
+
 - `{PIN|pin_name|net_name}`
 	
     > Used in symbol descriptions.  Indicates a pin of a subcircuit
@@ -72,21 +83,4 @@ that is substituted by CACE.  The syntax follows three essential rules:
 		Indicates that the subcircuit ip_name will be replaced with
 		its functional view (xspice or verilog) for simulation.
 
-- `{cond=value}`
-	
-		For any condition cond, this form indicates that "value" is
-		to be subsituted for the condition if the condition is not
-		declared in the CACE project file.
-
-## Planned support
-
-- `{cond|minimum}` `{cond|maximum}` `{cond|stepsize}` `{cond|steps}`
-	
-	> Instead of substituting one value for a condition, a value
-	over all conditions is substituted, including the maximum
-	over all conditions, minimum over all conditions, the
-	step size between neighboring condition values, or the
-	number of steps over all values of the condition.
-	This is used most often in cases where a condition is handled
-	entirely inside a testbench netlist (such as in a sweep), and
-	not iterated over multiple netlists.
+-->

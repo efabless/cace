@@ -32,11 +32,11 @@ from .logger import (
     register_additional_handler,
     deregister_additional_handler,
     verbose,
-    debug,
+    dbg,
     info,
     rule,
     success,
     warn,
     err,
-    subprocess,
+    subproc,
 )

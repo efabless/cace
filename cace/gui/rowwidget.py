@@ -110,35 +110,19 @@ class RowWidget:
         # Get the display text
         dtext = self.param['display']
 
-        # Special handling:  Change LVS_errors to "device check" when using
-        # schematic netlist.
-        if self.paramtype == 'physical':
-            if self.netlist_source == 'schematic':
-                p = self.testbench_text()
-
-                if p == 'cace_lvs':
-                    dtext = 'Invalid device check'
-                if p == 'cace_area':
-                    dtext = 'Area estimate'
-
         return dtext
 
-    def testbench_text(self):
+    def tool_text(self):
 
-        if self.paramtype == 'electrical':
-            mdict = self.param['simulate']
-            p = mdict['template']
-            return p
+        tool = self.param['tool']
 
-        elif self.paramtype == 'physical':
-            mdict = self.param['evaluate']
-            p = mdict['tool']
-            if isinstance(p, list):
-                p = p[0]
-            return p
-
+        # Get the name of the tool
+        if isinstance(tool, str):
+            toolname = tool
         else:
-            return 'Unknown'
+            toolname = list(tool.keys())[0]
+
+        return toolname
 
     def plot_text(self):
 
@@ -164,19 +148,6 @@ class RowWidget:
                 if 'status' in resdict:
                     status_value = resdict['status']
         else:
-            # For schematic capture, mark physical parameters that can't and won't be
-            # checked as "not applicable".
-            if self.paramtype == 'physical':
-                if self.netlist_source == 'schematic':
-                    p = self.testbench_text()
-
-                    if (
-                        p == 'cace_width'
-                        or p == 'cace_height'
-                        or p == 'cace_drc'
-                    ):
-                        status_value = '(N/A)'
-
             # Grab the electrical parameter's 'spec' dictionary
             if 'spec' in self.param:
                 specdict = self.param['spec']
@@ -285,12 +256,7 @@ class RowWidget:
         min_limit = '(no limit)'
 
         if 'minimum' in specdict:
-            pmin = specdict['minimum']
-            if isinstance(pmin, list):
-                penalty = pmin[1]
-                pmin = pmin[0]
-            else:
-                penalty = None
+            pmin = specdict['minimum']['value']
 
             if pmin != 'any':
                 if 'unit' in self.param and not binrex.match(
@@ -367,12 +333,7 @@ class RowWidget:
         typ_limit = '(no target)'
 
         if 'typical' in specdict:
-            ptyp = specdict['typical']
-            if isinstance(ptyp, list):
-                penalty = ptyp[1]
-                ptyp = ptyp[0]
-            else:
-                penalty = None
+            ptyp = specdict['typical']['value']
 
             if ptyp != 'any':
                 if 'unit' in self.param and not binrex.match(
@@ -449,12 +410,7 @@ class RowWidget:
         max_limit = '(no limit)'
 
         if 'maximum' in specdict:
-            pmax = specdict['maximum']
-            if isinstance(pmax, list):
-                penalty = pmax[1]
-                pmax = pmax[0]
-            else:
-                penalty = None
+            pmax = specdict['maximum']['value']
 
             if pmax != 'any':
                 if 'unit' in self.param and not binrex.match(
@@ -516,7 +472,7 @@ class RowWidget:
 
         # Testbench name
         self.testbench_widget = ttk.Label(
-            dframe, text=self.testbench_text(), style=self.normlabel
+            dframe, text=self.tool_text(), style=self.normlabel
         )
         self.testbench_widget.grid(column=1, row=n, sticky='ewns')
 
@@ -572,16 +528,16 @@ class RowWidget:
 
         # Status Widget
 
-        # Electrical
-        if self.paramtype == 'electrical':
+        # ngspice
+        if self.tool_text() == 'ngspice':
             self.status_widget = ttk.Button(
                 dframe,
                 text=status_value,
                 style=button_style,
                 command=lambda pname=pname: self.fnc_failreport(pname),
             )
-        # Physical: LVS
-        elif self.testbench_text() == 'cace_lvs':
+        # LVS
+        elif self.tool_text() == 'netgen_lvs':
             filename = self.parameter_manager.get_runtime_options('filename')
             dspath = os.path.split(filename)[0]
             datasheet = os.path.split(filename)[1]
@@ -607,23 +563,23 @@ class RowWidget:
                 ),
             )
 
-        # Physical: Area
-        elif self.testbench_text() == 'cace_area':
+        # Area
+        elif self.tool_text() == 'magic_area':
             self.status_widget = ttk.Button(
                 dframe,
                 text=status_value,
                 style=button_style,
             )
 
-        # Physical: DRC
-        elif self.testbench_text() == 'cace_drc':
+        # DRC
+        elif self.tool_text() == 'magic_drc':
             self.status_widget = ttk.Button(
                 dframe,
                 text=status_value,
                 style=button_style,
             )
 
-        # Other physical parameters, disabled
+        # Other parameters, disabled
         else:
             self.status_widget = ttk.Button(
                 dframe, text=status_value, style=button_style, state='disabled'
@@ -700,7 +656,7 @@ class RowWidget:
         self.parameter_widget.configure(text=self.parameter_text())
 
         # Testbench name
-        self.testbench_widget.configure(text=self.testbench_text())
+        self.testbench_widget.configure(text=self.tool_text())
 
         # Get the status of the last simulation
         (status_value, button_style) = self.status_text()
@@ -733,25 +689,25 @@ class RowWidget:
         # Status Widget
 
         # Electrical
-        if self.paramtype == 'electrical':
+        if self.tool_text() == 'ngspice':
             self.status_widget.configure(
                 text=status_value, style=button_style, state='enabled'
             )
 
         # Physical: LVS
-        elif self.testbench_text() == 'cace_lvs':
+        elif self.tool_text() == 'cace_lvs':
             self.status_widget.configure(
                 text=status_value, style=button_style, state='enabled'
             )
 
         # Physical: Area
-        elif self.testbench_text() == 'cace_area':
+        elif self.tool_text() == 'cace_area':
             self.status_widget.configure(
                 text=status_value, style=button_style, state='enabled'
             )
 
         # Physical: DRC
-        elif self.testbench_text() == 'cace_drc':
+        elif self.tool_text() == 'cace_drc':
             self.status_widget.configure(
                 text=status_value, style=button_style, state='enabled'
             )

@@ -1,16 +1,16 @@
-#!/usr/bin/env python3
+# Copyright 2024 Efabless Corporation
 #
-# --------------------------------------------------------
-# Circuit Automatic Characterization Engine (CACE) system
-# cace_read.py ---
-# Read a text file in CACE (ASCII) format 4.0
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
 #
-# --------------------------------------------------------
-# Written by Tim Edwards
-# Efabless Corporation
-# November 21, 2023
-# Version 4.0
-# --------------------------------------------------------
+#      http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 import io
 import re
@@ -19,7 +19,16 @@ import sys
 import json
 import yaml
 
-# Replace special character specifications with unicode characters
+from ..logging import (
+    dbg,
+    verbose,
+    info,
+    subproc,
+    rule,
+    success,
+    warn,
+    err,
+)
 
 
 def specchar_sub(string):
@@ -52,11 +61,6 @@ def specchar_sub(string):
         idx = idx + 1
 
     return string
-
-
-# -----------------------------------------------------------------
-# Read a CACE format file
-# -----------------------------------------------------------------
 
 
 def cace_read(filename, debug=False):
@@ -285,166 +289,336 @@ def cace_read(filename, debug=False):
     runtime_options['debug'] = debug
     runtime_options['filename'] = filename
 
-    return curdict
+    # Conert to new datasheet format
+    datasheet = {}
+
+    # Copy metadata
+    if 'name' in curdict:
+        datasheet['name'] = curdict['name']
+    else:
+        datasheet['name'] = ''
+
+    if 'description' in curdict:
+        datasheet['description'] = curdict['description']
+    else:
+        datasheet['description'] = ''
+
+    if 'commit' in curdict:
+        datasheet['commit'] = curdict['commit']
+    else:
+        datasheet['commit'] = ''
+
+    if 'PDK' in curdict:
+        datasheet['PDK'] = curdict['PDK']
+    else:
+        datasheet['PDK'] = ''
+
+    datasheet['cace_format'] = 5.0
+
+    # Copy authorship
+    if 'authorship' in curdict:
+        datasheet['authorship'] = curdict['authorship']
+    else:
+        datasheet['authorship'] = {}
+
+    # Copy paths
+    if 'paths' in curdict:
+        datasheet['paths'] = curdict['paths']
+    else:
+        datasheet['paths'] = {}
+
+    # Copy pins
+    datasheet['pins'] = {}
+    if 'pins' in curdict:
+
+        for pin in curdict['pins']:
+            datasheet['pins'][pin['name']] = pin
+
+            datasheet['pins'][pin['name']].pop('name')
+
+    # Copy default_conditions
+    datasheet['default_conditions'] = {}
+    if 'default_conditions' in curdict:
+        for cond in curdict['default_conditions']:
+            datasheet['default_conditions'][cond['name']] = cond
+
+            datasheet['default_conditions'][cond['name']].pop('name')
+
+    datasheet['parameters'] = {}
+
+    # Copy parameters
+    if 'electrical_parameters' in curdict:
+        for eparam in curdict['electrical_parameters']:
+            datasheet['parameters'][eparam['name']] = eparam
+
+            if 'conditions' in eparam:
+                new_conditions = {}
+                for cond in eparam['conditions']:
+                    new_conditions[cond['name']] = cond
+                    new_conditions[cond['name']].pop('name')
+
+                eparam['conditions'] = new_conditions
+
+            if 'spec' in datasheet['parameters'][eparam['name']]:
+                for limit in ['minimum', 'typical', 'maximum']:
+                    if (
+                        limit
+                        in datasheet['parameters'][eparam['name']]['spec']
+                    ):
+                        spec = datasheet['parameters'][eparam['name']][
+                            'spec'
+                        ].pop(limit)
+                        datasheet['parameters'][eparam['name']]['spec'][
+                            limit
+                        ] = {}
+
+                        if isinstance(spec, str):
+                            datasheet['parameters'][eparam['name']]['spec'][
+                                limit
+                            ]['value'] = spec
+
+                        else:
+                            datasheet['parameters'][eparam['name']]['spec'][
+                                limit
+                            ]['value'] = spec[0]
+
+                            if len(spec) > 1:
+                                if spec[1] == 'fail':
+                                    datasheet['parameters'][eparam['name']][
+                                        'spec'
+                                    ][limit]['fail'] = True
+                                else:
+                                    datasheet['parameters'][eparam['name']][
+                                        'spec'
+                                    ][limit]['fail'] = False
+
+                            if len(spec) > 2:
+                                print(spec[2])
+                                calculation, _limit = spec[2].split('-')
+                                datasheet['parameters'][eparam['name']][
+                                    'spec'
+                                ][limit]['calculation'] = calculation
+                                datasheet['parameters'][eparam['name']][
+                                    'spec'
+                                ][limit]['limit'] = _limit
+
+            if 'simulate' in datasheet['parameters'][eparam['name']]:
+                if (
+                    'format'
+                    in datasheet['parameters'][eparam['name']]['simulate']
+                ):
+                    format = datasheet['parameters'][eparam['name']][
+                        'simulate'
+                    ].pop('format')
+                    datasheet['parameters'][eparam['name']]['simulate'][
+                        'format'
+                    ] = format[0]
+                    datasheet['parameters'][eparam['name']]['simulate'][
+                        'suffix'
+                    ] = format[1]
+                    datasheet['parameters'][eparam['name']]['simulate'][
+                        'variables'
+                    ] = format[2:]
+
+                toolname = datasheet['parameters'][eparam['name']][
+                    'simulate'
+                ].pop('tool')
+
+                if (
+                    'template'
+                    in datasheet['parameters'][eparam['name']]['simulate']
+                ):
+                    # Adjust the template from .spice to .sch
+                    if toolname == 'ngspice':
+                        datasheet['parameters'][eparam['name']]['simulate'][
+                            'template'
+                        ] = datasheet['parameters'][eparam['name']][
+                            'simulate'
+                        ][
+                            'template'
+                        ].replace(
+                            '.spice', '.sch'
+                        )
+
+                datasheet['parameters'][eparam['name']]['tool'] = {
+                    toolname: datasheet['parameters'][eparam['name']].pop(
+                        'simulate'
+                    )
+                }
+
+            datasheet['parameters'][eparam['name']].pop('name')
+
+    if 'physical_parameters' in curdict:
+        for pparam in curdict['physical_parameters']:
+            datasheet['parameters'][pparam['name']] = pparam
+
+            if 'conditions' in pparam:
+                new_conditions = {}
+                for cond in pparam['conditions']:
+                    new_conditions[cond['name']] = cond
+                    new_conditions[cond['name']].pop('name')
+
+                pparam['conditions'] = new_conditions
+
+            if 'spec' in datasheet['parameters'][pparam['name']]:
+                for limit in ['minimum', 'typical', 'maximum']:
+                    if (
+                        limit
+                        in datasheet['parameters'][pparam['name']]['spec']
+                    ):
+                        spec = datasheet['parameters'][pparam['name']][
+                            'spec'
+                        ].pop(limit)
+                        datasheet['parameters'][pparam['name']]['spec'][
+                            limit
+                        ] = {}
+
+                        if isinstance(spec, str):
+                            datasheet['parameters'][pparam['name']]['spec'][
+                                limit
+                            ]['value'] = spec
+
+                        else:
+                            datasheet['parameters'][pparam['name']]['spec'][
+                                limit
+                            ]['value'] = spec[0]
+
+                            if len(spec) > 1:
+                                if spec[1] == 'fail':
+                                    datasheet['parameters'][pparam['name']][
+                                        'spec'
+                                    ][limit]['fail'] = True
+                                else:
+                                    datasheet['parameters'][pparam['name']][
+                                        'spec'
+                                    ][limit]['fail'] = False
+
+                            if len(spec) > 2:
+                                print(spec[2])
+                                calculation, _limit = spec[2].split('-')
+                                datasheet['parameters'][pparam['name']][
+                                    'spec'
+                                ][limit]['calculation'] = calculation
+                                datasheet['parameters'][pparam['name']][
+                                    'spec'
+                                ][limit]['limit'] = _limit
+
+            if 'evaluate' in datasheet['parameters'][pparam['name']]:
+                toolname = datasheet['parameters'][pparam['name']][
+                    'evaluate'
+                ].pop('tool')
+                datasheet['parameters'][pparam['name']]['tool'] = {
+                    toolname: datasheet['parameters'][pparam['name']].pop(
+                        'evaluate'
+                    )
+                }
+
+            datasheet['parameters'][pparam['name']].pop('name')
+
+    return valdiate_datasheet(datasheet)
 
 
 def cace_read_yaml(filename, debug=False):
     if not os.path.isfile(filename):
-        print('Error:  No such file ' + filename)
+        err(f'No such file {filename}')
         return {}
 
     with open(filename, 'r') as ifile:
         datasheet = yaml.safe_load(ifile)
 
-    # For compatibility convert dictionaries to arrays with
-    # dictionaries containing the key inside "name"
-    # TODO Remove this step and change the remaining code
-    # in CACE to work with dictionaries
+    return valdiate_datasheet(datasheet)
 
-    # Copy header
-    new_datasheet = {}
-    new_datasheet['name'] = datasheet['name']
-    new_datasheet['description'] = datasheet['description']
-    new_datasheet['commit'] = datasheet['commit']
-    new_datasheet['PDK'] = datasheet['PDK']
-    new_datasheet['cace_format'] = datasheet['cace_format']
-    new_datasheet['authorship'] = datasheet['authorship']
-    new_datasheet['paths'] = datasheet['paths']
 
-    # Convert dependencies
-    new_datasheet['dependencies'] = []
-    if 'dependencies' in datasheet:
-        for key, value in datasheet['dependencies'].items():
-            value['name'] = key
-            new_datasheet['dependencies'].append(value)
+def valdiate_datasheet(datasheet):
 
-    # Convert pins
-    new_datasheet['pins'] = []
-    if 'pins' in datasheet:
-        for key, value in datasheet['pins'].items():
-            value['name'] = key
-            new_datasheet['pins'].append(value)
+    # Check for missing field
+    if not 'name' in datasheet:
+        err('Field "name" is missing in datasheet.')
+        return None
+    if not 'description' in datasheet:
+        err('Field "description" is missing in datasheet.')
+        return None
+    # if not 'commit' in datasheet:
+    #    err('Field "commit" is missing in datasheet.')
+    #    return None
+    if not 'PDK' in datasheet:
+        err('Field "PDK" is missing in datasheet.')
+        return None
 
-    # Convert conditions in electrical_parameters
-    for parameter in datasheet['electrical_parameters'].values():
-        new_conditions = []
-        for key, value in parameter['conditions'].items():
-            value['name'] = key
-            new_conditions.append(value)
-        parameter['conditions'] = new_conditions
-
-    # Convert variables in electrical_parameters
-    for parameter in datasheet['electrical_parameters'].values():
-        new_variables = []
-        if 'variables' in parameter:
-            for key, value in parameter['variables'].items():
-                value['name'] = key
-                new_variables.append(value)
-            parameter['variables'] = new_variables
-
-    # Convert simulate in electrical_parameters
-    for parameter in datasheet['electrical_parameters'].values():
-        for key, value in parameter['simulate'].items():
-            value['tool'] = key
-
-            if 'format' in value:
-                new_format = []
-                new_format.append(value.pop('format'))
-                new_format.append(value.pop('suffix'))
-                new_format += value.pop('variables')
-
-                value['format'] = new_format
-
-        parameter['simulate'] = value
-
-    # Convert spec entries in electrical_parameters
-    for parameter in datasheet['electrical_parameters'].values():
-
-        if 'spec' in parameter:
-            for limit in ['minimum', 'typical', 'maximum']:
-                if limit in parameter['spec']:
-                    if 'fail' in parameter['spec'][limit]:
-                        new_limit = []
-                        new_limit.append(parameter['spec'][limit]['value'])
-
-                        if parameter['spec'][limit]['fail'] == True:
-                            new_limit.append('fail')
-                            if 'calculation' in parameter['spec'][limit]:
-                                new_limit.append(
-                                    parameter['spec'][limit]['calculation']
-                                )
-
-                        parameter['spec'][limit] = new_limit
-                    else:
-                        parameter['spec'][limit] = parameter['spec'][limit][
-                            'value'
-                        ]
-
-    # Convert evaluate in physical_parameters
-    for parameter in datasheet['physical_parameters'].values():
-
-        if isinstance(parameter['evaluate'], str):
-            value = {'tool': parameter['evaluate']}
-        else:
-            for key, value in parameter['evaluate'].items():
-                value['tool'] = key
-
-                if 'script' in value:
-                    value['tool'] = [value['tool'], value.pop('script')]
-
-        parameter['evaluate'] = value
-
-    # Convert spec entries in physical_parameters
-    for parameter in datasheet['physical_parameters'].values():
-
-        if 'spec' in parameter:
-            for limit in ['minimum', 'typical', 'maximum']:
-                if limit in parameter['spec']:
-                    if 'fail' in parameter['spec'][limit]:
-                        new_limit = []
-                        new_limit.append(parameter['spec'][limit]['value'])
-
-                        if parameter['spec'][limit]['fail'] == True:
-                            new_limit.append('fail')
-                            if 'calculation' in parameter['spec'][limit]:
-                                new_limit.append(
-                                    parameter['spec'][limit]['calculation']
-                                )
-
-                        parameter['spec'][limit] = new_limit
-                    else:
-                        parameter['spec'][limit] = parameter['spec'][limit][
-                            'value'
-                        ]
-
-    # Convert default_conditions
-    new_datasheet['default_conditions'] = []
-    for key, value in datasheet['default_conditions'].items():
-        value['name'] = key
-        new_datasheet['default_conditions'].append(value)
-
-    # Convert electrical_parameters
-    new_datasheet['electrical_parameters'] = []
-    for key, value in datasheet['electrical_parameters'].items():
-        value['name'] = key
-        new_datasheet['electrical_parameters'].append(value)
-
-    # Convert physical_parameters
-    new_datasheet['physical_parameters'] = []
-    for key, value in datasheet['physical_parameters'].items():
-        value['name'] = key
-        new_datasheet['physical_parameters'].append(value)
-
-    # TODO Remove runtime options from datasheet
-    # Set up runtime options in the dictionary before returning.
-
-    if 'runtime_options' in datasheet:
-        runtime_options = datasheet['runtime_options']
+    # Check if 'cace_format' is a key of the datasheet
+    if not 'cace_format' in datasheet:
+        warn('No cace_format given, trying to read as 5.0.')
+        datasheet['cace_format'] = 5.0
     else:
-        runtime_options = {}
-    new_datasheet['runtime_options'] = runtime_options
+        if datasheet['cace_format'] != 5.0:
+            warn('Unsupported format version. Please update to version 5.0.')
 
-    runtime_options['debug'] = debug
-    runtime_options['filename'] = filename
+    # Check if 'authorship' is a key of the datasheet
+    if not 'authorship' in datasheet:
+        datasheet['authorship'] = {}
+        warn('Could not find authorship entry.')
 
-    return new_datasheet
+    if not 'designer' in datasheet['authorship']:
+        datasheet['authorship']['designer'] = None
+    if not 'company' in datasheet['authorship']:
+        datasheet['authorship']['company'] = None
+    if not 'creation_date' in datasheet['authorship']:
+        datasheet['authorship']['creation_date'] = None
+    if not 'modification_date' in datasheet['authorship']:
+        datasheet['authorship']['modification_date'] = None
+    if not 'license' in datasheet['authorship']:
+        datasheet['authorship']['license'] = None
+
+    # Check if 'paths' is a key of the datasheet
+    if not 'paths' in datasheet:
+        datasheet['paths'] = {}
+        err('Could not find any paths.')
+        return None
+
+    # Check if 'pins' is a key of the datasheet
+    if not 'pins' in datasheet:
+        datasheet['pins'] = {}
+        warn('Could not find any pins.')
+
+    # Check if 'default_conditions' is a key of the datasheet
+    if not 'default_conditions' in datasheet:
+        datasheet['default_conditions'] = {}
+        warn('Could not find any default conditions.')
+
+    # Check if 'parameters' is a key of the datasheet
+    if not 'parameters' in datasheet:
+        datasheet['parameters'] = {}
+        warn('Could not find any parameters.')
+
+    # For each parameter, set the name to their key
+    for key, param in datasheet['parameters'].items():
+        param['name'] = key
+
+    # For each parameter, set their display name
+    # to their name if not specified
+    for param in datasheet['parameters'].values():
+        if not 'display' in param:
+            param['display'] = param['name']
+
+    # For each parameter, make sure spec is defined
+    for key, param in datasheet['parameters'].items():
+        if not 'spec' in param:
+            param['spec'] = {}
+
+    # For each parameter, make sure conditions is defined
+    for key, param in datasheet['parameters'].items():
+        if not 'conditions' in param:
+            param['conditions'] = {}
+
+    # Make sure there is only one tool listed
+    for param in datasheet['parameters'].values():
+        if 'tool' in param:
+            if isinstance(param['tool'], str):
+                pass
+            elif len(list(param['tool'].keys())) > 1:
+                warn(f'More than one tool listed in {param["name"]}.')
+        else:
+            err(f'No tool listed in {param["name"]}.')
+            return None
+
+    return datasheet

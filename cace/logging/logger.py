@@ -224,7 +224,7 @@ def get_log_level() -> int:
     return __event_logger.getEffectiveLevel()
 
 
-def debug(*args, **kwargs):
+def dbg(*args, **kwargs):
     """
     Logs to the CACE logger with the log level DEBUG.
 
@@ -259,7 +259,7 @@ def info(msg: object, /, **kwargs):
     __event_logger.info(msg, **kwargs)
 
 
-def subprocess(msg: object, /, **kwargs):
+def subproc(msg: object, /, **kwargs):
     """
     Logs to the CACE logger with the log level SUBPROCESS.
 

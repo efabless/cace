@@ -14,7 +14,7 @@ import re
 import tkinter
 from tkinter import ttk
 
-from ..common.cace_gensim import get_condition_names_used
+from ..common.common import get_condition_names_used
 
 
 class Condition(object):

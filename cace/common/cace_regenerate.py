@@ -24,16 +24,19 @@ import shutil
 from datetime import date as datetime
 import subprocess
 
+from .common import get_pdk, get_pdk_root, get_magic_rcfile, set_xschem_paths
+from .misc import mkdirp
+
 from ..logging import (
+    dbg,
     verbose,
     info,
+    subproc,
     rule,
     success,
     warn,
     err,
 )
-from ..logging import subprocess as subproc
-from ..logging import debug as dbg
 
 
 def printwarn(output):
@@ -79,183 +82,6 @@ def printall(output):
     outlines = output.splitlines()
     for line in outlines:
         info(line)
-
-
-def get_pdk_root():
-    """
-    Get a value for PDK_ROOT, either from an environment variable, or
-    from several standard locations (open_pdks install and IIC-tools
-    install and volare install).
-    If found, set the environment variable PDK_ROOT.
-    """
-
-    try:
-        pdk_root = os.environ['PDK_ROOT']
-    except KeyError:
-        # Try a few common places where open_pdks might be installed
-        pdk_root = '/usr/local/share/pdk'
-        if not os.path.isdir(pdk_root):
-            pdk_root = '/usr/share/pdk'
-            if not os.path.isdir(pdk_root):
-                pdk_root = '/foss/pdks'
-                if not os.path.isdir(pdk_root):
-                    pdk_root = os.path.join(os.path.expanduser('~'), '.volare')
-                    if not os.path.isdir(pdk_root):
-                        pdk_root = None
-
-        if pdk_root:
-            os.environ['PDK_ROOT'] = pdk_root
-        else:
-            error('Could not locate PDK_ROOT!')
-
-    return pdk_root
-
-
-def get_pdk(magicfilename):
-    """
-    Get a value for the PDK, either from the second line of a .mag file,
-    or from the environment as environment variable "PDK".
-
-    NOTE:  Normally the PDK is provided as part of the datasheet, as
-    a project does not necessarily have a .mag file;  so there is no
-    source for automatically determining the project PDK.
-    """
-    if magicfilename and os.path.isfile(magicfilename):
-        with open(magicfilename, 'r') as ifile:
-            for line in ifile.readlines():
-                tokens = line.split()
-                if tokens[0] == 'tech':
-                    pdk = tokens[1]
-                    break
-    else:
-        try:
-            pdk = os.environ['PDK']
-        except KeyError:
-            error('No .mag file and PDK is not defined in the environment.')
-            pdk = None
-
-    return pdk
-
-
-def get_magic_rcfile(dsheet, magicfilename=None):
-    """
-    Get the path and filename of the magic startup script corresponding
-    to the PDK.
-
-    Returns a string containing the full path and filename of the startup
-    script (.magicrc file).
-    """
-
-    if 'PDK_ROOT' in dsheet:
-        pdk_root = dsheet['PDK_ROOT']
-    else:
-        pdk_root = get_pdk_root()
-
-    if 'PDK' in dsheet:
-        pdk = dsheet['PDK']
-    elif magicfilename:
-        pdk = get_pdk(magicfilename)
-    else:
-        paths = dsheet['paths']
-        if magicfilename:
-            pdk = get_pdk(magicfilename)
-        elif 'magic' in paths:
-            magicpath = paths['magic']
-            magicfilename = os.path.join(magicpath, magicname)
-            pdk = get_pdk(magicfilename)
-        else:
-            return None
-
-    rcfile = os.path.join(
-        pdk_root, pdk, 'libs.tech', 'magic', pdk + '.magicrc'
-    )
-    return rcfile
-
-
-def get_netgen_setupfile(dsheet):
-    """
-    Get the path and filename of the netgen setup script corresponding
-    to the PDK.
-
-    Returns a string containing the full path and filename of the setup
-    script (.tcl file).
-    """
-
-    if 'PDK_ROOT' in dsheet:
-        pdk_root = dsheet['PDK_ROOT']
-    else:
-        pdk_root = get_pdk_root()
-
-    if 'PDK' in dsheet:
-        pdk = dsheet['PDK']
-    elif magicfilename:
-        pdk = get_pdk(magicfilename)
-    else:
-        paths = dsheet['paths']
-        if 'magic' in paths:
-            magicpath = paths['magic']
-            magicfilename = os.path.join(magicpath, magicname)
-            pdk = get_pdk(magicfilename)
-        else:
-            return None
-
-    setupfile = os.path.join(
-        pdk_root, pdk, 'libs.tech', 'netgen', pdk + '_setup.tcl'
-    )
-    return setupfile
-
-
-def check_simulation_out_of_date(simpath, tbpath, dutpath, debug=False):
-    """
-    Check if a simulation result is out-of-date relative to both the
-    testbench and the DUT.  It can be assumed that the DUT netlist and
-    testbench have already been checked against their respective
-    schematics, only the netlists need to be compared.
-
-    "simpath" is the path to simulation result (usually in root_path/ngspice)
-    "tbpath" is the path to testbench netlist (usually in root_path/cace)
-    "dutpath" is the path to the design netlist (depends on source setting)
-    """
-
-    need_resimulate = False
-    if not os.path.isfile(simpath):
-        dbg('Simulation result does not exist. Need to resimulate.')
-        need_resimulate = True
-    elif not os.path.isfile(tbpath):
-        dbg('Testbench or path does not exist. Need to regenerate.')
-        need_resimulate = True
-    elif not os.path.isfile(dutpath):
-        dbg('Project netlist or path does not exist. Need to regenerate.')
-        need_resimulate = True
-    else:
-        sim_statbuf = os.stat(simpath)
-        tb_statbuf = os.stat(tbpath)
-        dut_statbuf = os.stat(dutpath)
-
-        if sim_statbuf.st_mtime < tb_statbuf.st_mtime:
-            dbg('Simulation output is older than testbench netlist')
-            tbtime = datetime.fromtimestamp(tb_statbuf.st_mtime)
-            simtime = datetime.fromtimestamp(sim_statbuf.st_mtime)
-            dbg('---Testbench datestamp  = ' + tbtime.isoformat())
-            dbg('---Simulation datestamp = ' + simtime.isoformat())
-            need_simulation = True
-
-        if sim_statbuf.st_mtime < dut_statbuf.st_mtime:
-            dbg('Simulation output is older than project netlist')
-            duttime = datetime.fromtimestamp(dut_statbuf.st_mtime)
-            simtime = datetime.fromtimestamp(sim_statbuf.st_mtime)
-            dbg('---Project netlist datestamp = ' + duttime.isoformat())
-            dbg('---Simulation datestamp      = ' + simtime.isoformat())
-            need_simulation = True
-
-    return need_simulation
-
-
-# -----------------------------------------------------------------------
-# check_layout_out_of_date
-#
-
-# -----------------------------------------------------------------------
 
 
 def check_layout_out_of_date(spicepath, layoutpath, debug=False):
@@ -318,6 +144,36 @@ def check_layout_out_of_date(spicepath, layoutpath, debug=False):
                             dbg('---Netlist datestamp = ' + nettime)
                             break
     return need_capture
+
+
+def check_gds_out_of_date(gdspath, magpath):
+    """
+    Check if the gds is out-of-date relative to the magic layout.
+    Need to generate the gds from the mag files.
+    """
+
+    if not os.path.isfile(gdspath):
+        dbg('GDSII layout does not exist, so must be regenerated.')
+        return True
+
+    gds_statbuf = os.stat(gdspath)
+    mag_statbuf = os.stat(magpath)
+
+    if gds_statbuf.st_mtime < mag_statbuf.st_mtime:
+        dbg('GDSII layout  is older than magic layout.')
+        gds_time = datetime.fromtimestamp(gds_statbuf.st_mtime)
+        mag_time = datetime.fromtimestamp(mag_statbuf.st_mtime)
+        dbg(f'---GDSII datestamp = {gds_time}')
+        dbg(f'---magic datestamp = {mag_time}')
+        return True
+
+    # Since magpath points to a .mag file, the above only
+    # established that the top-level-layout is older than the
+    # netlist.
+
+    # TODO check mag file
+
+    return False
 
 
 def check_schematic_out_of_date(spicepath, schempath, debug=False):
@@ -403,21 +259,20 @@ def check_schematic_out_of_date(spicepath, schempath, debug=False):
     return need_capture
 
 
-def regenerate_rcx_netlist(dsheet):
+def regenerate_rcx_netlist(datasheet, runtime_options):
     """Regenerate the R-C parasitic extracted netlist if out-of-date or if forced."""
 
-    runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
     force_regenerate = runtime_options['force']
 
-    dname = dsheet['name']
+    dname = datasheet['name']
     netlistname = dname + '.spice'
     vlogname = dname + '.v'
     magicname = dname + '.mag'
     gdsname = dname + '.gds'
     xschemname = dname + '.sch'
 
-    paths = dsheet['paths']
+    paths = datasheet['paths']
 
     # Check the "paths" dictionary for paths to various files
 
@@ -490,16 +345,16 @@ def regenerate_rcx_netlist(dsheet):
         if not os.path.exists(rcx_netlist_path):
             os.makedirs(rcx_netlist_path)
 
-        rcfile = get_magic_rcfile(dsheet, magicfilename)
+        rcfile = get_magic_rcfile(datasheet, magicfilename)
         newenv = os.environ.copy()
 
-        if 'PDK_ROOT' in dsheet:
-            pdk_root = dsheet['PDK_ROOT']
+        if 'PDK_ROOT' in datasheet:
+            pdk_root = datasheet['PDK_ROOT']
         else:
             pdk_root = get_pdk_root()
 
-        if 'PDK' in dsheet:
-            pdk = dsheet['PDK']
+        if 'PDK' in datasheet:
+            pdk = datasheet['PDK']
         else:
             pdk = get_pdk(magicfilename)
 
@@ -583,23 +438,22 @@ def regenerate_rcx_netlist(dsheet):
     return rcx_netlist
 
 
-def regenerate_lvs_netlist(dsheet, pex=False):
+def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
     """
     Regenerate the layout-extracted netlist if out-of-date or if forced.
     If argument "pex" is True, then generate parasitic capacitances in
     the output.
     """
 
-    runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
     force_regenerate = runtime_options['force']
 
-    dname = dsheet['name']
+    dname = datasheet['name']
     netlistname = dname + '.spice'
     magicname = dname + '.mag'
     gdsname = dname + '.gds'
 
-    paths = dsheet['paths']
+    paths = datasheet['paths']
 
     # Check the "paths" dictionary for paths to various files
 
@@ -675,13 +529,13 @@ def regenerate_lvs_netlist(dsheet, pex=False):
         if not os.path.exists(lvs_netlist_path):
             os.makedirs(lvs_netlist_path)
 
-        if 'PDK_ROOT' in dsheet:
-            pdk_root = dsheet['PDK_ROOT']
+        if 'PDK_ROOT' in datasheet:
+            pdk_root = datasheet['PDK_ROOT']
         else:
             pdk_root = get_pdk_root()
 
-        if 'PDK' in dsheet:
-            pdk = dsheet['PDK']
+        if 'PDK' in datasheet:
+            pdk = datasheet['PDK']
         else:
             pdk = get_pdk(magicfilename)
 
@@ -728,7 +582,11 @@ def regenerate_lvs_netlist(dsheet, pex=False):
         )
         mproc.stdin.write('quit -noprompt\n')
 
-        magout = mproc.communicate()[0]
+        magout, magerr = mproc.communicate()
+
+        dbg(magout)
+        dbg(magerr)
+
         printwarn(magout)
         if mproc.returncode != 0:
             err(
@@ -754,7 +612,7 @@ def regenerate_lvs_netlist(dsheet, pex=False):
     return lvs_netlist
 
 
-def check_dependencies(dsheet, debug=False):
+def check_dependencies(datasheet, debug=False):
     """
     Check the datasheet for listed dependencies and make sure they exist.
     If not, and the dependency entry lists a repository, then clone the
@@ -770,13 +628,13 @@ def check_dependencies(dsheet, debug=False):
     """
 
     dependencies = []
-    if 'dependencies' in dsheet:
+    if 'dependencies' in datasheet:
         # If there is only one dependency it may be a dictionary and not a
         # list of dictionaries.
-        if isinstance(dsheet['dependencies'], dict):
-            dependencies = [dsheet['dependencies']]
+        if isinstance(datasheet['dependencies'], dict):
+            dependencies = [datasheet['dependencies']]
         else:
-            dependencies = dsheet['dependencies']
+            dependencies = datasheet['dependencies']
         for dependency in dependencies:
             if 'path' in dependency and 'name' in dependency:
                 dbg('Checking for dependency ' + dependency['name'])
@@ -824,104 +682,17 @@ def check_dependencies(dsheet, debug=False):
     return False
 
 
-def set_xschem_paths(dsheet, symbolpath, tclstr=None):
-    """
-    Put together a set of Tcl commands that sets the search
-    path for xschem.
-
-    If tclstr is not None, then it is assumed to be a valid
-    Tcl command, and the rest of the Tcl command string is
-    appended to it, with independent commands separated by
-    semicolons.
-
-    Return the final Tcl command string.
-
-    Note that this is used only when regenerating the schematic
-    netlist. The testbenches are assumed to call the symbol as
-    a primitive, and rely on an include file to pull in the
-    netlist (either schematic or layout) from the appropriate
-    netlist directory.
-    """
-
-    paths = dsheet['paths']
-
-    # Root path
-    if 'root' in paths:
-        root_path = paths['root']
-    else:
-        root_path = '.'
-
-    # List of tcl commands to string together to make up the full
-    # string argument to pass to xschem.
-
-    tcllist = []
-    if tclstr and tclstr != '':
-        tcllist.append(tclstr)
-
-    # Add the root path to the search path (may not be necessary but covers
-    # cases where schematics have been specified from the project root for
-    # either the testbench or schematic directories, or both).
-
-    tcllist.append('append XSCHEM_LIBRARY_PATH :' + os.path.abspath(root_path))
-
-    # Add the path with the DUT symbol to the search path.  Note that testbenches
-    # use a version of the DUT symbol that is marked as "primitive" so that it
-    # does not get added to the netlist directly.  The netlist is included by a
-    # ".include" statement in the testbenches.
-    tcllist.append('append XSCHEM_LIBRARY_PATH :' + symbolpath)
-
-    # If dependencies are declared, then pull in their locations
-    # and add them to the search path as well.
-
-    # NOTE:  This depends on the setup of the dependent repository.
-    # The code below assumes that there is a subdirectory 'xschem'
-    # in the repository.  There needs to be a routine that recursively
-    # determines schematic paths from the dependent repository's own
-    # CACE definition file.
-
-    if 'dependencies' in dsheet:
-        # If there is only one dependency it may be a dictionary and not a
-        # list of dictionaries.
-        if isinstance(dsheet['dependencies'], dict):
-            dependencies = [dsheet['dependencies']]
-        else:
-            dependencies = dsheet['dependencies']
-
-        for dependency in dependencies:
-            if 'path' in dependency and 'name' in dependency:
-                dependdir = os.path.join(
-                    dependency['path'], dependency['name'], 'xschem'
-                )
-                if not os.path.isdir(dependdir):
-                    dependdir = os.path.join(
-                        dependency['path'], dependency['name']
-                    )
-                    if not os.path.isdir(dependdir):
-                        err(
-                            'Cannot find xschem library in '
-                            + dependency['name']
-                        )
-                        err('Current directory is: ' + os.getcwd())
-                        err('Dependdir is: ' + dependdir)
-                        dependdir = None
-                if dependdir:
-                    tcllist.append('append XSCHEM_LIBRARY_PATH :' + dependdir)
-
-    return ' ; '.join(tcllist)
-
-
-def regenerate_schematic_netlist(dsheet):
+def regenerate_schematic_netlist(datasheet, runtime_options):
     """Regenerate the schematic-captured netlist if out-of-date or if forced."""
 
-    runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
     force_regenerate = runtime_options['force']
 
-    dname = dsheet['name']
+    dname = datasheet['name']
     netlistname = dname + '.spice'
     xschemname = dname + '.sch'
 
-    paths = dsheet['paths']
+    paths = datasheet['paths']
 
     # Check the "paths" dictionary for paths to various files
 
@@ -955,9 +726,12 @@ def regenerate_schematic_netlist(dsheet):
         verilog_netlist_path = None
         verilog_netlist = None
 
-    need_schem_capture = False
+    # Always regenerate the schematic netlist
+    # We cannot always be sure that none of the dependencies was changed
+    # as there are many different ways to include e.g. spice files etc.
+    need_schem_capture = True
 
-    if force_regenerate:
+    """if force_regenerate:
         need_schem_capture = True
     else:
         dbg('Checking for out-of-date schematic-captured netlists.')
@@ -965,9 +739,9 @@ def regenerate_schematic_netlist(dsheet):
             schem_netlist, schemfilename, debug
         )
 
-    depupdated = check_dependencies(dsheet, debug)
+    depupdated = check_dependencies(datasheet, debug)
     if depupdated:
-        need_schem_capture = True
+        need_schem_capture = True"""
 
     if need_schem_capture:
         dbg('Forcing regeneration of schematic-captured netlist.')
@@ -1003,13 +777,13 @@ def regenerate_schematic_netlist(dsheet):
         if not os.path.exists(schem_netlist_path):
             os.makedirs(schem_netlist_path)
 
-        if 'PDK_ROOT' in dsheet:
-            pdk_root = dsheet['PDK_ROOT']
+        if 'PDK_ROOT' in datasheet:
+            pdk_root = datasheet['PDK_ROOT']
         else:
             pdk_root = get_pdk_root()
 
-        if 'PDK' in dsheet:
-            pdk = dsheet['PDK']
+        if 'PDK' in datasheet:
+            pdk = datasheet['PDK']
         else:
             pdk = get_pdk(magicfilename)
 
@@ -1019,9 +793,9 @@ def regenerate_schematic_netlist(dsheet):
         if pdk and 'PDK' not in newenv:
             newenv['PDK'] = pdk
 
-        tclstr = set_xschem_paths(
-            dsheet, schem_netlist_path, 'set lvs_netlist 1'
-        )
+        """tclstr = set_xschem_paths(
+            datasheet, schem_netlist_path, 'set lvs_netlist 1'
+        )"""
 
         # Xschem arguments:
         # -n:  Generate a netlist
@@ -1031,16 +805,36 @@ def regenerate_schematic_netlist(dsheet):
         # -q:  Quit after processing command line
         # --tcl "set lvs_netlist 1":  Require ".subckt ... .ends" wrapper
 
-        xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
+        xschemargs = [
+            'xschem',
+            '-n',
+            '-s',
+            '-r',
+            '-x',
+            '-q',
+            '--tcl',
+            'set lvs_netlist 1',
+        ]  # tclstr]
 
-        # Use the PDK xschemrc file for xschem startup
-        xschemrcfile = os.path.join(
-            pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc'
-        )
+        # See if there is an xschemrc file in the project we can source
+        xschemrcfile = os.path.join(schempath, 'xschemrc')
         if os.path.isfile(xschemrcfile):
             xschemargs.extend(['--rcfile', xschemrcfile])
         else:
-            err('No xschemrc file found in the ' + pdk + ' PDK!')
+            warn(f'No project xschemrc file found at: {xschemrcfile}')
+            warn(
+                f'It is highly recommended to set up an xschemrc file for your project.'
+            )
+
+            # Use the PDK xschemrc file for xschem startup
+            xschemrcfile = os.path.join(
+                pdk_root, pdk, 'libs.tech', 'xschem', 'xschemrc'
+            )
+            warn(f'Using the PDK xschemrc instead…')
+            if os.path.isfile(xschemrcfile):
+                xschemargs.extend(['--rcfile', xschemrcfile])
+            else:
+                err(f'No xschemrc file found in the {pdk} PDK!')
 
         xschemargs.extend(['-o', schem_netlist_path, '-N', netlistname])
         xschemargs.append(schemfilename)
@@ -1097,14 +891,13 @@ def regenerate_schematic_netlist(dsheet):
     return schem_netlist
 
 
-def regenerate_testbench(dsheet, testbenchpath, testbench):
+def regenerate_testbench(datasheet, runtime_options, testbenchpath, testbench):
     """Regenerate a testbench template (create SPICE from .sch)"""
 
-    runtime_options = dsheet['runtime_options']
     debug = runtime_options['debug']
     force_regenerate = runtime_options['force']
 
-    paths = dsheet['paths']
+    paths = datasheet['paths']
 
     if not os.path.exists(testbenchpath):
         err('Testbench path ' + testbenchpath + ' does not exist.')
@@ -1143,13 +936,13 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     else:
         root_path = '.'
 
-    if 'PDK_ROOT' in dsheet:
-        pdk_root = dsheet['PDK_ROOT']
+    if 'PDK_ROOT' in datasheet:
+        pdk_root = datasheet['PDK_ROOT']
     else:
         pdk_root = get_pdk_root()
 
-    if 'PDK' in dsheet:
-        pdk = dsheet['PDK']
+    if 'PDK' in datasheet:
+        pdk = datasheet['PDK']
     else:
         pdk = get_pdk(magicfilename)
 
@@ -1159,7 +952,7 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     if pdk and 'PDK' not in newenv:
         newenv['PDK'] = pdk
 
-    tclstr = set_xschem_paths(dsheet, testbenchpath, '')
+    tclstr = set_xschem_paths(datasheet, testbenchpath, '')
     xschemargs = ['xschem', '-n', '-s', '-r', '-x', '-q', '--tcl', tclstr]
 
     # Use the PDK xschemrc file for xschem startup
@@ -1214,7 +1007,7 @@ def regenerate_testbench(dsheet, testbenchpath, testbench):
     return 0
 
 
-def regenerate_netlists(dsheet):
+def regenerate_netlists(datasheet, runtime_options):
     """Regenerate all netlists as needed when out of date."""
 
     # 'netlist_source' determines whether to use the layout extracted netlist
@@ -1222,39 +1015,103 @@ def regenerate_netlists(dsheet):
     # it is out of date, or if the user has selected forced regeneration in the
     # settings.
 
-    runtime_options = dsheet['runtime_options']
     source = runtime_options['netlist_source']
 
     # Always generate the schematic netlist
     # Either the netlist source is "schematic", or we need it
     # to get the correct port order for the extracted netlists
-    result = regenerate_schematic_netlist(dsheet)
+    result = regenerate_schematic_netlist(datasheet, runtime_options)
 
     # Layout extracted netlist
     if source == 'layout':
-        result = regenerate_lvs_netlist(dsheet)
+        result = regenerate_lvs_netlist(datasheet, runtime_options)
         return result
 
     # PEX (parasitic capacitance-only) netlist
     if source == 'pex':
-        result = regenerate_lvs_netlist(dsheet, pex=True)
+        result = regenerate_lvs_netlist(datasheet, runtime_options, pex=True)
 
         # Also make sure LVS netlist is generated, in case LVS is run
-        regenerate_lvs_netlist(dsheet)
+        regenerate_lvs_netlist(datasheet)
         return result
 
     # RCX (R-C-extraction) netlist
     if source == 'all' or source == 'rcx' or source == 'best':
-        result = regenerate_rcx_netlist(dsheet)
+        result = regenerate_rcx_netlist(datasheet, runtime_options)
 
         # Also make sure LVS netlist is generated, in case LVS is run
-        regenerate_lvs_netlist(dsheet)
+        regenerate_lvs_netlist(datasheet, runtime_options)
         return result
 
     return result
 
 
-def make_symbol_primitive(dsheet):
+def regenerate_gds(datasheet, runtime_options):
+    """Regenerate gds as needed when out of date."""
+
+    paths = datasheet['paths']
+    dname = datasheet['name']
+
+    # Running on schematic, no regeneration needed
+    if runtime_options['netlist_source'] == 'schematic':
+        return 0
+
+    # No mag files given, gds does not need regeneration
+    if not 'magic' in datasheet['paths']:
+        return 0
+
+    gdspath = os.path.join(paths['root'], paths['layout'], f'{dname}.gds')
+    magpath = os.path.join(paths['root'], paths['magic'], f'{dname}.mag')
+
+    # make sure mag files exist
+    if not os.path.isfile(magpath):
+        err(f'Could not find magic layout: {magpath}')
+        return 1
+
+    # Create the path to gds file
+    mkdirp(os.path.join(paths['root'], paths['layout']))
+
+    # Check whether we need to regenerate the gds from magic
+    if check_gds_out_of_date(gdspath, magpath):
+        info('Regenerating GDSII from magic layout…')
+
+        pdk = datasheet['PDK']
+        pdk_root = get_pdk_root()
+
+        rcfile = os.path.join(
+            pdk_root, pdk, 'libs.tech', 'magic', pdk + '.magicrc'
+        )
+
+        magicargs = ['magic', '-dnull', '-noconsole', '-rcfile', rcfile]
+        dbg('Executing: ' + ' '.join(magicargs))
+
+        mproc = subprocess.Popen(
+            magicargs,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            cwd=paths['root'],
+            text=True,
+        )
+
+        mproc.stdin.write('load ' + magpath + '\n')
+        mproc.stdin.write('gds write ' + gdspath + '\n')
+        mproc.stdin.write('quit -noprompt\n')
+
+        magout = mproc.communicate()[0]
+        printwarn(magout)
+
+        if mproc.returncode != 0:
+            err(f'Magic process returned error code {mproc.returncode}.')
+
+    if not os.path.isfile(gdspath):
+        err(f'Could not generate gds layout: {gdspath}')
+        return 1
+
+    return 0
+
+
+def make_symbol_primitive(datasheet):
     """
     Copy the schematic symbol to the testbench directory and remark its
     type from 'schematic' to 'primitive', so that testbench netlists will
@@ -1263,10 +1120,10 @@ def make_symbol_primitive(dsheet):
     any one of schematic-captured or layout-extracted netlists.
     """
 
-    dname = dsheet['name']
+    dname = datasheet['name']
     xschemname = dname + '.sym'
 
-    paths = dsheet['paths']
+    paths = datasheet['paths']
 
     # Xschem schematic symbol
     if 'schematic' in paths:
@@ -1293,43 +1150,56 @@ def make_symbol_primitive(dsheet):
         ofile.write(primdata)
 
 
-def regenerate_testbenches(dsheet, paramname=None):
+def regenerate_testbenches(datasheet, pname=None):
     """
-    If paramname is passed to regenerate_testbenches and is not None, then
+    If pname is passed to regenerate_testbenches and is not None, then
     only generate testbenches required by the specified parameter.
     """
 
-    paths = dsheet['paths']
+    paths = datasheet['paths']
     testbenchpath = paths.get('testbench', paths['templates'])
 
     # Copy the circuit symbol from schematic directory to testbench
     # directory and make it a primitive.
-    make_symbol_primitive(dsheet)
+    make_symbol_primitive(datasheet)
 
     # Enumerate testbenches used in electrical parameters
     testbenchlist = []
-    eparams = dsheet['electrical_parameters']
 
-    for eparam in eparams:
-        if paramname and paramname != eparam['name']:
-            continue
-        if 'simulate' in eparam:
-            simlist = eparam['simulate']
-            if isinstance(simlist, dict):
-                simlist = [eparam['simulate']]
+    # Generate testbench for a single parameter
+    if pname:
+        if pname in datasheet['parameters']:
+            param = datasheet['parameters'][pname]
 
-            for simdict in simlist:
-                if 'template' in simdict:
-                    testbenchlist.append(simdict['template'])
+            if 'simulate' in param:
+                if 'ngspice' in param['simulate']:
+                    if 'template' in param['simulate']['ngspice']:
+                        template = param['simulate']['ngspice']['template']
 
-    testbenches_checked = {}
-    for testbench in testbenchlist:
-        if testbench in testbenches_checked:
-            continue
-        testbenches_checked[testbench] = True
-        result = regenerate_testbench(dsheet, testbenchpath, testbench)
-        if result != 0:
-            err('Error in testbench generation. Halting characterization.')
-            return result
+                        result = regenerate_testbench(
+                            datasheet, testbenchpath, template
+                        )
+                        if result != 0:
+                            err(
+                                'Error in testbench generation. Halting characterization.'
+                            )
+                            return result
+        else:
+            warn(f'Unknown parameter {pname}')
+    else:
+        for param in datasheet['parameters'].values():
+            if 'simulate' in param:
+                if 'ngspice' in param['simulate']:
+                    if 'template' in param['simulate']['ngspice']:
+                        template = param['simulate']['ngspice']['testbench']
+
+                        result = regenerate_testbench(
+                            datasheet, testbenchpath, template
+                        )
+                        if result != 0:
+                            err(
+                                'Error in testbench generation. Halting characterization.'
+                            )
+                            return result
 
     return 0

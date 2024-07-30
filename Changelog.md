@@ -1,3 +1,29 @@
+# 2.4.0
+
+## Common
+
+- Major rewrite of tool implementations:
+    * Each tool inherits from the `Parameter` class
+    * Behavior is implemented by overwriting methods
+    * Registered via `@register_parameter`
+- Unified `physical_parameters` and `electrical_parameters` to `parameters`
+- Each parameter and each simulation run of a parameter (e.g. `ngspice`) has their own subfolder
+- Rewrite of the result handling
+- Rewrite of plotting
+- Added the `klayout_drc` tool
+- GDSII will be automatically generated from mag files
+  - Tools using magic will prefer mag files
+
+## CLI
+
+- Remove `--keep` argument since all files are kept under `run/`
+- Added `--save` argument to save the summary upon successful completion
+- Cancel run with Ctrl+C
+
+## GUI
+
+- Temporarily disable the GUI until it can be revised with the current changes
+
 # 2.3.11
 
 ## Common

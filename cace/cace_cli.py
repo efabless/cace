@@ -36,12 +36,21 @@ from .logging import (
     LevelFilter,
     console,
     set_log_level,
-    info,
-    warn,
-    verbose,
     register_additional_handler,
     deregister_additional_handler,
 )
+from .logging import (
+    dbg,
+    verbose,
+    info,
+    subproc,
+    rule,
+    success,
+    warn,
+    err,
+)
+
+from .parameter.parameter import ResultType
 
 
 def start_parameter(param, progress, task_ids, steps):
@@ -106,7 +115,7 @@ def cli():
     parser.add_argument(
         'output',
         nargs='?',
-        help='output specification datasheet (YAML)',
+        help='output specification datasheet (YAML), used to convert a datasheet to a newer format',
     )
 
     # total number of jobs, optional
@@ -145,24 +154,12 @@ def cli():
         help='force new regeneration of all netlists',
     )
     parser.add_argument(
-        '-k',
-        '--keep',
-        action='store_true',
-        help='retain files generated for characterization',
-    )
-    # total number of jobs, optional
-    parser.add_argument(
         '--max-runs',
         type=lambda value: int(value) if int(value) > 0 else 1,
         help="""the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted""",
     )
     parser.add_argument(
         '--no-plot', action='store_true', help='do not generate any graphs'
-    )
-    parser.add_argument(
-        '--debug',
-        action='store_true',
-        help='generate additional diagnostic output',
     )
     parser.add_argument(
         '-l',
@@ -177,17 +174,15 @@ def cli():
         action='store_true',
         help='runs simulations sequentially',
     )
-    '''TODO purge from code
-    parser.add_argument(
-        '--no-simulation',
-        action='store_true',
-        help="""do not re-run simulations if the output file exists.
-    (Warning: Does not check if simulations are out of date)""",
-    )'''
     parser.add_argument(
         '--no-progress-bar',
         action='store_true',
         help='do not display the progress bar',
+    )
+    parser.add_argument(
+        '--save',
+        type=str,
+        help='directory to save the summary file to after successful completion',
     )
 
     # Parse arguments
@@ -202,13 +197,23 @@ def cli():
         max_runs=args.max_runs, jobs=args.jobs
     )
 
-    # Get the run dir
-    run_dir = parameter_manager.run_dir
+    # Load the datasheet
+    if args.datasheet:
+        if parameter_manager.load_datasheet(args.datasheet):
+            sys.exit(0)
+    # Else search for it starting from the cwd
+    else:
+        if parameter_manager.find_datasheet(os.getcwd()):
+            sys.exit(0)
+
+    # Save the datasheet
+    if args.output:
+        parameter_manager.save_datasheet(args.output)
 
     # Log warnings and errors to files
     handlers: List[logging.Handler] = []
     for level in ['WARNING', 'ERROR']:
-        path = os.path.join(run_dir, f'{level.lower()}.log')
+        path = os.path.join(parameter_manager.run_dir, f'{level.lower()}.log')
         handler = logging.FileHandler(path, mode='a+')
         handler.setLevel(level)
         handler.addFilter(LevelFilter([level]))
@@ -216,25 +221,14 @@ def cli():
         register_additional_handler(handler)
 
     # Log everything to a file
-    path = os.path.join(run_dir, 'flow.log')
+    path = os.path.join(parameter_manager.run_dir, 'flow.log')
     handler = logging.FileHandler(path, mode='a+')
     handler.setLevel('VERBOSE')
     handlers.append(handler)
     register_additional_handler(handler)
 
-    # Load the datasheet
-    if args.datasheet:
-        if parameter_manager.load_datasheet(args.datasheet, args.debug):
-            sys.exit(0)
-    # Else search for it starting from the cwd
-    else:
-        if parameter_manager.find_datasheet(os.getcwd(), args.debug):
-            sys.exit(0)
-
     # Set runtime options
-    parameter_manager.set_runtime_options('debug', args.debug)
     parameter_manager.set_runtime_options('force', args.force)
-    parameter_manager.set_runtime_options('keep', args.keep)
     parameter_manager.set_runtime_options('noplot', args.no_plot)
     parameter_manager.set_runtime_options('nosim', False)
     parameter_manager.set_runtime_options('sequential', args.sequential)
@@ -265,8 +259,7 @@ def cli():
 
     # Queue specified parameters
     if args.parameter:
-        if args.debug:
-            info(f'Running simulation for: {args.parameter}')
+        dbg(f'Running parameters: {args.parameter}')
         for pname in args.parameter:
             parameter_manager.queue_parameter(
                 pname,
@@ -286,8 +279,7 @@ def cli():
     # Queue all parameters
     else:
         pnames = parameter_manager.get_all_pnames()
-        if args.debug:
-            info(f'Running simulation for: {pnames}')
+        dbg(f'Running parameters: {pnames}')
         for pname in pnames:
             parameter_manager.queue_parameter(
                 pname,
@@ -308,11 +300,17 @@ def cli():
     # Set the total number of parameters in the progress bar
     progress.update(task_id, total=parameter_manager.num_queued_parameters())
 
+    # Ctrl+C to cancel parameters
+    signal.signal(
+        signal.SIGINT, lambda sig, frame: parameter_manager.cancel_parameters()
+    )
+
     # Run the simulations
     parameter_manager.run_parameters_async()
 
     # Wait for completion
     parameter_manager.join_parameters()
+    results = parameter_manager.get_results()
 
     # Remove main progress bar
     progress.remove_task(task_id)
@@ -329,15 +327,41 @@ def cli():
     console.print(Markdown(summary))
 
     # Save the summary
-    with open(os.path.join(run_dir, 'summary.md'), 'w') as ofile:
+    with open(
+        os.path.join(parameter_manager.run_dir, 'summary.md'), 'w'
+    ) as ofile:
         ofile.write(summary)
-
-    # Save the datasheet, this may manipulate the datasheet
-    if args.output:
-        parameter_manager.save_datasheet(args.output)
 
     for registered_handlers in handlers:
         deregister_additional_handler(registered_handlers)
+
+    # Get the return code based on all results
+    returncode = 0
+    for result in results.values():
+        # An error happened
+        if result['type'] == ResultType.ERROR:
+            returncode = 1
+        # Did not meet spec
+        elif result['type'] == ResultType.FAILURE:
+            returncode = 2
+        # Something unexpected happened
+        elif result['type'] == ResultType.UNKNOWN:
+            returncode = 3
+        # Parameter was cancelled
+        elif result['type'] == ResultType.CANCELED:
+            returncode = 4
+
+    # Upon successful completion save the summary file
+    if returncode == 0 and args.save:
+        if not os.path.isdir(args.save):
+            err('Save argument is not a directory!')
+            returncode = 1
+        else:
+            with open(os.path.join(args.save, 'summary.md'), 'w') as ofile:
+                ofile.write(summary)
+
+    # Exit with final status
+    sys.exit(returncode)
 
 
 if __name__ == '__main__':
