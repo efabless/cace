@@ -20,11 +20,7 @@ import json
 import threading
 import subprocess
 
-from ..common.common import (
-    run_subprocess,
-    get_magic_rcfile,
-    get_netgen_setupfile,
-)
+from ..common.common import run_subprocess, get_magic_rcfile
 from ..common.ring_buffer import RingBuffer
 from .parameter import Parameter, ResultType, Argument
 from .parameter_manager import register_parameter
@@ -93,7 +89,7 @@ class ParameterMagicArea(Parameter):
             projname = self.datasheet['name']
             paths = self.datasheet['paths']
 
-            rcfile = get_magic_rcfile(self.datasheet)
+            rcfile = get_magic_rcfile()
 
             # Prefer magic layout
             if 'magic' in paths:
