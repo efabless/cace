@@ -345,7 +345,7 @@ def regenerate_rcx_netlist(datasheet, runtime_options):
         if not os.path.exists(rcx_netlist_path):
             os.makedirs(rcx_netlist_path)
 
-        rcfile = get_magic_rcfile(datasheet, magicfilename)
+        rcfile = get_magic_rcfile()
         newenv = os.environ.copy()
 
         if 'PDK_ROOT' in datasheet:
@@ -551,8 +551,30 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
 
         info('Extracting LVS netlist from layout…')
 
+        # Assemble stdin for magic
+        magic_input = ''
+        if magicfilename and os.path.isfile(magicfilename):
+            magic_input += f'load {magicfilename}\n'
+        else:
+            magic_input += f'gds read {gdsfilename}\n'
+            magic_input += f'load {dname}\n'
+            # Use readspice to get the port order
+            magic_input += f'readspice {schem_netlist}\n'
+
+        # magic_input += 'select top cell\n'
+        magic_input += f'select {dname}\n'   # TODO?
+        magic_input += 'expand\n'
+        magic_input += 'extract path cace_extfiles\n'
+        magic_input += 'extract all\n'
+        magic_input += 'ext2spice lvs\n'
+        if pex == True:
+            magic_input += 'ext2spice cthresh 0.01\n'
+        magic_input += f'ext2spice -p cace_extfiles -o {lvs_netlist}\n'
+        magic_input += 'quit -noprompt\n'
+
         magicargs = ['magic', '-dnull', '-noconsole', '-rcfile', rcfile]
         dbg('Executing: ' + ' '.join(magicargs))
+        dbg(f'magic stdin:\n{magic_input}')
 
         mproc = subprocess.Popen(
             magicargs,
@@ -561,39 +583,19 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
             stderr=subprocess.STDOUT,
             cwd=root_path,
             env=newenv,
-            universal_newlines=True,
+            text=True,
         )
-        if magicfilename and os.path.isfile(magicfilename):
-            mproc.stdin.write('load ' + magicfilename + '\n')
-        else:
-            mproc.stdin.write('gds read ' + gdsfilename + '\n')
-            mproc.stdin.write('load ' + dname + '\n')
-            # Use readspice to get the port order
-            mproc.stdin.write('readspice ' + schem_netlist + '\n')
-        mproc.stdin.write('select top cell\n')
-        mproc.stdin.write('expand\n')
-        mproc.stdin.write('extract path cace_extfiles\n')
-        mproc.stdin.write('extract all\n')
-        mproc.stdin.write('ext2spice lvs\n')
-        if pex == True:
-            mproc.stdin.write('ext2spice cthresh 0.01\n')
-        mproc.stdin.write(
-            'ext2spice -p cace_extfiles -o ' + lvs_netlist + '\n'
-        )
-        mproc.stdin.write('quit -noprompt\n')
+
+        mproc.stdin.write(magic_input)
 
         magout, magerr = mproc.communicate()
 
-        dbg(magout)
-        dbg(magerr)
+        dbg(f'magic stdout:\n{magout}')
+        dbg(f'magic stderr:\n{magerr}')
 
         printwarn(magout)
         if mproc.returncode != 0:
-            err(
-                'Magic process returned error code '
-                + str(mproc.returncode)
-                + '\n'
-            )
+            err(f'Magic process returned error code {mproc.returncode}\n')
 
         if need_lvs_extract and not os.path.isfile(lvs_netlist):
             err('No LVS netlist extracted from magic.')
@@ -882,7 +884,6 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
                         err(
                             'Subcircuit ' + mmatch.group(1) + ' was not found!'
                         )
-                        os.remove(schem_netlist)
 
     if need_schem_capture:
         if not os.path.isfile(schem_netlist):

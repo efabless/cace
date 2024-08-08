@@ -150,7 +150,7 @@ class ParameterNetgenLVS(Parameter):
             else:
                 layout_arg = layout_netlist
 
-            lvs_setup = get_netgen_setupfile(self.datasheet)
+            lvs_setup = get_netgen_setupfile()
 
             # Run LVS as a subprocess and wait for it to finish.  Use the -json
             # switch to get a file that is easy to parse.

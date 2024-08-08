@@ -1,3 +1,15 @@
+# 2.4.1
+
+## CLI
+
+- After successful execution of CACE, the documentation is generated under the specified path "documentation"
+  - Generate Markdown summary of the design
+  - Generate Markdown summary of the results
+  - Export the symbol as SVG
+  - Export the schematic as SVG
+  - Export the layout as PNG
+- Added `--nofail` argument
+
 # 2.4.0
 
 ## Common

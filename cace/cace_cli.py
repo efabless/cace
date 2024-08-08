@@ -180,9 +180,9 @@ def cli():
         help='do not display the progress bar',
     )
     parser.add_argument(
-        '--save',
-        type=str,
-        help='directory to save the summary file to after successful completion',
+        '--nofail',
+        action='store_true',
+        help='do not fail on any errors or failing parameters',
     )
 
     # Parse arguments
@@ -351,17 +351,17 @@ def cli():
         elif result['type'] == ResultType.CANCELED:
             returncode = 4
 
-    # Upon successful completion save the summary file
-    if returncode == 0 and args.save:
-        if not os.path.isdir(args.save):
-            err('Save argument is not a directory!')
-            returncode = 1
-        else:
-            with open(os.path.join(args.save, 'summary.md'), 'w') as ofile:
-                ofile.write(summary)
+    # Create the documentation
+    if returncode == 0 or args.nofail:
+        parameter_manager.generate_documentation()
+    else:
+        info(f'CACE failed, skipping documentation generation.')
 
     # Exit with final status
-    sys.exit(returncode)
+    if args.nofail:
+        sys.exit(0)
+    else:
+        sys.exit(returncode)
 
 
 if __name__ == '__main__':

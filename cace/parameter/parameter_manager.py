@@ -23,13 +23,11 @@ import signal
 import datetime
 import threading
 
-from ..common.common import run_subprocess
 from ..common.misc import mkdirp
 from ..common.cace_read import cace_read, cace_read_yaml
 from ..common.cace_write import (
-    cace_summary,
     markdown_summary,
-    cace_generate_html,
+    generate_documentation,
 )
 from ..common.cace_regenerate import regenerate_netlists, regenerate_gds
 
@@ -250,9 +248,37 @@ class ParameterManager:
             self.datasheet, self.runtime_options, self.results
         )
 
-    def generate_html(self):
-        debug = self.get_runtime_options('debug')
-        cace_generate_html(self.datasheet, None, debug)
+    def generate_documentation(self):
+        if 'documentation' in self.datasheet['paths']:
+            doc_path = os.path.join(
+                self.datasheet['paths']['root'],
+                self.datasheet['paths']['documentation'],
+            )
+
+            info(f"Generating documentation in '{os.path.relpath(doc_path)}'")
+
+            # Create path to documentation
+            mkdirp(doc_path)
+
+            # Generate the documentation
+            generate_documentation(self.datasheet)
+
+            # Save summary for netlist type
+            summary = markdown_summary(
+                self.datasheet, self.runtime_options, self.results
+            )
+            summarypath = os.path.join(
+                self.datasheet['paths']['root'],
+                self.datasheet['paths']['documentation'],
+                f'{self.datasheet["name"]}_{self.runtime_options["netlist_source"]}.md',
+            )
+            with open(summarypath, 'w') as ofile:
+                ofile.write(summary)
+
+        else:
+            info(
+                f'Path "documentation" not set in datasheet. Skipping documentation generation.'
+            )
 
     def duplicate_parameter(self, pname):
         param = self.find_parameter(pname)
@@ -345,6 +371,12 @@ class ParameterManager:
             err(
                 f'Invalid netlist source: {self.runtime_options["netlist_source"]}'
             )
+
+        # If a magic layout is given, make sure layout is also defined
+        if 'magic' in self.datasheet['paths']:
+            if not 'layout' in self.datasheet['paths']:
+                # Default layout path
+                self.datasheet['paths']['layout'] = 'gds'
 
         # Replace "best" with the best possible source
         if self.runtime_options['netlist_source'] == 'best':
