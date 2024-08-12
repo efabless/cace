@@ -323,7 +323,7 @@ class ParameterNgspice(Parameter):
                     # have a value
                     for cond in condition_set:
                         if condition_set[cond] == None:
-                            err(f'Condition {cond} not defined')
+                            warn(f'Condition {cond} not defined')
 
                     # Write conditions set
                     with open(
