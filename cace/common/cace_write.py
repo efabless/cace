@@ -211,7 +211,7 @@ def generate_documentation(datasheet):
         layout_path = os.path.join(layout_directory, layoutname)
         # Search for compressed layout
         if not os.path.exists(layout_path):
-            layoutname = projname + '.gds.gz'
+            layoutname = datasheet['name'] + '.gds.gz'
             layout_path = os.path.join(layout_directory, layoutname)
     else:
         err('No "layout" specified in datasheet paths.')
@@ -244,7 +244,7 @@ def generate_documentation(datasheet):
         layout_path = os.path.join(layout_directory, layoutname)
         # Search for compressed layout
         if not os.path.exists(layout_path):
-            layoutname = projname + '.gds.gz'
+            layoutname = datasheet['name'] + '.gds.gz'
             layout_path = os.path.join(layout_directory, layoutname)
     else:
         err('Neither "magic" nor "layout" specified in datasheet paths.')

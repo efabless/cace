@@ -671,6 +671,11 @@ class Parameter(ABC, Thread):
 
             # Check whether the condition is in the set
             if cond_name in conditions_set:
+
+                # Condition not defined
+                if conditions_set[cond_name] == None:
+                    return matchobj.group(0)
+
                 # Simply replace with the full value
                 if not indices:
                     replace = str(conditions_set[cond_name])
@@ -718,7 +723,9 @@ class Parameter(ABC, Thread):
                 return replace
             else:
                 err(f'Could not find {cond_name} in condition set.')
-            return ''
+
+            # Error, do not change the condition value
+            return matchobj.group(0)
 
         def sweepex_sub(matchobj):
             cond_name = matchobj.group(1)
