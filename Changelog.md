@@ -1,3 +1,9 @@
+# 2.4.2
+
+## Common
+
+- Do not perform substitutions if the conditions is not defined.
+
 # 2.4.1
 
 ## CLI
