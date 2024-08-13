@@ -1,61 +1,61 @@
 # Template Format
 
 Schematics are drawn normally but statements can have special syntax
-that is substituted by CACE.  The syntax follows three essential rules:
+that is substituted by CACE. The syntax follows three essential rules:
 
 1. Condition and variable names in the project specification file
-    are written in the schematic in braces, so "temperature" in the
-    project file is "{temperature}" in the schematic.
+    are written in the schematic in braces prefixed with "CACE", so "temperature" in the
+    project file is "CACE{temperature}" in the schematic.
 
 2. Expressions involving equations using condition and variable
-    names are written in the schematic in brackets, so, for example,
-    half of condition vdd would be written "[{vdd} / 2]".  These
-    expressions are evaluated in python, so any python expression
+    names are written in the schematic in brackets prefixed with "CACE", so, for example,
+    half of condition vdd would be written "CACE[CACE{vdd} / 2]". These
+    expressions are evaluated in python, so any arithmetic python expression
     that evaluates to a valid result may appear inside the brackets.
 
 3. There are a handful of reserved variable names that are automatically
     substituted by CACE if they appear in the schematic:
 
-- `{filename}`
+- `CACE{filename}`
 	
     > The root name of the schematic file.
 
-- `{simpath}`
+- `CACE{simpath}`
 	
 	> The name of the path to simulation files.
 
-- `{random}`
+- `CACE{random}`
 	
 	> A random integer number.
 
-- `{DUT_path}`
+- `CACE{DUT_path}`
 	
 	> The full path to the DUT subcircuit definition netlist.
 
-- `{DUT_name}`
+- `CACECACE{DUT_name}`
 	
 	> The name of the DUT subcircuit
 
-- `{PDK_ROOT}`
+- `CACE{PDK_ROOT}`
 	
 	> The path to the directory containing the PDK
 
-- `{PDK}`
+- `CACE{PDK}`
 	
 	> The name of the PDK
 
-- `{N}`
+- `CACE{N}`
     	
 	> This is substituted with the simulation index.  Most often
 	used as a filename suffix for the output data file.
 
-- `{cond=value}`
+- `CACE{cond=value}`
 	
 		For any condition cond, this form indicates that "value" is
 		to be subsituted for the condition if the condition is not
 		declared in the CACE project file.
 
-- `{cond|minimum}` `{cond|maximum}` `{cond|stepsize}` `{cond|steps}`
+- `CACE{cond|minimum}` `{cond|maximum}` `{cond|stepsize}` `{cond|steps}`
 	
 	> Instead of substituting one value for a condition, a value
 	over all conditions is substituted, including the maximum

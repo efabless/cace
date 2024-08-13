@@ -586,9 +586,15 @@ class Parameter(ABC, Thread):
         # Regular expressions
         # varex:		variable name {name}
         if escape:
-            varex = re.compile(r'\\\{([^ \}\t]+)\\\}')
+            if self.datasheet['cace_format'] <= 5.0:
+                varex = re.compile(r'\\\{([^ \}\t]+)\\\}')
+            else:
+                varex = re.compile(r'CACE\\\{([^ \}\t]+)\\\}')
         else:
-            varex = re.compile(r'\{([^ \}\t]+)\}')
+            if self.datasheet['cace_format'] <= 5.0:
+                varex = re.compile(r'\{([^ \}\t]+)\}')
+            else:
+                varex = re.compile(r'CACE\{([^ \}\t]+)\}')
 
         conditions = {}
 
@@ -634,13 +640,23 @@ class Parameter(ABC, Thread):
         # brackrex:		expressions in [expression] format
 
         if escape:
-            varex = re.compile(r'\\\{([^\\\}]+)\\\}')
-            sweepex = re.compile(r'\\\{([^\\\}]+)\|([^ \\\}]+)\\\}')
-            brackrex = re.compile(r'\[([^\]]+)\]')
+            if self.datasheet['cace_format'] <= 5.0:
+                varex = re.compile(r'\\\{([^\\\}]+)\\\}')
+                sweepex = re.compile(r'\\\{([^\\\}]+)\|([^ \\\}]+)\\\}')
+                brackrex = re.compile(r'\[([^\]]+)\]')
+            else:
+                varex = re.compile(r'CACE\\\{([^\\\}]+)\\\}')
+                sweepex = re.compile(r'CACE\\\{([^\\\}]+)\|([^ \\\}]+)\\\}')
+                brackrex = re.compile(r'CACE\[([^\]]+)\]')
         else:
-            varex = re.compile(r'\{([^\}]+)\}')
-            sweepex = re.compile(r'\{([^\}]+)\|([^ \}]+)\}')
-            brackrex = re.compile(r'\[([^\]]+)\]')
+            if self.datasheet['cace_format'] <= 5.0:
+                varex = re.compile(r'\{([^\}]+)\}')
+                sweepex = re.compile(r'\{([^\}]+)\|([^ \}]+)\}')
+                brackrex = re.compile(r'\[([^\]]+)\]')
+            else:
+                varex = re.compile(r'CACE\{([^\}]+)\}')
+                sweepex = re.compile(r'CACE\{([^\}]+)\|([^ \}]+)\}')
+                brackrex = re.compile(r'CACE\[([^\]]+)\]')
 
         if not os.path.isfile(template_path):
             err(f'Could not find template file {template_path}.')
@@ -760,9 +776,9 @@ class Parameter(ABC, Thread):
 
             try:
                 return str(safe_eval(expression))
-            except (ValueError, SyntaxError):
+            except:
                 err(f'Invalid expression: {expression}.')
-            return ''
+            return matchobj.group(0)
 
         # Substitute values
         substituted_lines = []

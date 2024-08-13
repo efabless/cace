@@ -1,3 +1,13 @@
+# 2.4.3
+
+## Common
+
+- **New format for CACE substitutions**
+    - `CACE{condition}` and `CACE[expression]`
+    - Fallback for datasheet version <= 5.0
+- Export the schematic netlist with `top_is_subckt` enabled, which preserves certain spice parameters. This improves the simulation accuracy compared to layout extracted.
+- Fix for layout extraction: Reload the top cell after `readspice`
+
 # 2.4.2
 
 ## Common
