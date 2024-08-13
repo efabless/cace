@@ -529,6 +529,9 @@ def cace_read_yaml(filename, debug=False):
     return valdiate_datasheet(datasheet)
 
 
+CACE_DATASHEET_VERSION = 5.1
+
+
 def valdiate_datasheet(datasheet):
 
     # Check for missing field
@@ -547,11 +550,23 @@ def valdiate_datasheet(datasheet):
 
     # Check if 'cace_format' is a key of the datasheet
     if not 'cace_format' in datasheet:
-        warn('No cace_format given, trying to read as 5.0.')
-        datasheet['cace_format'] = 5.0
+        warn(
+            f'No cace_format given, trying to read as {CACE_DATASHEET_VERSION}.'
+        )
+        datasheet['cace_format'] = CACE_DATASHEET_VERSION
     else:
-        if datasheet['cace_format'] != 5.0:
-            warn('Unsupported format version. Please update to version 5.0.')
+        if datasheet['cace_format'] != CACE_DATASHEET_VERSION:
+            warn(
+                f'Unsupported format version. Please update to version {CACE_DATASHEET_VERSION}.'
+            )
+            warn(
+                'More information in the reference manual: [link=https://cace.readthedocs.io/en/latest/reference_manual/index.html]https://cace.readthedocs.io/en/latest/reference_manual/index.html[/link].'
+            )
+
+        if datasheet['cace_format'] <= 5.0:
+            warn(
+                'Please convert CACE placeholders from `{condition}` and `\[expression]` to `CACE{condition}` and `CACE\[expression]`.'
+            )
 
     # Check if 'authorship' is a key of the datasheet
     if not 'authorship' in datasheet:

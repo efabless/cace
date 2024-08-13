@@ -384,6 +384,8 @@ def regenerate_rcx_netlist(datasheet, runtime_options):
             mproc.stdin.write('load ' + dname + '\n')
             # Use readspice to get the port order
             mproc.stdin.write('readspice ' + schem_netlist + '\n')
+            # necessary after readspice
+            mproc.stdin.write('load ' + dname + '\n')
         mproc.stdin.write('select top cell\n')
         mproc.stdin.write('expand\n')
         mproc.stdin.write('flatten ' + dname + '_flat\n')
@@ -560,6 +562,8 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
             magic_input += f'load {dname}\n'
             # Use readspice to get the port order
             magic_input += f'readspice {schem_netlist}\n'
+            # necessary after readspice
+            magic_input += f'load {dname}\n'
 
         # magic_input += 'select top cell\n'
         magic_input += f'select {dname}\n'   # TODO?
@@ -796,7 +800,7 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
             newenv['PDK'] = pdk
 
         """tclstr = set_xschem_paths(
-            datasheet, schem_netlist_path, 'set lvs_netlist 1'
+            datasheet, schem_netlist_path, 'set top_is_subckt 1'
         )"""
 
         # Xschem arguments:
@@ -805,7 +809,7 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
         # -r:  Bypass readline (because stdin/stdout are piped)
         # -x:  No X11 / No GUI window
         # -q:  Quit after processing command line
-        # --tcl "set lvs_netlist 1":  Require ".subckt ... .ends" wrapper
+        # --tcl "set top_is_subckt 1":  Require ".subckt ... .ends" wrapper
 
         xschemargs = [
             'xschem',
@@ -815,7 +819,7 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
             '-x',
             '-q',
             '--tcl',
-            'set lvs_netlist 1',
+            'set top_is_subckt 1',
         ]  # tclstr]
 
         # See if there is an xschemrc file in the project we can source
