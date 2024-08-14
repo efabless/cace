@@ -9,7 +9,7 @@ Perform spice simulation using ngspice.
 Arguments:
 
 - `template`: `<string>` The template schematic under the `templates/` folder for simulation.
-- `collate`: `<string>` Used for monte carlo
+- `collate`: `<string>` Used to collate results for Monte Carlo simulations.
 - `format`: `<'ascii'>` The file format of the ngspice result. Currently only `ascii` is supported.
 - `suffix`: `<string>` File extension of the result file. For example: `.data`.
 - `variables`: `<List[string|null]>` A list of results inside the result file. Use `null` to ignore a column.
@@ -40,8 +40,8 @@ Arguments:
 Results:
 
 - `area`: `<float>` Area of the design in µm²
-- `area`: `<width>` Width of the design in µm.
-- `area`: `<height>` Height of the design in µm.
+- `width`: `<float>` Width of the design in µm.
+- `height`: `<float>` Height of the design in µm.
 
 ## `klayout_drc`
 
