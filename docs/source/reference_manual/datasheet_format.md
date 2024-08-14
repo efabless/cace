@@ -141,7 +141,7 @@ pins:
 	(e.g., "vss - 0.3").
 
 - `Vmax:	<number>|<expression>`
-	> The pin minimum voltage may be a value or may be referenced to
+	> The pin maximum voltage may be a value or may be referenced to
 	another pin;  and may be referenced to another pin with an offset
 	(e.g., "vdd + 0.3").
 
