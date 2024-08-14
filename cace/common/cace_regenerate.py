@@ -437,6 +437,9 @@ def regenerate_rcx_netlist(datasheet, runtime_options):
         ):
             return False
 
+    else:
+        info('Not extracting netlist with parasitics from layout. Up to date.')
+
     return rcx_netlist
 
 
@@ -614,6 +617,9 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
             need_lvs_extract and not os.path.isfile(lvs_netlist)
         ):
             return False
+
+    else:
+        info('Not extracting LVS netlist from layout. Up to date.')
 
     return lvs_netlist
 
@@ -923,7 +929,7 @@ def regenerate_testbench(datasheet, runtime_options, testbenchpath, testbench):
         )
 
     if not need_testbench_netlist:
-        # Testbench exists and is up-to-date;  nothing to do
+        # Testbench exists and is up-to-date; nothing to do
         return 0
 
     if not os.path.isfile(source_file):
@@ -1108,6 +1114,8 @@ def regenerate_gds(datasheet, runtime_options):
 
         if mproc.returncode != 0:
             err(f'Magic process returned error code {mproc.returncode}.')
+    else:
+        info('Not regenerating GDSII from magic layout. Up to date.')
 
     if not os.path.isfile(gdspath):
         err(f'Could not generate gds layout: {gdspath}')
