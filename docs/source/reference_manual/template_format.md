@@ -32,7 +32,7 @@ that is substituted by CACE. The syntax follows three essential rules:
 	
 	> The full path to the DUT subcircuit definition netlist.
 
-- `CACECACE{DUT_name}`
+- `CACE{DUT_name}`
 	
 	> The name of the DUT subcircuit
 

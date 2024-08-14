@@ -529,7 +529,7 @@ def cace_read_yaml(filename, debug=False):
     return valdiate_datasheet(datasheet)
 
 
-CACE_DATASHEET_VERSION = 5.1
+CACE_DATASHEET_VERSION = 5.2
 
 
 def valdiate_datasheet(datasheet):

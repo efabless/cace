@@ -1,3 +1,15 @@
+# 2.4.4
+
+## Common
+
+- **Named results**
+  - Tools generate named results
+  - Spec entries apply per result
+- **Named plots**
+  - Enable multiple plots per paramter
+- Improve documentation generation
+  - Copy plots to the documentation directory and reference them in the Markdown
+
 # 2.4.3
 
 ## Common

@@ -310,7 +310,7 @@ def cli():
 
     # Wait for completion
     parameter_manager.join_parameters()
-    results = parameter_manager.get_results()
+    result_types = parameter_manager.get_result_types()
 
     # Remove main progress bar
     progress.remove_task(task_id)
@@ -337,18 +337,18 @@ def cli():
 
     # Get the return code based on all results
     returncode = 0
-    for result in results.values():
+    for result_type in result_types.values():
         # An error happened
-        if result['type'] == ResultType.ERROR:
+        if result_type == ResultType.ERROR:
             returncode = 1
         # Did not meet spec
-        elif result['type'] == ResultType.FAILURE:
+        elif result_type == ResultType.FAILURE:
             returncode = 2
         # Something unexpected happened
-        elif result['type'] == ResultType.UNKNOWN:
+        elif result_type == ResultType.UNKNOWN:
             returncode = 3
         # Parameter was cancelled
-        elif result['type'] == ResultType.CANCELED:
+        elif result_type == ResultType.CANCELED:
             returncode = 4
 
     # Create the documentation

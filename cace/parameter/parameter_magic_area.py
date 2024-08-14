@@ -22,7 +22,7 @@ import subprocess
 
 from ..common.common import run_subprocess, get_magic_rcfile
 from ..common.ring_buffer import RingBuffer
-from .parameter import Parameter, ResultType, Argument
+from .parameter import Parameter, ResultType, Argument, Result
 from .parameter_manager import register_parameter
 from ..logging import (
     dbg,
@@ -56,12 +56,14 @@ class ParameterMagicArea(Parameter):
         *args,
         **kwargs,
     ):
-        self.cond = 'area'
-
         super().__init__(
             *args,
             **kwargs,
         )
+
+        self.add_result(Result('area'))
+        self.add_result(Result('width'))
+        self.add_result(Result('height'))
 
         self.add_argument(Argument('args', [], False))
 
@@ -72,7 +74,7 @@ class ParameterMagicArea(Parameter):
             info(
                 'Netlist source is schematic capture. Not running area measurements.'
             )
-            self.result['type'] = ResultType.SKIPPED
+            self.result_type = ResultType.SKIPPED
             return False
 
         return True
@@ -84,7 +86,7 @@ class ParameterMagicArea(Parameter):
         # Acquire a job from the global jobs semaphore
         with self.jobs_sem:
 
-            info(f'Running magic to get {self.cond} measurements.')
+            info(f'Running magic to get area measurements.')
 
             projname = self.datasheet['name']
             paths = self.datasheet['paths']
@@ -110,14 +112,14 @@ class ParameterMagicArea(Parameter):
                 err(
                     'Neither "magic" nor "layout" specified in datasheet paths.'
                 )
-                self.result['type'] = ResultType.ERROR
+                self.result_type = ResultType.ERROR
                 return
 
             # Check if layout exists
             if not os.path.isfile(layout_filename):
                 err('No layout found!')
                 err(f'Expected file: {layout_filename}')
-                self.result['type'] = ResultType.ERROR
+                self.result_type = ResultType.ERROR
                 return
 
             # Run magic to get the bounds of the design geometry
@@ -183,52 +185,11 @@ class ParameterMagicArea(Parameter):
                         heightval = float(lmatch.group(2)) / 1000_000
                         areaval = float(lmatch.group(3)) / 1000_000 / 1000_000
 
-            if areaval == 0:
-                resultdict = incompleteresult(self.param)
-            else:
-                if self.cond == 'height':
-                    resultlist = [heightval]
-                elif self.cond == 'width':
-                    resultlist = [widthval]
-                else:
-                    resultlist = [areaval]
+        self.result_type = ResultType.SUCCESS
 
-        self.result['type'] = ResultType.SUCCESS
-        self.result['values'] = resultlist
+        self.get_result('area').values = [areaval]
+        self.get_result('width').values = [widthval]
+        self.get_result('height').values = [heightval]
 
         if self.step_cb:
             self.step_cb(self.param)
-
-
-@register_parameter('magic_width')
-class ParameterMagicWidth(ParameterMagicArea):
-    """ """
-
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(
-            *args,
-            **kwargs,
-        )
-
-        self.cond = 'width'
-
-
-@register_parameter('magic_height')
-class ParameterMagicHeight(ParameterMagicArea):
-    """ """
-
-    def __init__(
-        self,
-        *args,
-        **kwargs,
-    ):
-        super().__init__(
-            *args,
-            **kwargs,
-        )
-
-        self.cond = 'height'

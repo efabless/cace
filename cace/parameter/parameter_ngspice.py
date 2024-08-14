@@ -31,7 +31,7 @@ from ..common.common import (
     get_pdk,
     get_pdk_root,
 )
-from .parameter import Parameter, ResultType, Argument, Condition
+from .parameter import Parameter, ResultType, Argument, Condition, Result
 from .parameter_manager import register_parameter
 from ..logging import (
     dbg,
@@ -92,7 +92,7 @@ class ParameterNgspice(Parameter):
 
         if not os.path.isfile(template_path):
             err(f'Could not find template file {template_path}.')
-            self.result['type'] = ResultType.ERROR
+            self.result_type = ResultType.ERROR
             return
 
         # Get global default conditions
@@ -152,6 +152,13 @@ class ParameterNgspice(Parameter):
 
         info(f'Parameter {self.param["name"]}: Generating simulation files.')
 
+        variables = self.get_argument('variables')
+
+        # Add all named results
+        for variable in variables:
+            if variable != None:
+                self.add_result(Result(variable))
+
         template = self.get_argument('template')
         template_path = os.path.join(self.paths['templates'], template)
         run_template_path = os.path.join(self.param_dir, template)
@@ -163,7 +170,7 @@ class ParameterNgspice(Parameter):
 
             if not os.path.isfile(template_path):
                 err(f'Could not find template file {template_path}.')
-                self.result['type'] = ResultType.ERROR
+                self.result_type = ResultType.ERROR
                 return
 
             # Copy template testbench to run dir
@@ -361,7 +368,7 @@ class ParameterNgspice(Parameter):
 
                     if not os.path.isfile(symbolfilename):
                         err(f'Could not find xschem symbol {symbolfilename}.')
-                        self.result['type'] = ResultType.ERROR
+                        self.result_type = ResultType.ERROR
                         return
 
                     with open(symbolfilename, 'r') as ifile:
@@ -435,14 +442,14 @@ class ParameterNgspice(Parameter):
                     )
 
                     """if returncode:
-                        self.result['type'] = ResultType.ERROR
+                        self.result_type = ResultType.ERROR
                         return"""
 
         # We directly got a spice netlist,
         # perform the substitutions on it
         elif template_ext == '.spice':
             err('TODO: Implement substitution for spice templates!')
-            self.result['type'] = ResultType.ERROR
+            self.result_type = ResultType.ERROR
             return
         else:
             err(f'Unsupported file extension for template: {template}')
@@ -544,7 +551,7 @@ class ParameterNgspice(Parameter):
                 # Get the results
                 for job in jobs:
                     if job.get() != 0:
-                        self.result['type'] = ResultType.ERROR
+                        self.result_type = ResultType.ERROR
                         return
 
                 self.cancel_point()
@@ -554,6 +561,13 @@ class ParameterNgspice(Parameter):
         # Get the result
         max_digits = len(str(len(condition_sets)))
         results_for_plot = []
+
+        format = self.get_argument('format')
+        suffix = self.get_argument('suffix')
+        variables = self.get_argument('variables')
+
+        simulation_values = []
+
         for index, condition_set in enumerate(condition_sets):
 
             # Inner loop for collate variable (if set)
@@ -562,7 +576,11 @@ class ParameterNgspice(Parameter):
                 collate_values = collate_condition.values
                 max_digits_collate = len(str(len(collate_values)))
 
-            collated_variable_values = {}
+            collated_values = {}
+
+            for variable in variables:
+                if variable != None:
+                    collated_values[variable] = []
 
             for collate_index, collate_value in enumerate(collate_values):
 
@@ -576,12 +594,9 @@ class ParameterNgspice(Parameter):
                         outpath, f'run_{collate_index:0{max_digits}d}'
                     )
 
-                # Get the result file
-                variable_values = {}
+                # Read the result file
 
-                format = self.get_argument('format')
-                suffix = self.get_argument('suffix')
-                variables = self.get_argument('variables')
+                collated_results = {}
 
                 if format == 'ascii':
 
@@ -592,15 +607,8 @@ class ParameterNgspice(Parameter):
 
                     if not os.path.isfile(result_file):
                         err(f'No such result file {result_file}.')
-                        self.result['type'] = ResultType.ERROR
+                        self.result_type = ResultType.ERROR
                         return
-
-                    for variable in variables:
-                        if variable and not variable in variable_values:
-                            variable_values[variable] = []
-
-                            if collate_index == 0:
-                                collated_variable_values[variable] = []
 
                     with open(result_file, newline='') as csvfile:
                         reader = csv.reader(
@@ -611,29 +619,39 @@ class ParameterNgspice(Parameter):
                                 # Ignore empty entries (often the last element)
                                 if entry != '':
                                     # Check if there is a named variable at this index
-                                    if variables[_index]:
-                                        variable_values[
+                                    if variables[_index] != None:
+                                        # If so, append the entry
+                                        collated_values[
                                             variables[_index]
                                         ].append(float(entry))
 
-                                        collated_variable_values[
-                                            variables[_index]
-                                        ].append(float(entry))
-
-                    dbg(f'variable_values: {variable_values}')
-
-                    self.result['values'].extend(variable_values['result'])
+                    dbg(f'collated_values: {collated_values}')
 
                 else:
                     err(f'Unsupported format for the simulation result.')
 
-            dbg(f'collated_variable_values: {collated_variable_values}')
-            results_for_plot.append(collated_variable_values)
-            self.result['type'] = ResultType.SUCCESS
+            for variable in variables:
+                if variable != None:
+                    # Extend the final result
+                    self.get_result(variable).values.extend(
+                        collated_values[variable]
+                    )
+
+            simulation_values.append(collated_values)
+            self.result_type = ResultType.SUCCESS
+
+        dbg(f'simulation_values: {simulation_values}')
+        dbg(f'results_dict: {self.results_dict}')
+
+        # TODO other tools?
 
         # Create a plot if specified
         if 'plot' in self.param:
-            self.makeplot(condition_sets, conditions, results_for_plot)
+            # Create the plots and save them
+            for named_plot in self.param['plot']:
+                self.makeplot(
+                    named_plot, condition_sets, conditions, simulation_values
+                )
 
     def get_num_steps(self):
         return self.num_sims

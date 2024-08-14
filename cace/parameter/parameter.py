@@ -25,6 +25,9 @@ from multiprocessing import cpu_count
 from multiprocessing.pool import ThreadPool
 from matplotlib.figure import Figure
 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.backends.backend_agg import FigureCanvasAgg
+
 from ..common.safe_eval import safe_eval
 from ..common.misc import mkdirp
 from ..common.spiceunits import spice_unit_convert
@@ -66,7 +69,40 @@ class ResultType(Enum):
             return '???'
 
 
+class Result:
+    """
+    Holds the named result of a parameter.
+    For example "lvs_errors"
+    """
+
+    def __init__(self, name):
+        self.name = name
+        self.values = []
+        # Maximum/minimum/median of the values
+        self.result = {
+            'minimum': None,
+            'typical': None,
+            'maximum': None,
+        }
+        # 'pass' or 'fail'
+        self.status = {
+            'minimum': None,
+            'typical': None,
+            'maximum': None,
+        }
+
+    def __repr__(self):
+        return f'{self.name} with values {self.values}'
+
+    def __str__(self):
+        return f'{self.name} with values {self.values}'
+
+
 class Argument:
+    """
+    Argument that can be supplied to a tool.
+    """
+
     def __init__(self, name, default=None, required=False):
         self.name = name
         self.default = default
@@ -204,8 +240,8 @@ class Parameter(ABC, Thread):
             self.tooldict = tool[self.toolname]
 
         self.arguments_dict = {}
-
-        self.result = {'type': ResultType.UNKNOWN, 'values': []}
+        self.results_dict = {}
+        self.result_type = ResultType.UNKNOWN
 
         self.canceled = False
         self.done = False
@@ -222,8 +258,22 @@ class Parameter(ABC, Thread):
         else:
             self.arguments_dict[arg.name] = arg.default
 
-    def get_argument(self, arg: str):
-        return self.arguments_dict[arg]
+    def get_argument(self, name: str):
+        if name in self.arguments_dict:
+            return self.arguments_dict[name]
+
+        warn(f'Could not find argument {name}.')
+        return None
+
+    def add_result(self, arg: Result):
+        self.results_dict[arg.name] = arg
+
+    def get_result(self, name: str):
+        if name in self.results_dict:
+            return self.results_dict[name]
+
+        warn(f'Could not find result {name}.')
+        return None
 
     def cancel(self, no_cb):
         info(f'Parameter {self.pname}: Canceled')
@@ -239,7 +289,7 @@ class Parameter(ABC, Thread):
         """If canceled, call the cancel cb and exit the thread"""
 
         if self.canceled:
-            self.result['type'] = ResultType.CANCELED
+            self.result_type = ResultType.CANCELED
             if self.cancel_cb:
                 self.cancel_cb(self.param)
             sys.exit()
@@ -274,7 +324,7 @@ class Parameter(ABC, Thread):
 
         except Exception:
             traceback.print_exc()
-            self.result['type'] = ResultType.ERROR
+            self.result_type = ResultType.ERROR
             self.canceled = True
 
         self.evaluate_result()
@@ -285,9 +335,7 @@ class Parameter(ABC, Thread):
         if self.end_cb:
             self.end_cb(self.param)
 
-        rule(f'Completed {self.param["display"]}: {self.result["type"]}')
-
-        return self.result
+        rule(f'Completed {self.param["display"]}: {self.result_type}')
 
     @abstractmethod
     def implementation(self):
@@ -378,85 +426,112 @@ class Parameter(ABC, Thread):
             },
         }
 
-        # For each entry in the specs
-        for entry in ['minimum', 'typical', 'maximum']:
+        # For each named result in the spec
+        for named_result in self.param['spec']:
 
-            if entry in self.param['spec']:
-                value = self.param['spec'][entry]['value']
-                fail = (
-                    self.param['spec'][entry]['fail']
-                    if 'fail' in self.param['spec'][entry]
-                    else defaults[entry]['fail']
-                )
-                calculation = (
-                    self.param['spec'][entry]['calculation']
-                    if 'calculation' in self.param['spec'][entry]
-                    else defaults[entry]['calculation']
-                )
-                limit = (
-                    self.param['spec'][entry]['limit']
-                    if 'limit' in self.param['spec'][entry]
-                    else defaults[entry]['limit']
-                )
+            # For each entry in the specs
+            for entry in ['minimum', 'typical', 'maximum']:
 
-                if self.result['values']:
-                    # Calculate a single value from a vector
-                    if calculation == 'minimum':
-                        result = min(self.result['values'])
-                    elif calculation == 'maximum':
-                        result = max(self.result['values'])
-                    elif calculation == 'median':
-                        result = median(self.result['values'])
-                    elif calculation == 'average':
-                        result = mean(self.result['values'])
-                    else:
-                        err(f'Unknown calculation type: {calculation}')
-                else:
-                    result = None
+                if entry in self.param['spec'][named_result]:
+                    value = self.param['spec'][named_result][entry]['value']
+                    fail = (
+                        self.param['spec'][named_result][entry]['fail']
+                        if 'fail' in self.param['spec'][named_result][entry]
+                        else defaults[entry]['fail']
+                    )
+                    calculation = (
+                        self.param['spec'][named_result][entry]['calculation']
+                        if 'calculation'
+                        in self.param['spec'][named_result][entry]
+                        else defaults[entry]['calculation']
+                    )
+                    limit = (
+                        self.param['spec'][named_result][entry]['limit']
+                        if 'limit' in self.param['spec'][named_result][entry]
+                        else defaults[entry]['limit']
+                    )
 
-                self.result[entry] = {'value': result}
-                dbg(f'Got {entry} result for {self.pname}: {result}')
+                    # Check if there are values for the named result
+                    if self.get_result(named_result).values:
+                        values = self.get_result(named_result).values
 
-                status = 'pass'
-
-                # Check result against a limit
-                if value != 'any' and fail == True:
-                    # Scale value with unit
-                    if 'unit' in self.param:
-                        dbg(f'{self.param["unit"]} {value}')
-                        value = spice_unit_convert(
-                            (str(self.param['unit']), str(value))
-                        )
-
-                    if result != None:
-                        dbg(
-                            f'Checking result {result} against value {value} with limit {limit}.'
-                        )
-                        if limit == 'above':
-                            if result < float(value):
-                                status = 'fail'
-                        elif limit == 'below':
-                            if result > float(value):
-                                status = 'fail'
-                        elif limit == 'exact':
-                            if result != float(value):
-                                status = 'fail'
+                        # Calculate a single value from a vector
+                        if calculation == 'minimum':
+                            result = min(values)
+                        elif calculation == 'maximum':
+                            result = max(values)
+                        elif calculation == 'median':
+                            result = median(values)
+                        elif calculation == 'average':
+                            result = mean(values)
                         else:
-                            err(f'Unknown limit type: {limit}')
+                            err(f'Unknown calculation type: {calculation}')
+                    else:
+                        result = None
 
-                self.result[entry]['status'] = status
+                    self.get_result(named_result).result[entry] = result
+                    dbg(
+                        f'Got {entry} result for {self.pname} {named_result}: {result}'
+                    )
 
-                dbg(f'Got {entry} status for {self.pname}: {status}')
+                    status = 'pass'
 
-            else:
-                self.result[entry] = None
+                    # Check result against a limit
+                    if value != 'any' and fail == True:
 
-        for entry in ['minimum', 'typical', 'maximum']:
-            if entry in self.result:
-                if self.result[entry] and 'status' in self.result[entry]:
-                    if self.result[entry]['status'] == 'fail':
+                        # Prefer the local unit
+                        unit = (
+                            self.param['spec'][named_result]['unit']
+                            if 'unit' in self.param['spec'][named_result]
+                            else None
+                        )
+
+                        # Else use the global unit
+                        if not unit:
+                            unit = (
+                                self.param['unit']
+                                if 'unit' in self.param
+                                else None
+                            )
+
+                        # Scale value with unit
+                        if unit:
+                            dbg(f'{unit} {value}')
+                            value = spice_unit_convert(
+                                (
+                                    str(unit),
+                                    str(value),
+                                )
+                            )
+
+                        if result != None:
+                            dbg(
+                                f'Checking result {result} against value {value} with limit {limit}.'
+                            )
+                            if limit == 'above':
+                                if result < float(value):
+                                    status = 'fail'
+                            elif limit == 'below':
+                                if result > float(value):
+                                    status = 'fail'
+                            elif limit == 'exact':
+                                if result != float(value):
+                                    status = 'fail'
+                            else:
+                                err(f'Unknown limit type: {limit}')
+
+                    self.get_result(named_result).status[entry] = status
+
+                    dbg(
+                        f'Got {entry} status for {self.pname} {named_result}: {status}'
+                    )
+
+            # Final checks for failure
+            for entry in ['minimum', 'typical', 'maximum']:
+                if self.get_result(named_result).result[entry]:
+                    if self.get_result(named_result).status[entry] == 'fail':
                         # If any spec fails, fail the whole parameter
-                        self.result['type'] = ResultType.FAILURE
+                        self.result_type = ResultType.FAILURE
 
     def get_default_conditions(self):
         # Get the global default conditions
@@ -660,7 +735,7 @@ class Parameter(ABC, Thread):
 
         if not os.path.isfile(template_path):
             err(f'Could not find template file {template_path}.')
-            self.result['type'] = ResultType.ERROR
+            self.result_type = ResultType.ERROR
             return
 
         # Read template into a list
@@ -800,43 +875,87 @@ class Parameter(ABC, Thread):
             for line in substituted_lines:
                 outfile.write(f'{line}\n')
 
-    def makeplot(self, condition_sets, conditions, results_for_plot):
+    def makeplot(
+        self,
+        plot_name,
+        condition_sets,
+        conditions,
+        results_for_plot,
+        parent=None,
+    ):
 
         info(
-            f'Parameter {self.param["name"]}: Plotting to \'[repr.filename][link=file://{os.path.abspath(self.param_dir)}]{os.path.relpath(self.param_dir)}[/link][/repr.filename]\'…'
+            f'Parameter {self.param["name"]}: Plotting {plot_name} to \'[repr.filename][link=file://{os.path.abspath(self.param_dir)}]{os.path.relpath(self.param_dir)}[/link][/repr.filename]\'…'
         )
 
         if (
-            not 'yaxis' in self.param['plot']
-            and not 'xaxis' in self.param['plot']
+            not 'yaxis' in self.param['plot'][plot_name]
+            and not 'xaxis' in self.param['plot'][plot_name]
         ):
-            err('Neither yaxis or xaxis specified.')
+            err('Neither yaxis nor xaxis specified.')
 
         xvariable = None
-        if 'xaxis' in self.param['plot']:
-            xvariable = self.param['plot']['xaxis']
+        if 'xaxis' in self.param['plot'][plot_name]:
+            xvariable = self.param['plot'][plot_name]['xaxis']
+
         xdisplay = xvariable
         xunit = ''
 
-        yvariable = None
-        if 'yaxis' in self.param['plot']:
-            yvariable = self.param['plot']['yaxis']
-        ydisplay = yvariable
-        yunit = ''
+        yvariables = []
+        if 'yaxis' in self.param['plot'][plot_name]:
+            yvariables = self.param['plot'][plot_name]['yaxis']
 
-        # The result variable inherits display
-        # and unit from the parameter
-        if xvariable == 'result':
+            # Make a list if there's only a single entry
+            if not isinstance(yvariables, list):
+                yvariables = [yvariables]
+
+        ydisplays = {key: key for key in yvariables}
+        yunits = {key: '' for key in yvariables}
+
+        # Get global display and unit
+        if 'display' in self.param:
             xdisplay = self.param['display']
+        if 'unit' in self.param:
             xunit = self.param['unit']
 
-        # The result variable inherits display
-        # and unit from the parameter
-        if xvariable == 'result':
-            xdisplay = self.param['display']
-            xunit = self.param['unit']
+        # If xvariable is a condition, get display and unit
+        if xvariable in conditions:
+            if conditions[xvariable].display:
+                xdisplay = conditions[xvariable].display
 
-        # For other variables see if there is an entry
+            if conditions[xvariable].unit:
+                xunit = conditions[xvariable].unit
+
+        # If yvariable is a condition, get display and unit
+        for yvariable in yvariables:
+            if yvariable in conditions:
+                if conditions[yvariable].display:
+                    ydisplays[yvariable] = conditions[yvariable].display
+
+                if conditions[yvariable].unit:
+                    yunits[yvariable] = conditions[yvariable].unit
+
+        # Overwrite with display and unit under "spec"
+        if 'spec' in self.param:
+            if xvariable in self.param['spec']:
+                if 'display' in self.param['spec'][xvariable]:
+                    xdisplay = self.param['spec'][xvariable]['display']
+                if 'unit' in self.param['spec'][xvariable]:
+                    xunit = self.param['spec'][xvariable]['unit']
+
+            for yvariable in yvariables:
+                if yvariable in self.param['spec']:
+                    if 'display' in self.param['spec'][yvariable]:
+                        ydisplays[yvariable] = self.param['spec'][yvariable][
+                            'display'
+                        ]
+
+                    if 'unit' in self.param['spec'][yvariable]:
+                        yunits[yvariable] = self.param['spec'][yvariable][
+                            'unit'
+                        ]
+
+        # Overwrite with display and unit under "variables"
         if 'variables' in self.param:
             if xvariable in self.param['variables']:
                 if 'display' in self.param['variables'][xvariable]:
@@ -844,79 +963,88 @@ class Parameter(ABC, Thread):
                 if 'unit' in self.param['variables'][xvariable]:
                     xunit = self.param['variables'][xvariable]['unit']
 
-            if yvariable in self.param['variables']:
-                if 'display' in self.param['variables'][yvariable]:
-                    ydisplay = self.param['variables'][yvariable]['display']
-                if 'unit' in self.param['variables'][yvariable]:
-                    yunit = self.param['variables'][yvariable]['unit']
+            for yvariable in yvariables:
+                if yvariable in self.param['variables']:
+                    if 'display' in self.param['variables'][yvariable]:
+                        ydisplays[yvariable] = self.param['variables'][
+                            yvariable
+                        ]['display']
+
+                    if 'unit' in self.param['variables'][yvariable]:
+                        yunits[yvariable] = self.param['variables'][yvariable][
+                            'unit'
+                        ]
+
+        # Assemble the string displayed at the y-axis
+        xdisplay = f'{xdisplay} ({xunit})' if xunit != '' else xdisplay
+
+        # Assemble the string displayed at the y-axis
+        ydisplay = ', '.join(
+            [
+                f'{value} ({unit})' if unit != '' else value
+                for value, unit in zip(ydisplays.values(), yunits.values())
+            ]
+        )
 
         # Create a new figure
-        param_fig = Figure()
+        fig = Figure()
+        if parent == None:
+            canvas = FigureCanvasAgg(fig)
+        else:
+            canvas = FigureCanvasTkAgg(fig, parent)
 
         # Set the title, if given
-        if 'title' in self.param['plot']:
-            fig.suptitle(self.param['plot']['title'])
+        if 'title' in self.param['plot'][plot_name]:
+            fig.suptitle(self.param['plot'][plot_name]['title'])
 
-        # Filename for the whole parameter plot
-        filename = f'{self.param["name"]}.png'
-        if 'filename' in self.param['plot']:
-            filename = self.param['plot']['filename']
+        # File format
+        suffix = '.png'
+        if 'suffix' in self.param['plot'][plot_name]:
+            suffix = self.param['plot'][plot_name]['suffix']
+
+        # Filename for the plot
+        filename = f'{plot_name}{suffix}'
 
         # Create a new axis for the whole parameter
-        param_ax = param_fig.add_subplot(111)
+        ax = fig.add_subplot(111)
 
         # Get the plot type
         plot_type = 'xyplot'
-        if 'type' in self.param['plot']:
-            plot_type = self.param['plot']['type']
+        if 'type' in self.param['plot'][plot_name]:
+            plot_type = self.param['plot'][plot_name]['type']
 
-        # Set the title, if given
+        # TODO
         stacked = False
-        if 'stacked' in self.param['plot']:
-            if self.param['plot']['stacked']:
+        if 'stacked' in self.param['plot'][plot_name]:
+            if self.param['plot'][plot_name]['stacked']:
                 stacked = True
 
         # Set x and y labels
-        param_ax.set_xlabel(xdisplay)
-        param_ax.set_ylabel(ydisplay)
+        ax.set_xlabel(xdisplay)
+        ax.set_ylabel(ydisplay)
 
         # Enable the grid
-        if 'grid' in self.param['plot']:
-            if self.param['plot']['grid']:
-                param_ax.grid(True)
+        if 'grid' in self.param['plot'][plot_name]:
+            if self.param['plot'][plot_name]['grid']:
+                ax.grid(True)
 
         # Set opacity for histogram
         opacity = 1.0
         if len(condition_sets) > 1:
             opacity = 0.5
 
+        # If a condition is used as x-axis, merge same entries TODO
+        if xvariable in conditions:
+
+            condition = conditions[xvariable]
+            # print(condition)
+
+            for value in condition.values:
+                # print(value)
+                pass
+
         # Get the result
-        max_digits = len(str(len(condition_sets)))
         for index, condition_set in enumerate(condition_sets):
-
-            # Create a new figure, just for this run
-            run_fig = Figure()
-
-            # Set the title, if given
-            if 'title' in self.param['plot']:
-                run_fig.suptitle(self.param['plot']['title'])
-
-            # Create a new axis just for this run
-            run_ax = run_fig.add_subplot(111)
-
-            # Set x and y labels
-            run_ax.set_xlabel(xdisplay)
-            run_ax.set_ylabel(ydisplay)
-
-            # Enable the grid
-            if 'grid' in self.param['plot']:
-                if self.param['plot']['grid']:
-                    run_ax.grid(True)
-
-            # Get directory for this run
-            outpath = os.path.join(
-                self.param_dir, f'run_{index:0{max_digits}d}'
-            )
 
             # Get the results for this plot
             collated_variable_values = results_for_plot[index]
@@ -931,17 +1059,20 @@ class Parameter(ABC, Thread):
                     xvalues = condition_set[xvariable]
                 else:
                     err(f'Unknown variable: {xvariable}')
+                    return None
 
-            yvalues = None
-            if yvariable:
-                # Is the variable a simulation result?
-                if yvariable in collated_variable_values:
-                    yvalues = collated_variable_values[yvariable]
-                # Else it may be a condition?
-                elif yvariable in condition_set:
-                    yvalues = condition_set[yvariable]
-                else:
-                    err(f'Unknown variable: {yvariable}')
+            yvalues = []
+            for yvariable in yvariables:
+                if yvariable:
+                    # Is the variable a simulation result?
+                    if yvariable in collated_variable_values:
+                        yvalues.append(collated_variable_values[yvariable])
+                    # Else it may be a condition?
+                    elif yvariable in condition_set:
+                        yvalues.append(condition_set[yvariable])
+                    else:
+                        err(f'Unknown variable: {yvariable}')
+                        return None
 
             marker = None
             if not isinstance(xvalues, list) or len(xvalues) == 1:
@@ -958,99 +1089,53 @@ class Parameter(ABC, Thread):
                         )
             label = ', '.join(label)
 
-            self.plot(
-                xvalues,
-                yvalues,
-                [param_ax, run_ax],
-                plot_type,
-                label,
-                marker,
-                stacked,
-                opacity,
-            )
-
-            # Plot other variables than xvariable or yvariable
-            if 'variables' in self.param:
-                for variable in self.param['variables']:
-                    if variable != xvariable and variable != yvariable:
-                        # Is the variable a simulation result?
-                        if variable in collated_variable_values:
-                            yvalues = collated_variable_values[variable]
-                        else:
-                            err(f'Unknown variable: {xvariable}')
-
-                        label = variable
-
-                        self.plot(
-                            xvalues,
-                            yvalues,
-                            [run_ax],
-                            plot_type,
-                            label,
-                            marker,
-                            stacked,
-                        )
-
-            # Enable the legend
-            legend = None
-            if 'legend' in self.param['plot'] and self.param['plot']['legend']:
-                legend = run_ax.legend(
-                    loc=2, bbox_to_anchor=(1.04, 1), borderaxespad=0.0
+            for yvalue in yvalues:
+                self.plot(
+                    xvalues,
+                    yvalue,
+                    [ax],
+                    plot_type,
+                    label,
+                    marker,
+                    stacked,
+                    opacity,
                 )
 
-            # Save the figure for this run
-            if legend:
-                run_fig.savefig(
-                    os.path.join(outpath, filename),
-                    bbox_inches='tight',
-                    bbox_extra_artists=[legend],
+            if not yvalues:
+                self.plot(
+                    xvalues,
+                    yvalues,
+                    [ax],
+                    plot_type,
+                    label,
+                    marker,
+                    stacked,
+                    opacity,
                 )
-            else:
-                run_fig.savefig(
-                    os.path.join(outpath, filename), bbox_inches='tight'
-                )
-
-        # Plot other variables than xvariable or yvariable
-        if 'variables' in self.param:
-            for variable in self.param['variables']:
-                if variable != xvariable and variable != yvariable:
-                    # Is the variable a simulation result?
-                    if variable in collated_variable_values:
-                        yvalues = collated_variable_values[variable]
-                    else:
-                        err(f'Unknown variable: {xvariable}')
-
-                    label = variable
-                    self.plot(
-                        xvalues,
-                        yvalues,
-                        [param_ax],
-                        plot_type,
-                        label,
-                        marker,
-                        stacked,
-                    )
 
         # Enable the legend
         legend = None
         if len(condition_sets) > 1 or (
-            'legend' in self.param['plot'] and self.param['plot']['legend']
+            'legend' in self.param['plot'][plot_name]
+            and self.param['plot'][plot_name]['legend']
         ):
-            legend = param_ax.legend(
+            legend = ax.legend(
                 loc=2, bbox_to_anchor=(1.04, 1), borderaxespad=0.0
             )
 
         # Save the figure for the whole parameter
         if legend:
-            param_fig.savefig(
+            fig.savefig(
                 os.path.join(self.param_dir, filename),
                 bbox_inches='tight',
                 bbox_extra_artists=[legend],
             )
         else:
-            param_fig.savefig(
+            fig.savefig(
                 os.path.join(self.param_dir, filename), bbox_inches='tight'
             )
+
+        return canvas
 
     def plot(
         self,

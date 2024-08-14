@@ -155,7 +155,7 @@ name:           ota-5t
 description:    A simple 5-transistor OTA
 PDK:            sky130A
 
-cace_format:    5.0
+cace_format:    5.2
 
 authorship:
   designer:         Leo Moser
@@ -248,73 +248,53 @@ Finally, the conditions are specified in either `minimum`/`typical`/`maximum` no
 
 ```yaml
 parameters:
-  a0:
-    description: DC gain
-    display: DC gain
-    unit: V/V
+  dc_params:
     spec:
-      minimum:
-        value: 50
-      typical:
-        value: any
-      maximum:
-        value: any
+      a0:
+        display: DC gain
+        description: The DC gain of the OTA
+        unit: V/V
+        minimum:
+          value: 50
+        typical:
+          value: any
+        maximum:
+          value: any
+      ugf:
+        display: Unity Gain Frequency
+        description: The unity gain frequency of the OTA
+        unit: Hz
+        minimum:
+          value: 1e6
+        typical:
+          value: any
+        maximum:
+          value: any
+      pm:
+        display: Phase Margin
+        description: The phase margin of the OTA
+        unit: °
+        minimum:
+          value: 60
+        typical:
+          value: any
+        maximum:
+          value: any
     tool:
       ngspice:
         template: ac.sch
         format: ascii
         suffix: .data
-        variables: [result, null, null]
-    conditions:
-      corner:
-        enumerate: [tt, ff, ss] # fs, sf
-      temperature:
-        minimum: -40
-        typical: 27
-        maximum: 130
-
-  ugf:
-    description: Unity Gain Frequency
-    display: Unity Gain Frequency
-    unit: Hz
-    spec:
-      minimum:
-        value: 1e6
-      typical:
-        value: any
-      maximum:
-        value: any
-    tool:
-      ngspice:
-        template: ac.sch
-        format: ascii
-        suffix: .data
-        variables: [null, result, null]
-    conditions:
-      corner:
-        enumerate: [tt, ff, ss] # fs, sf
-      temperature:
-        minimum: -40
-        typical: 27
-        maximum: 130
-
-  pm:
-    description: Phase Margin
-    display: Phase Margin
-    unit: °
-    spec:
-      minimum:
-        value: 60
-      typical:
-        value: any
-      maximum:
-        value: any
-    tool:
-      ngspice:
-        template: ac.sch
-        format: ascii
-        suffix: .data
-        variables: [null, null, result]
+        variables: [a0, ugf, pm]
+    plot:
+      gain_vs_temperature:
+        type: xyplot
+        xaxis: temperature
+        yaxis: a0
+      phase_margin_vs_corner:
+        type: xyplot
+        xaxis: corner
+        yaxis: pm
     conditions:
       corner:
         enumerate: [tt, ff, ss] # fs, sf
@@ -327,13 +307,26 @@ parameters:
 CACE has also support for other tools which evaluate properties of the layout such as area, width, length, DRC and LVS. They also specify a limit, whereby for DRC and LVS only a maximum of 0 makes any sense at all.
 
 ```yaml
-  area:
-    description: Total circuit layout area
-    display: Area
-    unit: µm²
+  magic_area:
     spec:
-      maximum:
-        value: 600
+      area:
+        display: Area
+        description: Total circuit layout area
+        unit: µm²
+        maximum:
+          value: 600
+      width:
+        display: Width
+        description: Total circuit layout width
+        unit: µm
+        maximum:
+          value: any
+      height:
+        display: Height
+        description: Total circuit layout height
+        unit: µm
+        maximum:
+          value: any
     tool:
       magic_area
 
@@ -341,8 +334,9 @@ CACE has also support for other tools which evaluate properties of the layout su
     description: Magic DRC
     display: Magic DRC
     spec:
-      maximum:
-        value: 0
+      drc_errors:
+        maximum:
+          value: 0
     tool:
       magic_drc
 
@@ -350,8 +344,9 @@ CACE has also support for other tools which evaluate properties of the layout su
     description: Netgen LVS
     display: Netgen LVS
     spec:
-      maximum:
-        value: 0
+      lvs_errors:
+        maximum:
+          value: 0
     tool:
       netgen_lvs:
         script: run_project_lvs.tcl
@@ -360,8 +355,9 @@ CACE has also support for other tools which evaluate properties of the layout su
     description: KLayout DRC full
     display: KLayout DRC full
     spec:
-      maximum:
-        value: 0
+      drc_errors:
+        maximum:
+          value: 0
     tool:
         klayout_drc:
             args: ['-rd', 'feol=true', '-rd', 'beol=true', '-rd', 'offgrid=true']
