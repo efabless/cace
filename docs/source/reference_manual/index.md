@@ -6,5 +6,6 @@
 
 datasheet_format
 template_format
+tools
 deprecated/index
 ```

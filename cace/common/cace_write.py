@@ -197,7 +197,6 @@ def generate_documentation(datasheet):
         err(f'Error generating SVG for schematic.')
 
     # Generate KLayout image
-
     svgpath = os.path.join(
         datasheet['paths']['root'],
         datasheet['paths']['documentation'],
@@ -213,15 +212,13 @@ def generate_documentation(datasheet):
         if not os.path.exists(layout_path):
             layoutname = datasheet['name'] + '.gds.gz'
             layout_path = os.path.join(layout_directory, layoutname)
-    else:
-        err('No "layout" specified in datasheet paths.')
 
-    klayout_generate_png(
-        layout_path,
-        os.path.join(
-            datasheet['paths']['root'], datasheet['paths']['documentation']
-        ),
-    )
+        klayout_generate_png(
+            layout_path,
+            os.path.join(
+                datasheet['paths']['root'], datasheet['paths']['documentation']
+            ),
+        )
 
     # Generate magic image
 
@@ -246,13 +243,11 @@ def generate_documentation(datasheet):
         if not os.path.exists(layout_path):
             layoutname = datasheet['name'] + '.gds.gz'
             layout_path = os.path.join(layout_directory, layoutname)
-    else:
-        err('Neither "magic" nor "layout" specified in datasheet paths.')
 
     # magic_generate_svg(layout_path, svgpath)
 
 
-def markdown_summary(datasheet, runtime_options, results):
+def markdown_summary(datasheet, runtime_options, results, result_types):
     """
     Returns a brief summary of the datasheet and its parameters
     The summary is formatted in Markdown and can either be printed
@@ -262,7 +257,7 @@ def markdown_summary(datasheet, runtime_options, results):
     result = ''
 
     # Table spacings
-    sp = [20, 20, 10, 12, 10, 12, 10, 12, 8]
+    sp = [20, 20, 15, 10, 12, 10, 12, 10, 12, 8]
 
     result += f'\n# CACE Summary for {datasheet["name"]}\n\n'
 
@@ -273,13 +268,14 @@ def markdown_summary(datasheet, runtime_options, results):
         [
             f'| {"Parameter": ^{sp[0]}} ',
             f'| {"Tool": ^{sp[1]}} ',
-            f'| {"Min Limit": ^{sp[2]}} ',
-            f'| {"Min Value": ^{sp[3]}} ',
-            f'| {"Typ Target": ^{sp[4]}} ',
-            f'| {"Typ Value": ^{sp[5]}} ',
-            f'| {"Max Limit": ^{sp[6]}} ',
-            f'| {"Max Value": ^{sp[7]}} ',
-            f'| {"Status": ^{sp[8]}} |\n',
+            f'| {"Result": ^{sp[2]}} ',
+            f'| {"Min Limit": ^{sp[3]}} ',
+            f'| {"Min Value": ^{sp[4]}} ',
+            f'| {"Typ Target": ^{sp[5]}} ',
+            f'| {"Typ Value": ^{sp[6]}} ',
+            f'| {"Max Limit": ^{sp[7]}} ',
+            f'| {"Max Value": ^{sp[8]}} ',
+            f'| {"Status": ^{sp[9]}} |\n',
         ]
     )
     # Print the separators
@@ -287,109 +283,142 @@ def markdown_summary(datasheet, runtime_options, results):
         [
             f'| :{"-"*(sp[0]-1)} ',
             f'| :{"-"*(sp[1]-1)} ',
-            f'| {"-"*(sp[2]-1)}: ',
+            f'| :{"-"*(sp[2]-1)} ',
             f'| {"-"*(sp[3]-1)}: ',
             f'| {"-"*(sp[4]-1)}: ',
             f'| {"-"*(sp[5]-1)}: ',
             f'| {"-"*(sp[6]-1)}: ',
             f'| {"-"*(sp[7]-1)}: ',
-            f'| :{"-"*(sp[8]-2)}: |\n',
+            f'| {"-"*(sp[8]-1)}: ',
+            f'| :{"-"*(sp[9]-2)}: |\n',
         ]
     )
 
+    # For each parameter
     for param in datasheet['parameters'].values():
 
-        # Get the unit
-        unit = param['unit'] if 'unit' in param else None
+        # For each named result in the spec
+        for named_result in param['spec']:
 
-        limits = {'minimum': '', 'typical': '', 'maximum': ''}
+            # Prefer the local unit
+            unit = (
+                param['spec'][named_result]['unit']
+                if 'unit' in param['spec'][named_result]
+                else None
+            )
 
-        # Get the limits from the spec
-        if 'spec' in param:
-            for spec_type in ['minimum', 'typical', 'maximum']:
-                if spec_type in param['spec']:
-                    limits[spec_type] = param['spec'][spec_type]['value']
+            # Else use the global unit
+            if not unit:
+                unit = param['unit'] if 'unit' in param else None
 
-        values = {'minimum': '', 'typical': '', 'maximum': ''}
+            limits = {'minimum': '', 'typical': '', 'maximum': ''}
 
-        # Must be skipped, TODO set somewhere else
-        status = ResultType.SKIPPED
+            # Get the limits from the spec
+            for entry in ['minimum', 'typical', 'maximum']:
+                if entry in param['spec'][named_result]:
+                    limits[entry] = param['spec'][named_result][entry]['value']
 
-        # Get the results
-        for result_type in ['minimum', 'typical', 'maximum']:
+            values = {'minimum': '', 'typical': '', 'maximum': ''}
+
+            # Default is skipped, TODO set somewhere else
+            status = ResultType.SKIPPED
+
+            # Get the results and check the status
             if param['name'] in results:
-                if result_type in results[param['name']]:
-                    if results[param['name']][result_type]:
-                        if 'value' in results[param['name']][result_type]:
-                            values[result_type] = results[param['name']][
-                                result_type
-                            ]['value']
 
-                    # Get the status message
-                    status = results[param['name']]['type']
+                if named_result in results[param['name']]:
+                    status = ResultType.SUCCESS
+                    for entry in ['minimum', 'typical', 'maximum']:
+                        values[entry] = results[param['name']][
+                            named_result
+                        ].result[entry]
 
-        # Get the tool
-        tool = param['tool']
+                        # Check the result type
+                        if (
+                            results[param['name']][named_result].status[entry]
+                            == 'fail'
+                        ):
+                            status = ResultType.FAILURE
 
-        # Get the name of the tool
-        if isinstance(tool, str):
-            toolname = tool
-        else:
-            toolname = list(tool.keys())[0]
+                # Overwrite with parameter result type
+                if param['name'] in result_types:
+                    if result_types[param['name']] == ResultType.SKIPPED:
+                        status = ResultType.SKIPPED
+                    if result_types[param['name']] == ResultType.ERROR:
+                        status = ResultType.ERROR
+                    elif result_types[param['name']] == ResultType.UNKNOWN:
+                        status = ResultType.UNKNOWN
+                    elif result_types[param['name']] == ResultType.CANCELED:
+                        status = ResultType.CANCELED
 
-        # Don't print any unit if empty or "any"
-        no_unit = ['', 'any', None]
+            # Get the tool
+            tool = param['tool']
 
-        # Print the row for the parameter
-        parameter_str = param['display']
-        tool_str = toolname
-        min_limit_str = (
-            f'{limits["minimum"]} {unit}'
-            if unit and not limits['minimum'] in no_unit
-            else limits['minimum']
-        )
-        min_value_str = (
-            f'{spice_unit_unconvert((str(unit), values["minimum"])):.3f} {unit}'
-            if unit and not values['minimum'] in no_unit
-            else values['minimum']
-        )
-        typ_limit_str = (
-            f'{limits["typical"]} {unit}'
-            if unit and not limits['typical'] in no_unit
-            else limits['typical']
-        )
-        typ_value_str = (
-            f'{spice_unit_unconvert((str(unit), values["typical"])):.3f} {unit}'
-            if unit and not values['typical'] in no_unit
-            else values['typical']
-        )
-        max_limit_str = (
-            f'{limits["maximum"]} {unit}'
-            if unit and not limits['maximum'] in no_unit
-            else limits['maximum']
-        )
-        max_value_str = (
-            f'{spice_unit_unconvert((str(unit), values["maximum"])):.3f} {unit}'
-            if unit and not values['maximum'] in no_unit
-            else values['maximum']
-        )
-        status_str = status
+            # Get the name of the tool
+            if isinstance(tool, str):
+                toolname = tool
+            else:
+                toolname = list(tool.keys())[0]
 
-        # Workaround for rich: replace empty cells with one invisible space character
-        inv_char = '\u200B'
-        result += ''.join(
-            [
-                f'| {parameter_str if parameter_str != "" and parameter_str != None else inv_char: <{sp[0]}} ',
-                f'| {tool_str if tool_str != "" and tool_str != None else inv_char: <{sp[1]}} ',
-                f'| {min_limit_str if min_limit_str != "" and min_limit_str != None else inv_char: >{sp[2]}} ',
-                f'| {min_value_str if min_value_str != "" and min_value_str != None else inv_char: >{sp[3]}} ',
-                f'| {typ_limit_str if typ_limit_str != "" and typ_limit_str != None else inv_char: >{sp[4]}} ',
-                f'| {typ_value_str if typ_value_str != "" and typ_value_str != None else inv_char: >{sp[5]}} ',
-                f'| {max_limit_str if max_limit_str != "" and max_limit_str != None else inv_char: >{sp[6]}} ',
-                f'| {max_value_str if max_value_str != "" and max_value_str != None else inv_char: >{sp[7]}} ',
-                f'| {status_str if status_str != "" and status_str != None else inv_char: ^{sp[8]-1}} |\n',
-            ]
-        )
+            # Don't print any unit if empty or "any"
+            no_unit = ['', 'any', None]
+
+            # Print the row for the parameter
+            parameter_str = (
+                param['spec'][named_result]['display']
+                if 'display' in param['spec'][named_result]
+                else param['display']
+            )
+            tool_str = toolname
+            result_str = named_result
+            min_limit_str = (
+                f'{limits["minimum"]} {unit}'
+                if unit and not limits['minimum'] in no_unit
+                else limits['minimum']
+            )
+            min_value_str = (
+                f'{spice_unit_unconvert((str(unit), values["minimum"])):.3f} {unit}'
+                if unit and not values['minimum'] in no_unit
+                else values['minimum']
+            )
+            typ_limit_str = (
+                f'{limits["typical"]} {unit}'
+                if unit and not limits['typical'] in no_unit
+                else limits['typical']
+            )
+            typ_value_str = (
+                f'{spice_unit_unconvert((str(unit), values["typical"])):.3f} {unit}'
+                if unit and not values['typical'] in no_unit
+                else values['typical']
+            )
+            max_limit_str = (
+                f'{limits["maximum"]} {unit}'
+                if unit and not limits['maximum'] in no_unit
+                else limits['maximum']
+            )
+            max_value_str = (
+                f'{spice_unit_unconvert((str(unit), values["maximum"])):.3f} {unit}'
+                if unit and not values['maximum'] in no_unit
+                else values['maximum']
+            )
+            status_str = status
+
+            # Workaround for rich: replace empty cells with one invisible space character
+            inv_char = '\u200B'
+            result += ''.join(
+                [
+                    f'| {parameter_str if parameter_str != "" and parameter_str != None else inv_char: <{sp[0]}} ',
+                    f'| {tool_str if tool_str != "" and tool_str != None else inv_char: <{sp[1]}} ',
+                    f'| {result_str if result_str != "" and result_str != None else inv_char: <{sp[1]}} ',
+                    f'| {min_limit_str if min_limit_str != "" and min_limit_str != None else inv_char: >{sp[2]}} ',
+                    f'| {min_value_str if min_value_str != "" and min_value_str != None else inv_char: >{sp[3]}} ',
+                    f'| {typ_limit_str if typ_limit_str != "" and typ_limit_str != None else inv_char: >{sp[4]}} ',
+                    f'| {typ_value_str if typ_value_str != "" and typ_value_str != None else inv_char: >{sp[5]}} ',
+                    f'| {max_limit_str if max_limit_str != "" and max_limit_str != None else inv_char: >{sp[6]}} ',
+                    f'| {max_value_str if max_value_str != "" and max_value_str != None else inv_char: >{sp[7]}} ',
+                    f'| {status_str if status_str != "" and status_str != None else inv_char: ^{sp[8]-1}} |\n',
+                ]
+            )
 
     result += '\n'
     return result

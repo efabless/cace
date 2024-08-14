@@ -75,6 +75,7 @@ class ParameterManager:
         self.running_lock = threading.Lock()
 
         self.results = {}
+        self.result_types = {}
 
         self.runtime_options = {}
 
@@ -245,7 +246,10 @@ class ParameterManager:
 
     def summarize_datasheet(self):
         return markdown_summary(
-            self.datasheet, self.runtime_options, self.results
+            self.datasheet,
+            self.runtime_options,
+            self.results,
+            self.result_types,
         )
 
     def generate_documentation(self):
@@ -265,7 +269,10 @@ class ParameterManager:
 
             # Save summary for netlist type
             summary = markdown_summary(
-                self.datasheet, self.runtime_options, self.results
+                self.datasheet,
+                self.runtime_options,
+                self.results,
+                self.result_types,
             )
             summarypath = os.path.join(
                 self.datasheet['paths']['root'],
@@ -274,6 +281,64 @@ class ParameterManager:
             )
             with open(summarypath, 'w') as ofile:
                 ofile.write(summary)
+
+                # Save the plots
+
+                # TODO
+                ofile.write(f'\n## Plots\n')
+
+                for parameter in self.datasheet['parameters']:
+                    if 'plot' in self.datasheet['parameters'][parameter]:
+                        plotpath = os.path.join(
+                            self.datasheet['paths']['root'],
+                            self.datasheet['paths']['documentation'],
+                            f'{self.datasheet["name"]}',
+                            f'{self.runtime_options["netlist_source"]}',
+                        )
+                        mkdirp(plotpath)
+
+                        for named_plot in self.datasheet['parameters'][
+                            parameter
+                        ]['plot']:
+
+                            # File format
+                            suffix = '.png'
+                            if (
+                                'suffix'
+                                in self.datasheet['parameters'][parameter][
+                                    'plot'
+                                ][named_plot]
+                            ):
+                                suffix = self.datasheet['parameters'][
+                                    parameter
+                                ]['plot'][named_plot]['suffix']
+
+                            # Filename for the plot
+                            filename = f'{named_plot}{suffix}'
+
+                            param_dir = os.path.abspath(
+                                os.path.join(
+                                    self.run_dir,
+                                    'parameters',
+                                    self.datasheet['parameters'][parameter][
+                                        'name'
+                                    ],
+                                )
+                            )
+
+                            source = os.path.join(param_dir, filename)
+                            destination = os.path.join(plotpath, filename)
+
+                            # Only copy if the file exists
+                            if os.path.exists(source) and os.path.isfile(
+                                source
+                            ):
+                                shutil.copy(source, destination)
+                                ofile.write(f'\n## {named_plot}\n')
+
+                                ofile.write(
+                                    f'\n![{named_plot}]({os.path.join(".", self.datasheet["name"], self.runtime_options["netlist_source"], filename)})\n'
+                                )
 
         else:
             info(
@@ -487,7 +552,8 @@ class ParameterManager:
             if not t.is_alive() and t.started:
                 if t.pname in self.results:
                     warn(f'{t.pname} already in results!')
-                self.results[t.pname] = t.result
+                self.results[t.pname] = t.results_dict
+                self.result_types[t.pname] = t.result_type
                 t.harvested = True
 
         # Remove completed threads
@@ -500,6 +566,9 @@ class ParameterManager:
 
     def get_results(self):
         return self.results
+
+    def get_result_types(self):
+        return self.result_types
 
     def num_parameters(self):
         """Get the number of queued or running parameters"""
