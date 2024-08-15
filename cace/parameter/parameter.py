@@ -15,6 +15,7 @@
 import os
 import re
 import sys
+import copy
 import traceback
 import subprocess
 from statistics import median, mean
@@ -176,10 +177,10 @@ class Condition:
         else:
             if 'minimum' in self.spec:
                 yield self.spec['minimum']
-            if 'maximum' in self.spec:
-                yield self.spec['maximum']
             if 'typical' in self.spec:
                 yield self.spec['typical']
+            if 'maximum' in self.spec:
+                yield self.spec['maximum']
 
 
 class Parameter(ABC, Thread):
@@ -1033,40 +1034,91 @@ class Parameter(ABC, Thread):
         if len(condition_sets) > 1:
             opacity = 0.5
 
-        # If a condition is used as x-axis, merge same entries TODO
+        # If the xvariable is a condition, remove it from the condition set
+        # since it is displayed on the xaxis anyways and merge the results
+
+        xvalues_list = []
+        yvalues_list = []
+        label_list = []
+
         if xvariable in conditions:
 
-            condition = conditions[xvariable]
-            # print(condition)
+            new_condition_sets = []
+            new_results_for_plot = []
+            hashes = []
 
-            for value in condition.values:
-                # print(value)
-                pass
+            # We only want ticks at certain locations
+            try:
+                ax.set_xticks(
+                    ticks=conditions[xvariable].values,
+                    labels=conditions[xvariable].values,
+                )
+            except:
+                ax.set_xticks(
+                    ticks=range(len(conditions[xvariable].values)),
+                    labels=conditions[xvariable].values,
+                )
 
-        # Get the result
-        for index, condition_set in enumerate(condition_sets):
+            # Get the result
+            for condition_set, results in zip(
+                condition_sets, results_for_plot
+            ):
 
-            # Get the results for this plot
-            collated_variable_values = results_for_plot[index]
+                # Create a deep copy of the condition set
+                condition_set = copy.deepcopy(condition_set)
+
+                # Remove the condition at the xaxis from the condition_set
+                condition_set.pop(xvariable)
+
+                # We also need to remove unique elements, or else no hash will match
+                condition_set.pop('N')
+                condition_set.pop('simpath')
+
+                cur_hash = hash(frozenset(condition_set.items()))
+
+                # Let' see if the condition set is not yet in the new condition sets
+                if not cur_hash in hashes:
+                    new_condition_sets.append(condition_set)
+                    new_results_for_plot.append(copy.deepcopy(results))
+                    hashes.append(cur_hash)
+
+                # If it is already, we need to extend the results
+                else:
+                    for index, this_hash in enumerate(hashes):
+                        # Found the condition set
+                        if cur_hash == this_hash:
+                            # Append to results
+                            for key in new_results_for_plot[index].keys():
+                                new_results_for_plot[index][key].extend(
+                                    list(results[key])
+                                )
+
+            condition_sets = new_condition_sets
+            results_for_plot = new_results_for_plot
+
+        # Generate the x and y values
+        for condition_set, results in zip(condition_sets, results_for_plot):
 
             xvalues = None
             if xvariable:
                 # Is the variable a simulation result?
-                if xvariable in collated_variable_values:
-                    xvalues = collated_variable_values[xvariable]
+                if xvariable in results:
+                    xvalues = results[xvariable]
                 # Else it may be a condition?
-                elif xvariable in condition_set:
-                    xvalues = condition_set[xvariable]
+                elif xvariable in conditions:
+                    xvalues = conditions[xvariable].values
                 else:
                     err(f'Unknown variable: {xvariable}')
                     return None
+
+            xvalues_list.append(xvalues)
 
             yvalues = []
             for yvariable in yvariables:
                 if yvariable:
                     # Is the variable a simulation result?
-                    if yvariable in collated_variable_values:
-                        yvalues.append(collated_variable_values[yvariable])
+                    if yvariable in results:
+                        yvalues.append(results[yvariable])
                     # Else it may be a condition?
                     elif yvariable in condition_set:
                         yvalues.append(condition_set[yvariable])
@@ -1074,9 +1126,7 @@ class Parameter(ABC, Thread):
                         err(f'Unknown variable: {yvariable}')
                         return None
 
-            marker = None
-            if not isinstance(xvalues, list) or len(xvalues) == 1:
-                marker = 'o'
+            yvalues_list.append(yvalues)
 
             # Get the label for the legend
             label = []
@@ -1088,6 +1138,16 @@ class Parameter(ABC, Thread):
                             f'{condition} = {condition_set[condition]}'
                         )
             label = ', '.join(label)
+
+            label_list.append(label)
+
+        for xvalues, yvalues, label in zip(
+            xvalues_list, yvalues_list, label_list
+        ):
+
+            marker = None
+            if not isinstance(xvalues, list) or len(xvalues) == 1:
+                marker = 'o'
 
             for yvalue in yvalues:
                 self.plot(

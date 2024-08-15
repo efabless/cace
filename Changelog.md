@@ -1,3 +1,12 @@
+# 2.4.5
+
+## Common
+
+- Improve plots
+  - Sort minimum/typical/maximum labels
+  - Connect points with the same condition on the x-axis
+- Print when netlists do not need regeneration
+
 # 2.4.4
 
 ## Common
