@@ -16,7 +16,7 @@ import os
 import re
 import sys
 
-from ..common.common import run_subprocess, get_magic_rcfile
+from ..common.common import run_subprocess, get_magic_rcfile, get_layout_path
 from .parameter import Parameter, ResultType, Argument, Result
 from .parameter_manager import register_parameter
 from ..logging import (
@@ -78,56 +78,30 @@ class ParameterMagicDRC(Parameter):
 
             info('Running magic to get layout DRC report.')
 
-            # Find the layout directory and check if there is a layout
-            # for the cell there.
+            rcfile = get_magic_rcfile()
 
-            layout_filename = None
-            is_mag = False
-
-            # Prefer magic layout
-            if 'magic' in paths:
-                magic_path = paths['magic']
-                magicname = projname + '.mag'
-                layout_filename = os.path.join(magic_path, magicname)
-                is_mag = True
-            # Else use GDSII
-            elif 'layout' in paths:
-                layout_path = paths['layout']
-                layoutname = projname + '.gds'
-                layout_filename = os.path.join(layout_path, layoutname)
-                # Search for compressed layout
-                if not os.path.exists(layout_filename):
-                    layoutname = projname + '.gds.gz'
-                    layout_filename = os.path.join(layout_path, layoutname)
-            else:
-                err(
-                    'Neither "magic" nor "layout" specified in datasheet paths.'
-                )
-                self.result_type = ResultType.ERROR
-                return
+            # Get the path to the layout, prefer magic
+            (layout_filepath, is_magic) = get_layout_path(
+                projname, self.paths, check_magic=True
+            )
 
             # Check if layout exists
-            if not os.path.isfile(layout_filename):
+            if not os.path.isfile(layout_filepath):
                 err('No layout found!')
-                err(f'Expected file: {layout_filename}')
                 self.result_type = ResultType.ERROR
                 return
 
-            layout_path = os.path.split(layout_filename)[0]
-            layout_locname = os.path.split(layout_filename)[1]
-            layout_cellname = os.path.splitext(layout_locname)[0]
-
-            rcfile = get_magic_rcfile()
+            # Run magic to get the bounds of the design geometry
+            # Get triplet of area, width, and height
 
             magic_input = ''
 
-            magic_input += f'addpath {os.path.abspath(layout_path)}\n'
-            if is_mag:
-                magic_input += f'load {layout_cellname}\n'
+            if is_magic:
+                magic_input += f'load {layout_filepath}\n'
             else:
                 if self.get_argument('gds_flatten'):
                     magic_input += 'gds flatglob *\n'
-                magic_input += f'gds read {layout_locname}\n'
+                magic_input += f'gds read {layout_filepath}\n'
                 magic_input += 'set toplist [cellname list top]\n'
                 magic_input += 'set numtop [llength $toplist]\n'
                 magic_input += 'if {$numtop > 1} {\n'

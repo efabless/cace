@@ -16,7 +16,7 @@ import os
 import re
 import sys
 
-from ..common.common import run_subprocess, get_pdk_root
+from ..common.common import run_subprocess, get_pdk_root, get_layout_path
 from .parameter import Parameter, ResultType, Argument, Result
 from .parameter_manager import register_parameter
 from ..logging import (
@@ -73,29 +73,16 @@ class ParameterKLayoutDRC(Parameter):
 
             info('Running KLayout to get layout DRC report.')
 
-            layout_filename = None
-            is_mag = False
-            if 'layout' in paths:
-                layout_path = paths['layout']
-                layoutname = projname + '.gds'
-                layout_filename = os.path.join(layout_path, layoutname)
-                if not os.path.exists(layout_filename):
-                    layoutname_gz = projname + '.gds.gz'
-                    layout_filename_gz = os.path.join(
-                        layout_path, layoutname_gz
-                    )
-                    if not os.path.exists(layout_filename_gz):
-                        err(
-                            f'Layout {layout_filename} or {layout_filename_gz} does not exist!'
-                        )
-                        self.result_type = ResultType.ERROR
-                        return
-                    layoutname = layoutname_gz
-                    layout_filename = layout_filename_gz
+            # Get the path to the layout, only GDS
+            (layout_filepath, is_magic) = get_layout_path(
+                projname, self.paths, check_magic=False
+            )
 
-            layout_path = os.path.split(layout_filename)[0]
-            layout_locname = os.path.split(layout_filename)[1]
-            layout_cellname = os.path.splitext(layout_locname)[0]
+            # Check if layout exists
+            if not os.path.isfile(layout_filepath):
+                err('No layout found!')
+                self.result_type = ResultType.ERROR
+                return
 
             drc_script_path = os.path.join(
                 get_pdk_root(),
@@ -122,9 +109,9 @@ class ParameterKLayoutDRC(Parameter):
                     '-r',
                     drc_script_path,
                     '-rd',
-                    f'input={os.path.abspath(layout_filename)}',
+                    f'input={os.path.abspath(layout_filepath)}',
                     '-rd',
-                    f'topcell={layout_cellname}',
+                    f'topcell={projname}',
                     '-rd',
                     f'report={report_file_path}',
                     '-rd',
