@@ -113,7 +113,7 @@ class ParameterMagicArea(Parameter):
                 magic_input += f'path search +{os.path.abspath(os.path.dirname(layout_filepath))}\n'
                 magic_input += f'load {os.path.basename(layout_filepath)}\n'
             else:
-                magic_input += f'gds read {layout_filepath}\n'
+                magic_input += f'gds read {os.path.abspath(layout_filepath)}\n'
                 magic_input += 'set toplist [cellname list top]\n'
                 magic_input += 'set numtop [llength $toplist]\n'
                 magic_input += 'if {$numtop > 1} {\n'
