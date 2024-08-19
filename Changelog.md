@@ -1,3 +1,9 @@
+# 2.4.8
+
+## Common
+
+- Use absolute path for layout
+
 # 2.4.7
 
 ## Common
