@@ -1,3 +1,9 @@
+# 2.4.7
+
+## Common
+
+- Use `path search +path` in magic
+
 # 2.4.6
 
 ## Common

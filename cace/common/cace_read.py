@@ -515,7 +515,7 @@ def cace_read(filename, debug=False):
 
             datasheet['parameters'][pparam['name']].pop('name')
 
-    return valdiate_datasheet(datasheet)
+    return validate_datasheet(datasheet)
 
 
 def cace_read_yaml(filename, debug=False):
@@ -526,13 +526,13 @@ def cace_read_yaml(filename, debug=False):
     with open(filename, 'r') as ifile:
         datasheet = yaml.safe_load(ifile)
 
-    return valdiate_datasheet(datasheet)
+    return validate_datasheet(datasheet)
 
 
 CACE_DATASHEET_VERSION = 5.2
 
 
-def valdiate_datasheet(datasheet):
+def validate_datasheet(datasheet):
 
     # Check for missing field
     if not 'name' in datasheet:

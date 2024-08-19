@@ -97,7 +97,8 @@ class ParameterMagicDRC(Parameter):
             magic_input = ''
 
             if is_magic:
-                magic_input += f'load {layout_filepath}\n'
+                magic_input += f'path search +{os.path.abspath(os.path.dirname(layout_filepath))}\n'
+                magic_input += f'load {os.path.basename(layout_filepath)}\n'
             else:
                 if self.get_argument('gds_flatten'):
                     magic_input += 'gds flatglob *\n'
