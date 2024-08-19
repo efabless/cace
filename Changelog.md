@@ -1,3 +1,12 @@
+# 2.4.6
+
+## Common
+
+- Improve layout detection
+  - Fix `.gds.gz` handling
+  - Unify codepaths for layout detection
+  - Unify log messages during regeneration
+
 # 2.4.5
 
 ## Common

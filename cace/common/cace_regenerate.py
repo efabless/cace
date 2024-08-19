@@ -24,7 +24,14 @@ import shutil
 from datetime import date as datetime
 import subprocess
 
-from .common import get_pdk, get_pdk_root, get_magic_rcfile, set_xschem_paths
+from .common import (
+    get_pdk,
+    get_pdk_root,
+    get_magic_rcfile,
+    set_xschem_paths,
+    get_layout_path,
+    run_subprocess,
+)
 from .misc import mkdirp
 
 from ..logging import (
@@ -259,205 +266,17 @@ def check_schematic_out_of_date(spicepath, schempath, debug=False):
     return need_capture
 
 
-def regenerate_rcx_netlist(datasheet, runtime_options):
-    """Regenerate the R-C parasitic extracted netlist if out-of-date or if forced."""
-
-    debug = runtime_options['debug']
-    force_regenerate = runtime_options['force']
-
-    dname = datasheet['name']
-    netlistname = dname + '.spice'
-    vlogname = dname + '.v'
-    magicname = dname + '.mag'
-    gdsname = dname + '.gds'
-    xschemname = dname + '.sch'
-
-    paths = datasheet['paths']
-
-    # Check the "paths" dictionary for paths to various files
-
-    # Root path
-    if 'root' in paths:
-        root_path = paths['root']
-    else:
-        root_path = '.'
-
-    # Magic layout
-    if 'magic' in paths:
-        magicpath = paths['magic']
-        magicfilename = os.path.join(magicpath, magicname)
-    else:
-        magicpath = None
-        magicfilename = None
-
-    # GDS layout
-    if 'layout' in paths:
-        gdspath = paths['layout']
-        gdsfilename = os.path.join(gdspath, gdsname)
-    else:
-        gdspath = None
-        gdsfilename = None
-
-    # Schematic-captured netlist
-    if 'netlist' in paths:
-        schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
-        schem_netlist = os.path.join(schem_netlist_path, netlistname)
-    else:
-        schem_netlist_path = None
-        schem_netlist = None
-
-    # Layout-extracted netlist with R-C parasitics
-    if 'netlist' in paths:
-        rcx_netlist_path = os.path.join(paths['netlist'], 'rcx')
-        rcx_netlist = os.path.join(rcx_netlist_path, netlistname)
-    else:
-        rcx_netlist = None
-        rcx_netlist = None
-
-    need_rcx_extraction = True
-
-    if force_regenerate:
-        need_rcx_extract = True
-    else:
-        dbg('Checking for out-of-date RCX netlists.')
-        valid_layoutpath = magicfilename if magicpath else gdsfilename
-        need_rcx_extract = check_layout_out_of_date(
-            rcx_netlist, valid_layoutpath, debug
-        )
-
-    if need_rcx_extract:
-        dbg('Forcing regeneration of parasitic-extracted netlist.')
-
-    if need_rcx_extract:
-        # Layout parasitic netlist needs regenerating.  Check for magic layout.
-
-        if (not magicfilename or not os.path.isfile(magicfilename)) and (
-            not gdsfilename or not os.path.isfile(gdsfilename)
-        ):
-            err(f'Error: No netlist or layout for project {dname}. ')
-            if magicfilename:
-                err(f'(layout master file {magicfilename} not found.)\n')
-            else:
-                err(f'(layout master file {gdsfilename} not found.)\n')
-            return False
-
-        # Check for parasitic netlist directory
-        if not os.path.exists(rcx_netlist_path):
-            os.makedirs(rcx_netlist_path)
-
-        rcfile = get_magic_rcfile()
-        newenv = os.environ.copy()
-
-        if 'PDK_ROOT' in datasheet:
-            pdk_root = datasheet['PDK_ROOT']
-        else:
-            pdk_root = get_pdk_root()
-
-        if 'PDK' in datasheet:
-            pdk = datasheet['PDK']
-        else:
-            pdk = get_pdk(magicfilename)
-
-        if pdk_root and 'PDK_ROOT' not in newenv:
-            newenv['PDK_ROOT'] = pdk_root
-        if pdk and 'PDK' not in newenv:
-            newenv['PDK'] = pdk
-
-        info('Extracting netlist with parasitics from layout…')
-
-        magicargs = ['magic', '-dnull', '-noconsole', '-rcfile', rcfile]
-        dbg('Executing: ' + ' '.join(magicargs))
-
-        mproc = subprocess.Popen(
-            magicargs,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            cwd=root_path,
-            env=newenv,
-            universal_newlines=True,
-        )
-        if magicfilename and os.path.isfile(magicfilename):
-            mproc.stdin.write('load ' + magicfilename + '\n')
-        else:
-            mproc.stdin.write('gds read ' + gdsfilename + '\n')
-            mproc.stdin.write('load ' + dname + '\n')
-            # Use readspice to get the port order
-            mproc.stdin.write('readspice ' + schem_netlist + '\n')
-            # necessary after readspice
-            mproc.stdin.write('load ' + dname + '\n')
-        mproc.stdin.write('select top cell\n')
-        mproc.stdin.write('expand\n')
-        mproc.stdin.write('flatten ' + dname + '_flat\n')
-        mproc.stdin.write('load ' + dname + '_flat\n')
-        mproc.stdin.write('select top cell\n')
-        mproc.stdin.write('cellname delete ' + dname + '\n')
-        mproc.stdin.write('cellname rename ' + dname + '_flat ' + dname + '\n')
-        mproc.stdin.write('extract path cace_extfiles\n')
-        mproc.stdin.write('extract all\n')
-        mproc.stdin.write('ext2sim labels on\n')
-        mproc.stdin.write('ext2sim -p cace_extfiles\n')
-        mproc.stdin.write('extresist tolerance 10\n')
-        mproc.stdin.write('extresist\n')
-        mproc.stdin.write('ext2spice lvs\n')
-        mproc.stdin.write('ext2spice cthresh 0.01\n')
-        mproc.stdin.write('ext2spice extresist on\n')
-        mproc.stdin.write(
-            'ext2spice -p cace_extfiles -o ' + rcx_netlist + '\n'
-        )
-        mproc.stdin.write('quit -noprompt\n')
-
-        magout = mproc.communicate()[0]
-        printwarn(magout)
-        if mproc.returncode != 0:
-            err(
-                'Magic process returned error code '
-                + str(mproc.returncode)
-                + '\n'
-            )
-
-        if need_rcx_extract and not os.path.isfile(rcx_netlist):
-            err('No netlist with parasitics extracted from magic.')
-
-        # Remove the temporary directory of extraction files "cace_extfiles"
-        try:
-            shutil.rmtree(os.path.join(root_path, 'cace_extfiles'))
-        except:
-            warn('Directory for extraction files was not created.')
-
-        # Remove temporary files
-        try:
-            os.remove(os.path.join(root_path, dname + '.sim'))
-            os.remove(os.path.join(root_path, dname + '.nodes'))
-        except:
-            warn('.sim and .nodes files were not created.')
-
-        if (mproc.returncode != 0) or (
-            need_rcx_extract and not os.path.isfile(rcx_netlist)
-        ):
-            return False
-
-    else:
-        info('Not extracting netlist with parasitics from layout. Up to date.')
-
-    return rcx_netlist
-
-
-def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
+def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
     """
     Regenerate the layout-extracted netlist if out-of-date or if forced.
     If argument "pex" is True, then generate parasitic capacitances in
     the output.
     """
 
-    debug = runtime_options['debug']
     force_regenerate = runtime_options['force']
 
     dname = datasheet['name']
     netlistname = dname + '.spice'
-    magicname = dname + '.mag'
-    gdsname = dname + '.gds'
-
     paths = datasheet['paths']
 
     # Check the "paths" dictionary for paths to various files
@@ -468,21 +287,10 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
     else:
         root_path = '.'
 
-    # Magic layout
-    if 'magic' in paths:
-        magicpath = paths['magic']
-        magicfilename = os.path.join(magicpath, magicname)
-    else:
-        magicpath = None
-        magicfilename = None
-
-    # GDS layout
-    if 'layout' in paths:
-        gdspath = paths['layout']
-        gdsfilename = os.path.join(gdspath, gdsname)
-    else:
-        gdspath = None
-        gdsfilename = None
+    # Get the path to the layout, prefer magic if given in datasheet
+    (layout_filepath, is_magic) = get_layout_path(
+        dname, paths, check_magic='magic' in paths
+    )
 
     # Schematic-captured netlist
     if 'netlist' in paths:
@@ -492,47 +300,27 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
         schem_netlist_path = None
         schem_netlist = None
 
-    if pex == True:
-        nettype = 'pex'
-    else:
-        nettype = 'layout'
-
-    # Layout-extracted netlist for LVS
-    if 'netlist' in paths:
-        lvs_netlist_path = os.path.join(paths['netlist'], nettype)
-        lvs_netlist = os.path.join(lvs_netlist_path, netlistname)
-    else:
-        lvs_netlist_path = None
-        lvs_netlist = None
-
-    need_extraction = True
+    # Path to netlist spice file
+    netlist_path = os.path.join(paths['netlist'], netlist_source)
+    netlist_filepath = os.path.join(netlist_path, netlistname)
 
     if force_regenerate:
-        need_lvs_extract = True
+        dbg(f'Forcing regeneration of {netlist_source} netlist.')
+        need_extract = True
     else:
-        dbg('Checking for out-of-date ' + nettype + ' netlists.')
-        valid_layoutpath = magicfilename if magicpath else gdsfilename
-        need_lvs_extract = check_layout_out_of_date(
-            lvs_netlist, valid_layoutpath, debug
+        dbg(f'Checking for out of date {netlist_source} netlist.')
+        need_extract = check_layout_out_of_date(
+            netlist_filepath, layout_filepath, False
         )
 
-    if need_lvs_extract:
-        dbg('Forcing regeneration of layout-extracted netlist.')
-
-        # Layout LVS netlist needs regenerating.  Check for magic layout.
-        if (not magicfilename or not os.path.isfile(magicfilename)) and (
-            not gdsfilename or not os.path.isfile(gdsfilename)
-        ):
-            err(f'No netlist or layout for project {dname}. ')
-            if magicfilename:
-                err(f'(layout master file {magicfilename} not found.)')
-            else:
-                err(f'(layout master file {gdsfilename} not found.)')
+    if need_extract:
+        if layout_filepath == None:
+            err(f'Error: No layout for project {dname} found.')
             return False
 
-        # Check for LVS netlist directory
-        if not os.path.exists(lvs_netlist_path):
-            os.makedirs(lvs_netlist_path)
+        # Check for netlist directory
+        if not os.path.exists(netlist_path):
+            os.makedirs(netlist_path)
 
         if 'PDK_ROOT' in datasheet:
             pdk_root = datasheet['PDK_ROOT']
@@ -554,58 +342,62 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
         if pdk and 'PDK' not in newenv:
             newenv['PDK'] = pdk
 
-        info('Extracting LVS netlist from layout…')
+        info(f'Extracting {netlist_source} netlist from layout…')
 
         # Assemble stdin for magic
         magic_input = ''
-        if magicfilename and os.path.isfile(magicfilename):
-            magic_input += f'load {magicfilename}\n'
+
+        if is_magic:
+            magic_input += f'load {layout_filepath}\n'
         else:
-            magic_input += f'gds read {gdsfilename}\n'
+            magic_input += f'gds read {layout_filepath}\n'
             magic_input += f'load {dname}\n'
             # Use readspice to get the port order
             magic_input += f'readspice {schem_netlist}\n'
             # necessary after readspice
             magic_input += f'load {dname}\n'
 
-        # magic_input += 'select top cell\n'
-        magic_input += f'select {dname}\n'   # TODO?
-        magic_input += 'expand\n'
-        magic_input += 'extract path cace_extfiles\n'
-        magic_input += 'extract all\n'
-        magic_input += 'ext2spice lvs\n'
-        if pex == True:
+        if netlist_source == 'layout' or netlist_source == 'pex':
+            magic_input += f'select {dname}\n'
+            magic_input += 'expand\n'
+            magic_input += 'extract path cace_extfiles\n'
+            magic_input += 'extract all\n'
+            magic_input += 'ext2spice lvs\n'
+            if netlist_source == 'pex':
+                magic_input += 'ext2spice cthresh 0.01\n'
+            magic_input += (
+                f'ext2spice -p cace_extfiles -o {netlist_filepath}\n'
+            )
+
+        if netlist_source == 'rcx':
+            magic_input += f'select {dname}\n'
+            magic_input += 'expand\n'
+            magic_input += f'flatten {dname + "_flat"}\n'
+            magic_input += f'load {dname + "_flat"}\n'
+            magic_input += 'select top cell\n'
+            magic_input += f'cellname delete {dname}\n'
+            magic_input += f'cellname rename {dname + "_flat"} {dname}\n'
+            magic_input += 'extract path cace_extfiles\n'
+            magic_input += 'extract all\n'
+            magic_input += 'ext2sim labels on\n'
+            magic_input += 'ext2sim -p cace_extfiles\n'
+            magic_input += 'extresist tolerance 10\n'
+            magic_input += 'extresist\n'
+            magic_input += 'ext2spice lvs\n'
             magic_input += 'ext2spice cthresh 0.01\n'
-        magic_input += f'ext2spice -p cace_extfiles -o {lvs_netlist}\n'
+            magic_input += 'ext2spice extresist on\n'
+            magic_input += (
+                f'ext2spice -p cace_extfiles -o {netlist_filepath}\n'
+            )
+
         magic_input += 'quit -noprompt\n'
 
         magicargs = ['magic', '-dnull', '-noconsole', '-rcfile', rcfile]
-        dbg('Executing: ' + ' '.join(magicargs))
-        dbg(f'magic stdin:\n{magic_input}')
 
-        mproc = subprocess.Popen(
-            magicargs,
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.STDOUT,
-            cwd=root_path,
-            env=newenv,
-            text=True,
+        returncode = run_subprocess(
+            'magic', magicargs, input=magic_input, write_file=False
         )
-
-        mproc.stdin.write(magic_input)
-
-        magout, magerr = mproc.communicate()
-
-        dbg(f'magic stdout:\n{magout}')
-        dbg(f'magic stderr:\n{magerr}')
-
-        printwarn(magout)
-        if mproc.returncode != 0:
-            err(f'Magic process returned error code {mproc.returncode}\n')
-
-        if need_lvs_extract and not os.path.isfile(lvs_netlist):
-            err('No LVS netlist extracted from magic.')
+        # printwarn(magout) TODO check if still useful
 
         # Remove the extraction files temporary directory "cace_extfiles"
         try:
@@ -613,15 +405,22 @@ def regenerate_lvs_netlist(datasheet, runtime_options, pex=False):
         except:
             warn('Directory for extraction files was not created.')
 
-        if (mproc.returncode != 0) or (
-            need_lvs_extract and not os.path.isfile(lvs_netlist)
+        # Remove temporary files
+        try:
+            os.remove(os.path.join(root_path, dname + '.sim'))
+            os.remove(os.path.join(root_path, dname + '.nodes'))
+        except:
+            dbg('.sim and .nodes files were not created.')
+
+        if (returncode != 0) or (
+            need_extract and not os.path.isfile(netlist_filepath)
         ):
             return False
 
     else:
-        info('Not extracting LVS netlist from layout. Up to date.')
+        info(f'Skipping extraction of {netlist_source} netlist. Up to date.')
 
-    return lvs_netlist
+    return netlist_filepath
 
 
 def check_dependencies(datasheet, debug=False):
@@ -1035,23 +834,23 @@ def regenerate_netlists(datasheet, runtime_options):
 
     # Layout extracted netlist
     if source == 'layout':
-        result = regenerate_lvs_netlist(datasheet, runtime_options)
+        result = regenerate_netlist(datasheet, 'layout', runtime_options)
         return result
 
     # PEX (parasitic capacitance-only) netlist
     if source == 'pex':
-        result = regenerate_lvs_netlist(datasheet, runtime_options, pex=True)
+        result = regenerate_netlist(datasheet, 'pex', runtime_options)
 
         # Also make sure LVS netlist is generated, in case LVS is run
-        regenerate_lvs_netlist(datasheet)
+        regenerate_netlist(datasheet, 'layout', runtime_options)
         return result
 
     # RCX (R-C-extraction) netlist
     if source == 'all' or source == 'rcx' or source == 'best':
-        result = regenerate_rcx_netlist(datasheet, runtime_options)
+        result = regenerate_netlist(datasheet, 'rcx', runtime_options)
 
         # Also make sure LVS netlist is generated, in case LVS is run
-        regenerate_lvs_netlist(datasheet, runtime_options)
+        regenerate_netlist(datasheet, 'layout', runtime_options)
         return result
 
     return result

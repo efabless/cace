@@ -92,6 +92,64 @@ def get_magic_rcfile():
     return rcfile
 
 
+def get_layout_path(projname, paths, check_magic=False):
+
+    # Prefer magic layout
+    if check_magic and 'magic' in paths:
+        layout_path = paths['magic']
+        layout_filename = projname + '.mag'
+        layout_filepath = os.path.join(layout_path, layout_filename)
+
+        dbg(f'Trying to find magic layout {layout_filepath}.')
+
+        # Check if magic layout exists
+        if os.path.isfile(layout_filepath):
+
+            dbg(f'Found magic layout {layout_filepath}!')
+
+            # Return magic layout
+            return (layout_filepath, True)
+
+        dbg('No magic layout found.')
+
+    # Else use GDSII
+    if 'layout' in paths:
+        layout_path = paths['layout']
+        layout_filename = projname + '.gds'
+        layout_filepath = os.path.join(layout_path, layout_filename)
+
+        dbg(f'Trying to find GDS layout {layout_filepath}.')
+
+        # Check if GDS layout exists
+        if os.path.exists(layout_filepath):
+
+            dbg(f'Found GDS layout {layout_filepath}!')
+
+            # Return GDS layout
+            return (layout_filepath, False)
+
+        dbg('No GDS layout found.')
+        dbg('Trying to find compressed GDS layout.')
+
+        layout_path = paths['layout']
+        layout_filename = projname + '.gds.gz'
+        layout_filepath = os.path.join(layout_path, layout_filename)
+
+        # Check if compressed GDS layout exists
+        if os.path.exists(layout_filepath):
+
+            dbg(f'Found compressed GDS layout {layout_filepath}!')
+
+            # Return compressed GDS layout
+            return (layout_filepath, False)
+
+        dbg('No compressed GDS layout found.')
+
+    err('Neither magic nor (compressed) GDS layout found.')
+
+    return (None, None, None)
+
+
 def get_klayout_techfile():
     """
     Get the path and filename of the klayout tech file corresponding
