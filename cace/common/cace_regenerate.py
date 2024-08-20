@@ -351,6 +351,7 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
             magic_input += f'path search +{os.path.abspath(os.path.dirname(layout_filepath))}\n'
             magic_input += f'load {os.path.basename(layout_filepath)}\n'
         else:
+            # magic_input += 'gds flatglob *\n'
             magic_input += f'gds read {layout_filepath}\n'
             magic_input += f'load {dname}\n'
             # Use readspice to get the port order
@@ -393,7 +394,7 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
 
         magic_input += 'quit -noprompt\n'
 
-        magicargs = ['magic', '-dnull', '-noconsole', '-rcfile', rcfile]
+        magicargs = ['-dnull', '-noconsole', '-rcfile', rcfile]
 
         returncode = run_subprocess(
             'magic', magicargs, input=magic_input, write_file=False
@@ -871,7 +872,7 @@ def regenerate_gds(datasheet, runtime_options):
     if not 'magic' in datasheet['paths']:
         return 0
 
-    gdspath = os.path.join(paths['root'], paths['layout'], f'{dname}.gds')
+    gdspath = os.path.join(paths['root'], paths['layout'], f'{dname}.gds.gz')
     magpath = os.path.join(paths['root'], paths['magic'], f'{dname}.mag')
 
     # make sure mag files exist
@@ -906,6 +907,7 @@ def regenerate_gds(datasheet, runtime_options):
         )
 
         mproc.stdin.write('load ' + magpath + '\n')
+        mproc.stdin.write('gds compress 1\n')
         mproc.stdin.write('gds write ' + gdspath + '\n')
         mproc.stdin.write('quit -noprompt\n')
 

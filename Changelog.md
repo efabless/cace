@@ -1,3 +1,9 @@
+# 2.4.9
+
+## Common
+
+- Generate a gzip compressed GDS file from magic layout
+
 # 2.4.8
 
 ## Common
