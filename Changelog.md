@@ -1,3 +1,9 @@
+# 2.4.10
+
+## Common
+
+- Fix: Do not include broken links in the documentation if no layout is available
+
 # 2.4.9
 
 ## Common
