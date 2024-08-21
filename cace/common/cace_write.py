@@ -157,14 +157,16 @@ def generate_documentation(datasheet):
             f'![Schematic of {datasheet["name"]}]({datasheet["name"]}_schematic.svg)\n'
         )
 
-        # Add layout images
-        ofile.write(f'\n## Layout\n\n')
-        ofile.write(
-            f'![Layout of {datasheet["name"]} with white background]({datasheet["name"]}_w.png)\n'
-        )
-        ofile.write(
-            f'![Layout of {datasheet["name"]} with black background]({datasheet["name"]}_b.png)\n'
-        )
+        if 'layout' in datasheet['paths']:
+
+            # Add layout images
+            ofile.write(f'\n## Layout\n\n')
+            ofile.write(
+                f'![Layout of {datasheet["name"]} with white background]({datasheet["name"]}_w.png)\n'
+            )
+            ofile.write(
+                f'![Layout of {datasheet["name"]} with black background]({datasheet["name"]}_b.png)\n'
+            )
 
     # Generate xschem symbol svg
     svgpath = os.path.join(
