@@ -907,7 +907,7 @@ def regenerate_gds(datasheet, runtime_options):
         )
 
         mproc.stdin.write('load ' + magpath + '\n')
-        mproc.stdin.write('gds compress 1\n')
+        mproc.stdin.write('gds compress 9\n')
         mproc.stdin.write('gds write ' + gdspath + '\n')
         mproc.stdin.write('quit -noprompt\n')
 
