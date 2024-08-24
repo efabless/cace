@@ -292,6 +292,10 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
         dname, paths, check_magic='magic' in paths
     )
 
+    if layout_filepath == None:
+        err(f'No layout for project {dname} found.')
+        return False
+
     # Schematic-captured netlist
     if 'netlist' in paths:
         schem_netlist_path = os.path.join(paths['netlist'], 'schematic')
@@ -315,7 +319,7 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
 
     if need_extract:
         if layout_filepath == None:
-            err(f'Error: No layout for project {dname} found.')
+            err(f'No layout for project {dname} found.')
             return False
 
         # Check for netlist directory
@@ -360,9 +364,11 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
             magic_input += f'load {dname}\n'
 
         if netlist_source == 'layout' or netlist_source == 'pex':
-            magic_input += f'select {dname}\n'
+            magic_input += f'select top cell\n'
             magic_input += 'expand\n'
             magic_input += 'extract path cace_extfiles\n'
+            if netlist_source == 'layout':
+                magic_input += 'extract no all\n'
             magic_input += 'extract all\n'
             magic_input += 'ext2spice lvs\n'
             if netlist_source == 'pex':
@@ -372,7 +378,7 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
             )
 
         if netlist_source == 'rcx':
-            magic_input += f'select {dname}\n'
+            magic_input += f'select top cell\n'
             magic_input += 'expand\n'
             magic_input += f'flatten {dname + "_flat"}\n'
             magic_input += f'load {dname + "_flat"}\n'

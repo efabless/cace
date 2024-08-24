@@ -283,8 +283,6 @@ class ParameterManager:
                 ofile.write(summary)
 
                 # Save the plots
-
-                # TODO
                 ofile.write(f'\n## Plots\n')
 
                 for parameter in self.datasheet['parameters']:

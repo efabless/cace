@@ -147,7 +147,7 @@ def get_layout_path(projname, paths, check_magic=False):
 
     err('Neither magic nor (compressed) GDS layout found.')
 
-    return (None, None, None)
+    return (None, None)
 
 
 def get_klayout_techfile():
@@ -398,21 +398,23 @@ def magic_generate_svg(layout_path, svgpath):
     return 0
 
 
-def klayout_generate_png(layout_path, out_path):
+def klayout_generate_png(layout_filepath, out_path, out_name):
     """
     Generate a PNG drawing of a layout using klayout
 
     Return 0 if the drawing was generated, 1 if not.
     """
 
-    if not os.path.isfile(layout_path):
-        err(f'Could not find {layout_path}.')
+    if layout_filepath == None:
+        err(f'No layout found.')
         return 1
 
-    layout_directory = os.path.split(layout_path)[0]
-    layout_filename = os.path.split(layout_path)[1]
-    layout_cellname = os.path.splitext(layout_filename)[0]
-    layout_extension = os.path.splitext(layout_filename)[1]
+    if not os.path.isfile(layout_filepath):
+        err(f'Could not find {layout_filepath}.')
+        return 1
+
+    layout_directory = os.path.dirname(layout_filepath)
+    layout_filename = os.path.basename(layout_filepath)
 
     techfile = get_klayout_techfile()
     layer_props = get_klayout_layer_props()
@@ -485,11 +487,11 @@ lv.save_image_with_options(os.path.join(out_path, out_name + "_b.png"), w, h, 0,
             '-r',
             scriptpath,
             '-rd',
-            f'gds_path={layout_path}',
+            f'gds_path={layout_filepath}',
             '-rd',
             f'out_path={out_path}',
             '-rd',
-            f'out_name={layout_cellname}',
+            f'out_name={out_name}',
             '-rd',
             f'tech_name={tech_name}',
             '-rd',
