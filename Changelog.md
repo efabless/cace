@@ -1,3 +1,12 @@
+# 2.4.11
+
+## Common
+
+- Improve netlist regeneration:
+  - Call `extract no all` when netlist source is layout
+  - Use correct layout image names when GDS is compressed
+  - Don't crash when GDS layout is not found
+
 # 2.4.10
 
 ## Common

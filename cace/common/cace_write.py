@@ -25,6 +25,7 @@ from .common import (
     xschem_generate_svg,
     magic_generate_svg,
     klayout_generate_png,
+    get_layout_path,
 )
 from .spiceunits import spice_unit_convert, spice_unit_unconvert
 from ..parameter.parameter import ResultType
@@ -207,46 +208,20 @@ def generate_documentation(datasheet):
 
     # Use GDSII
     if 'layout' in datasheet['paths']:
-        layout_directory = datasheet['paths']['layout']
-        layoutname = datasheet['name'] + '.gds'
-        layout_path = os.path.join(layout_directory, layoutname)
-        # Search for compressed layout
-        if not os.path.exists(layout_path):
-            layoutname = datasheet['name'] + '.gds.gz'
-            layout_path = os.path.join(layout_directory, layoutname)
 
+        # Get the path to the GDSII layout
+        (layout_filepath, is_magic) = get_layout_path(
+            datasheet['name'], datasheet['paths'], False
+        )
+
+        # Generate KLayout image
         klayout_generate_png(
-            layout_path,
+            layout_filepath,
             os.path.join(
                 datasheet['paths']['root'], datasheet['paths']['documentation']
             ),
+            datasheet['name'],
         )
-
-    # Generate magic image
-
-    svgpath = os.path.join(
-        datasheet['paths']['root'],
-        datasheet['paths']['documentation'],
-        f'{datasheet["name"]}_magic.svg',
-    )
-
-    # Prefer magic layout
-    if 'magic' in datasheet['paths']:
-        magic_directory = datasheet['paths']['magic']
-        magicname = datasheet['name'] + '.mag'
-        layout_path = os.path.join(magic_directory, magicname)
-        is_mag = True
-    # Else use GDSII
-    elif 'layout' in datasheet['paths']:
-        layout_directory = datasheet['paths']['layout']
-        layoutname = datasheet['name'] + '.gds'
-        layout_path = os.path.join(layout_directory, layoutname)
-        # Search for compressed layout
-        if not os.path.exists(layout_path):
-            layoutname = datasheet['name'] + '.gds.gz'
-            layout_path = os.path.join(layout_directory, layoutname)
-
-    # magic_generate_svg(layout_path, svgpath)
 
 
 def markdown_summary(datasheet, runtime_options, results, result_types):
