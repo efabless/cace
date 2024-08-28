@@ -61,10 +61,11 @@ class ParameterManager:
     manipulate it.
     """
 
-    def __init__(self, datasheet={}, max_runs=None, jobs=None):
+    def __init__(self, datasheet={}, max_runs=None, run_path=None, jobs=None):
         """Initialize the object with a datasheet"""
         self.datasheet = datasheet
         self.max_runs = max_runs
+        self.run_path = run_path
 
         self.worker_thread = None
 
@@ -93,6 +94,7 @@ class ParameterManager:
         self.default_paths = {
             'templates': 'cace/templates',
             'scripts': 'cace/scripts',
+            'runs': 'runs',
         }
 
         self.set_default_paths()
@@ -604,13 +606,19 @@ class ParameterManager:
             .strftime('RUN_%Y-%m-%d_%H-%M-%S')
         )
 
+        run_path = self.datasheet['paths']['runs']
+
+        # Override runs dir with cli argument
+        if self.run_path:
+            run_path = self.run_path
+
         # Create new run dir
         self.run_dir = os.path.abspath(
-            os.path.join(self.design_dir, 'runs', tag)
+            os.path.join(self.design_dir, run_path, tag)
         )
 
         # Check if run dir already exists
-        runs = sorted(glob.glob(os.path.join(self.design_dir, 'runs', '*')))
+        runs = sorted(glob.glob(os.path.join(self.design_dir, run_path, '*')))
 
         if self.run_dir in runs:
             error('Run directory exists already. Please try again.')

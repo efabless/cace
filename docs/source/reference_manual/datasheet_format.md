@@ -101,6 +101,9 @@ paths:
 - `documentation: <path>`
     > Location for the auto-generated documentation of the design.
 
+- `runs: <path>` (optional)
+	> Location for the run directory.
+
 ## Pins
 
 The pins of the design, mainly used for documentation purposes. The names of the pins are checked against the schematic.

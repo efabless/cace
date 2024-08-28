@@ -159,6 +159,11 @@ def cli():
         help="""the maximum number of runs to keep in the "runs/" folder, the oldest runs will be deleted""",
     )
     parser.add_argument(
+        '--run-path',
+        type=str,
+        help='override the default "runs/" directory',
+    )
+    parser.add_argument(
         '--no-plot', action='store_true', help='do not generate any graphs'
     )
     parser.add_argument(
@@ -194,7 +199,7 @@ def cli():
 
     # Create the ParameterManager
     parameter_manager = ParameterManager(
-        max_runs=args.max_runs, jobs=args.jobs
+        max_runs=args.max_runs, run_path=args.run_path, jobs=args.jobs
     )
 
     # Load the datasheet
