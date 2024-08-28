@@ -43,6 +43,18 @@ Results:
 - `width`: `<float>` Width of the design in µm.
 - `height`: `<float>` Height of the design in µm.
 
+## `magic_antenna_check`
+
+Perform the magic antenna check to find antenna violations in the layout.
+
+Arguments:
+
+- `args`: `<list[string]>` Additional args that are passed to magic.
+
+Results:
+
+- `antenna_violations`: `<int>` The number of antenna violations.
+
 ## `klayout_drc`
 
 Perform DRC (Design Rule Check) with KLayout.
