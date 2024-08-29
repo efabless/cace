@@ -1,4 +1,18 @@
+# 2.4.13
+
+## Common
+
+- Add `runs` path to datasheet
+  - Specifies where the `runs` directory will be created
+
+## CLI
+
+- Add `--run-path` to arguments
+  - Overrides `runs` path from datasheet
+
 # 2.4.12
+
+## Common
 
 - Add `magic_antenna_check` as a tool
   - Performs antenna violation checks using magic

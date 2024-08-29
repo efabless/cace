@@ -37,6 +37,7 @@ options:
                         the maximum number of parameters running in parallel
   -f, --force           force new regeneration of all netlists
   --max-runs MAX_RUNS   the maximum number of runs to keep in the "runs/"
+  --run-path RUN_PATH   override the default "runs/" directory
                         folder, the oldest runs will be deleted
   --no-plot             do not generate any graphs
   -l {ALL,DEBUG,INFO,WARNING,ERROR}, --log-level {ALL,DEBUG,INFO,WARNING,ERROR}
