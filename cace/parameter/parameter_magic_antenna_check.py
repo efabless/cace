@@ -36,19 +36,11 @@ from ..logging import (
 )
 
 
-@register_parameter('magic_area')
-class ParameterMagicArea(Parameter):
+@register_parameter('magic_antenna_check')
+class ParameterMagicAntennaCheck(Parameter):
     """
-    Determine bounds of the design geometry
-
-    "cond" should be one of "area", "width", or "height", and determines
-    what value is returned by the routine.
-
-    The routine reads the .mag or .gds file of the layout and returns
-    the width and height values in microns.  This is captured from
-    standard output and the requested result returned to the calling
-    routine.
-
+    Perform the magic antenna check to
+    find antenna violations in the layout.
     """
 
     def __init__(
@@ -61,9 +53,7 @@ class ParameterMagicArea(Parameter):
             **kwargs,
         )
 
-        self.add_result(Result('area'))
-        self.add_result(Result('width'))
-        self.add_result(Result('height'))
+        self.add_result(Result('antenna_violations'))
 
         self.add_argument(Argument('args', [], False))
 
@@ -72,7 +62,7 @@ class ParameterMagicArea(Parameter):
 
         if netlist_source == 'schematic':
             info(
-                'Netlist source is schematic capture. Not running area measurements.'
+                'Netlist source is schematic capture. Not checking antenna violations measurements.'
             )
             self.result_type = ResultType.SKIPPED
             return False
@@ -86,7 +76,7 @@ class ParameterMagicArea(Parameter):
         # Acquire a job from the global jobs semaphore
         with self.jobs_sem:
 
-            info(f'Running magic to get area measurements.')
+            info(f'Running magic to check for antenna violations.')
 
             projname = self.datasheet['name']
             paths = self.datasheet['paths']
@@ -104,10 +94,13 @@ class ParameterMagicArea(Parameter):
                 self.result_type = ResultType.ERROR
                 return
 
-            # Run magic to get the bounds of the design geometry
-            # Get triplet of area, width, and height
+            # Run magic to get the antenna violations
 
             magic_input = ''
+
+            magic_input += 'crashbackups stop\n'   # no periodic saving
+            magic_input += 'drc off\n'   # turn off background checker
+            magic_input += 'snap internal\n'   # select internal grid
 
             if is_magic:
                 magic_input += f'path search +{os.path.abspath(os.path.dirname(layout_filepath))}\n'
@@ -126,7 +119,12 @@ class ParameterMagicArea(Parameter):
                 magic_input += '}\n'
 
             magic_input += 'select top cell\n'
-            magic_input += 'box\n'
+            magic_input += 'expand\n'
+            magic_input += 'extract do local\n'
+            magic_input += 'extract no all\n'
+            magic_input += 'extract all\n'
+            magic_input += 'antennacheck debug\n'
+            magic_input += 'antennacheck\n'
             magic_input += 'quit -noprompt\n'
 
             returncode = self.run_subprocess(
@@ -140,26 +138,21 @@ class ParameterMagicArea(Parameter):
             if returncode != 0:
                 err('Magic exited with non-zero return code!')
 
-            magrex = re.compile(
-                'microns:[ \t]+([0-9.]+)[ \t]*x[ \t]*([0-9.]+)[ \t]+.*[ \t]+([0-9.]+)[ \t]*$'
-            )
+        magrex = re.compile('Antenna violation detected')
+        stderr_filepath = os.path.join(self.param_dir, 'magic_stderr.out')
+        violations = 0
 
-            with open(
-                f'{os.path.join(self.param_dir, "magic")}_stdout.out', 'r'
-            ) as stdout_file:
-
+        # Check if stderr exists, else no violations occurred
+        if os.path.isfile(stderr_filepath):
+            with open(stderr_filepath, 'r') as stdout_file:
+                # Count the violations
                 for line in stdout_file.readlines():
                     lmatch = magrex.match(line)
                     if lmatch:
-                        widthval = float(lmatch.group(1)) / 1000_000
-                        heightval = float(lmatch.group(2)) / 1000_000
-                        areaval = float(lmatch.group(3)) / 1000_000 / 1000_000
+                        violations += 1
 
         self.result_type = ResultType.SUCCESS
-
-        self.get_result('area').values = [areaval]
-        self.get_result('width').values = [widthval]
-        self.get_result('height').values = [heightval]
+        self.get_result('antenna_violations').values = [violations]
 
         # Increment progress bar
         if self.step_cb:

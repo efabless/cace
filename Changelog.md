@@ -1,3 +1,9 @@
+# 2.4.12
+
+- Add `magic_antenna_check` as a tool
+  - Performs antenna violation checks using magic
+  - Returns `antenna_violations`, the number of violations that have occured
+
 # 2.4.11
 
 ## Common

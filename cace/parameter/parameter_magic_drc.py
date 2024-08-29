@@ -163,5 +163,10 @@ class ParameterMagicDRC(Parameter):
                 if lmatch:
                     drccount = int(lmatch.group(1))
 
-        self.result_type = ResultType.SUCCESS
-        self.get_result('drc_errors').values = [drccount]
+        if drccount != None:
+            self.result_type = ResultType.SUCCESS
+            self.get_result('drc_errors').values = [drccount]
+
+        # Increment progress bar
+        if self.step_cb:
+            self.step_cb(self.param)
