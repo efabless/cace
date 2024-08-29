@@ -936,6 +936,90 @@ class Parameter(ABC, Thread):
                 if conditions[yvariable].unit:
                     yunits[yvariable] = conditions[yvariable].unit
 
+        # Get the plot type
+        plot_type = 'xyplot'
+        if 'type' in self.param['plot'][plot_name]:
+            plot_type = self.param['plot'][plot_name]['type']
+
+        # Show limits in plots
+        # true: always
+        # false: never
+        # auto: only if in range
+        limits = 'auto'
+        if 'limits' in self.param['plot'][plot_name]:
+            limits = self.param['plot'][plot_name]['limits']
+
+        # Limit values
+        minimum = None
+        typical = None
+        maximum = None
+
+        # Get the limits
+        if limits != False:
+
+            # For the histgoram get limits from the x variable
+            if plot_type == 'histogram':
+                if xvariable in self.param['spec']:
+                    if 'minimum' in self.param['spec'][xvariable]:
+                        if 'value' in self.param['spec'][xvariable]['minimum']:
+                            value = self.param['spec'][xvariable]['minimum'][
+                                'value'
+                            ]
+                            if value != 'any':
+                                minimum = float(value)
+
+                    if 'typical' in self.param['spec'][xvariable]:
+                        if 'value' in self.param['spec'][xvariable]['typical']:
+                            value = self.param['spec'][xvariable]['typical'][
+                                'value'
+                            ]
+                            if value != 'any':
+                                typical = float(value)
+
+                    if 'maximum' in self.param['spec'][xvariable]:
+                        if 'value' in self.param['spec'][xvariable]['maximum']:
+                            value = self.param['spec'][xvariable]['maximum'][
+                                'value'
+                            ]
+                            if value != 'any':
+                                maximum = float(value)
+
+            # Else get limits from the first y variable
+            else:
+                if yvariables[0] in self.param['spec']:
+                    if 'minimum' in self.param['spec'][yvariables[0]]:
+                        if (
+                            'value'
+                            in self.param['spec'][yvariables[0]]['minimum']
+                        ):
+                            value = self.param['spec'][yvariables[0]][
+                                'minimum'
+                            ]['value']
+                            if value != 'any':
+                                minimum = float(value)
+
+                    if 'typical' in self.param['spec'][yvariables[0]]:
+                        if (
+                            'value'
+                            in self.param['spec'][yvariables[0]]['typical']
+                        ):
+                            value = self.param['spec'][yvariables[0]][
+                                'typical'
+                            ]['value']
+                            if value != 'any':
+                                typical = float(value)
+
+                    if 'maximum' in self.param['spec'][yvariables[0]]:
+                        if (
+                            'value'
+                            in self.param['spec'][yvariables[0]]['maximum']
+                        ):
+                            value = self.param['spec'][yvariables[0]][
+                                'maximum'
+                            ]['value']
+                            if value != 'any':
+                                maximum = float(value)
+
         # Overwrite with display and unit under "spec"
         if 'spec' in self.param:
             if xvariable in self.param['spec']:
@@ -1008,17 +1092,6 @@ class Parameter(ABC, Thread):
 
         # Create a new axis for the whole parameter
         ax = fig.add_subplot(111)
-
-        # Get the plot type
-        plot_type = 'xyplot'
-        if 'type' in self.param['plot'][plot_name]:
-            plot_type = self.param['plot'][plot_name]['type']
-
-        # TODO
-        stacked = False
-        if 'stacked' in self.param['plot'][plot_name]:
-            if self.param['plot'][plot_name]['stacked']:
-                stacked = True
 
         # Set x and y labels
         ax.set_xlabel(xdisplay)
@@ -1157,7 +1230,6 @@ class Parameter(ABC, Thread):
                     plot_type,
                     label,
                     marker,
-                    stacked,
                     opacity,
                 )
 
@@ -1169,9 +1241,48 @@ class Parameter(ABC, Thread):
                     plot_type,
                     label,
                     marker,
-                    stacked,
                     opacity,
                 )
+
+        # Plot limits
+        if limits == True:
+            # Use vertical lines
+            if plot_type == 'histogram':
+                for limit in [minimum, typical, maximum]:
+                    if limit:
+                        ax.axvline(limit, color='black', linestyle=':')
+            # Use horizontal lines
+            else:
+                for limit in [minimum, typical, maximum]:
+                    if limit:
+                        ax.axhline(limit, color='black', linestyle=':')
+
+        # Only plot limits if in range
+        if limits == 'auto':
+            # Use vertical lines
+            if plot_type == 'histogram':
+                xlim = ax.get_xlim()
+                xrange = xlim[1] - xlim[0]
+
+                for limit in [minimum, typical, maximum]:
+                    if (
+                        limit
+                        and (xlim[0] - xrange * 0.5) < limit
+                        and (xlim[1] + xrange * 0.5) > limit
+                    ):
+                        ax.axvline(limit, color='black', linestyle=':')
+            # Use horizontal lines
+            else:
+                ylim = ax.get_ylim()
+                yrange = ylim[1] - ylim[0]
+
+                for limit in [minimum, typical, maximum]:
+                    if (
+                        limit
+                        and (ylim[0] - yrange * 0.5) < limit
+                        and (ylim[1] + yrange * 0.5) > limit
+                    ):
+                        ax.axhline(limit, color='black', linestyle=':')
 
         # Enable the legend
         legend = None
@@ -1205,7 +1316,6 @@ class Parameter(ABC, Thread):
         plot_type='xyplot',
         label=None,
         marker=None,
-        stacked=False,
         alpha=1.0,
     ):
         if plot_type == 'histogram':
@@ -1215,7 +1325,6 @@ class Parameter(ABC, Thread):
                     bins='auto',
                     histtype='bar',
                     label=label,
-                    stacked=stacked,
                     alpha=alpha,
                 )
         elif plot_type == 'semilogx':

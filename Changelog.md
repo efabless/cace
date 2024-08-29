@@ -1,3 +1,10 @@
+# 2.4.14
+
+## Common
+
+- Implement plot limits
+  - Plots have an optional argument `limits`, which can be `true`, `false` or `auto`
+
 # 2.4.13
 
 ## Common

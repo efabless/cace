@@ -441,20 +441,27 @@ Example entry:
         yaxis: [Vout, Vinp]
 ```
 
-- `type: <string>`
-	The type of plot to make. If this record is missing from the
+- `type: <string>` (optional)
+	> The type of plot to make. If this record is missing from the
 	dictionary, then plot type "xyplot" is assumed by default.
 	Otherwise, the value should be one of "xyplot", "histogram",
 	"semilogx", "semilogy", or "loglog".
 
 - `xaxis: <name>`
-	Variable to be plotted on the graph X axis.
+	> Variable to be plotted on the graph X axis.
 
 - `yaxis: <name>|<list[name]>`
-	Variable to be plotted on the graph Y axis.
+	> Variables to be plotted on the graph Y axis.
 
-- `title: <string>`
-	A title for the graph.
+- `title: <string>` (optional)
+	> A title for the graph.
+
+- `limits: <false|true|auto>` (optional)
+  - `false` - do not show limits
+  - `true` - always show limits
+  - `auto` - show limits if they are in the yrange
+
+    The default setting for `limits` is auto.
 
 Plots are made from measured columnar data which may be from a "wrdata"
 command in ngspice or an "echo" statement directed to a file.
