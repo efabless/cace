@@ -44,13 +44,7 @@ To invoke the CLI:
 cace [datasheet] [output] [options]
 ```
 
-To invoke the GUI:
-
-```console
-cace-gui [datasheet] [options]
-```
-
-For more information about the usage of CACE with either the CLI or the GUI please have a look at ["Usage Guides"](https://cace.readthedocs.io/en/latest/usage_guides/index.html) in the documentation.
+For more information about the usage of CACE please have a look at ["Usage Guides"](https://cace.readthedocs.io/en/latest/usage_guides/index.html) in the documentation.
 
 ## Examples
 
