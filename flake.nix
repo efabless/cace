@@ -52,14 +52,19 @@
       nix-eda.forAllSystems {
         current = self;
         withInputs = [nix-eda volare];
-      } (util:
-        with util;
-          rec {
-            colab-env = callPackage ./nix/colab-env.nix {};
-            cace = callPythonPackage ./default.nix {};
-            default = cace;
-          }
-          // (pkgs.lib.optionalAttrs (pkgs.stdenv.isLinux) {cace-docker = callPackage ./nix/docker.nix {createDockerImage = nix-eda.createDockerImage;};}));
+      } (
+        util: let
+          self = with util;
+            {
+              gdsfactory = callPythonPackage ./nix/gdsfactory.nix {};
+              colab-env = callPackage ./nix/colab-env.nix {};
+              cace = callPythonPackage ./default.nix {};
+              default = self.cace;
+            }
+            // (pkgs.lib.optionalAttrs (pkgs.stdenv.isLinux) {cace-docker = callPackage ./nix/docker.nix {createDockerImage = nix-eda.createDockerImage;};});
+        in
+          self
+      );
 
     devShells = nix-eda.forAllSystems {withInputs = [self devshell nix-eda volare];} (
       util:

@@ -20,7 +20,6 @@
 
   # Tools
   klayout,
-  klayout-pymod,
   magic-vlsi,
   netgen,
   volare,
@@ -34,9 +33,16 @@
   pillow,
   tkinter,
   rich,
+  gdsfactory,
 }: let
+
+  klayout-gdsfactory = klayout.withPythonPackages (ps:
+    with ps; [
+      gdsfactory
+    ]);
+
   self = buildPythonPackage rec {
-    name = "cace";
+      pname = "cace";
       format = "pyproject";
 
       version_file = builtins.readFile ./cace/__version__.py;
@@ -65,7 +71,7 @@
       ];
       
       includedTools = [
-        klayout
+        klayout-gdsfactory
         magic-vlsi
         netgen
         octave
