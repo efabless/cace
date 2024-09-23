@@ -6,6 +6,10 @@ Prior to June 2024 CACE used the datasheet version 4.0 text format. This format 
 
 The CACE datasheet contains the specification of your design and other important information. It acts as both documentation for the specifiaction but also as input for CACE. 
 
+```{note}
+The datasheet is preprocessed using [Jinja](https://jinja.palletsprojects.com/en/3.1.x/).
+```
+
 The following sections describe the structure of the datasheet.
 
 ## Metadata

@@ -125,13 +125,16 @@ class ParameterManager:
             err(f'File {datasheet_path} not found.')
             return 1
 
+        # Create a new run dir
+        self.prepare_run_dir()
+
         [dspath, dsname] = os.path.split(datasheet_path)
 
         suffix = os.path.splitext(datasheet_path)[1]
 
         if suffix == '.yaml':
             # Read the datasheet, new CACE YAML format version 5.0
-            self.datasheet = cace_read_yaml(datasheet_path)
+            self.datasheet = cace_read_yaml(datasheet_path, self.run_dir)
         elif suffix == '.txt':
             self.datasheet = cace_read(datasheet_path)
         else:
@@ -172,9 +175,6 @@ class ParameterManager:
 
         # Make sure all paths exist
         self.set_default_paths()
-
-        # Create a new run dir for logs
-        self.prepare_run_dir()
 
         return 0
 

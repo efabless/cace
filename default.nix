@@ -34,6 +34,7 @@
   tkinter,
   rich,
   gdsfactory,
+  jinja2
 }: let
 
   klayout-gdsfactory = klayout.withPythonPackages (ps:
@@ -87,6 +88,7 @@
         volare
         tkinter
         rich
+        jinja2
       ]
       ++ self.includedTools;
       

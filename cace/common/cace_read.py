@@ -18,6 +18,7 @@ import os
 import sys
 import json
 import yaml
+from jinja2 import Environment, FileSystemLoader
 
 from ..logging import (
     dbg,
@@ -518,13 +519,34 @@ def cace_read(filename, debug=False):
     return validate_datasheet(datasheet)
 
 
-def cace_read_yaml(filename, debug=False):
+def cace_read_yaml(filename, run_dir):
     if not os.path.isfile(filename):
         err(f'No such file {filename}')
-        return {}
+        return None
 
-    with open(filename, 'r') as ifile:
-        datasheet = yaml.safe_load(ifile)
+    # Read the datasheet
+    with open(filename) as f:
+        template_str = f.read()
+
+    # Setup jinja2 environment
+    template = Environment(
+        loader=FileSystemLoader(os.path.dirname(filename))
+    ).from_string(template_str)
+
+    # Render the datasheet
+    try:
+        rendered = template.render()
+    except Exception as error:
+        err(f'Jinja error: {error}')
+        return None
+
+    # Save the final datasheet in run dir
+    with open(os.path.join(run_dir, os.path.basename(filename)), 'w') as f:
+        f.write(rendered)
+
+    # Parse YAML
+    with open(os.path.join(run_dir, os.path.basename(filename)), 'r') as f:
+        datasheet = yaml.safe_load(f)
 
     return validate_datasheet(datasheet)
 
