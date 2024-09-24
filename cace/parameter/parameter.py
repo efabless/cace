@@ -273,11 +273,10 @@ class Parameter(ABC, Thread):
         if name in self.results_dict:
             return self.results_dict[name]
 
-        warn(f'Could not find result {name}.')
         return None
 
     def cancel(self, no_cb):
-        info(f'Parameter {self.pname}: Canceled')
+        info(f'Parameter {self.pname}: Canceled.')
         self.canceled = True
 
         if self.subproc_handle:
@@ -328,7 +327,8 @@ class Parameter(ABC, Thread):
             self.result_type = ResultType.ERROR
             self.canceled = True
 
-        self.evaluate_result()
+        if self.result_type == ResultType.SUCCESS:
+            self.evaluate_result()
 
         # Set done before calling end cb
         self.done = True
@@ -366,7 +366,8 @@ class Parameter(ABC, Thread):
 
             self.subproc_handle = process
 
-            dbg(input)
+            if input != None:
+                dbg(f'input: {input}')
             stdout, stderr = process.communicate(input)
             returncode = process.returncode
 
@@ -430,6 +431,11 @@ class Parameter(ABC, Thread):
         # For each named result in the spec
         for named_result in self.param['spec']:
 
+            if not self.get_result(named_result):
+                err(f'No result "{named_result}" available.')
+                self.result_type = ResultType.ERROR
+                continue
+
             # For each entry in the specs
             for entry in ['minimum', 'typical', 'maximum']:
 
@@ -468,6 +474,8 @@ class Parameter(ABC, Thread):
                         else:
                             err(f'Unknown calculation type: {calculation}')
                     else:
+                        err(f'Result "{named_result}" is empty.')
+                        self.result_type = ResultType.ERROR
                         result = None
 
                     self.get_result(named_result).result[entry] = result
@@ -497,14 +505,14 @@ class Parameter(ABC, Thread):
 
                         # Scale value with unit
                         if unit:
-                            dbg(f'{unit} {value}')
+                            dbg(f'scaling {value} with {unit}')
                             value = spice_unit_convert(
                                 (
                                     str(unit),
                                     str(value),
                                 )
                             )
-
+                            dbg(f'result: {value}')
                         if result != None:
                             dbg(
                                 f'Checking result {result} against value {value} with limit {limit}.'
@@ -882,6 +890,7 @@ class Parameter(ABC, Thread):
         condition_sets,
         conditions,
         results_for_plot,
+        collate_variable,
         parent=None,
     ):
 
@@ -893,11 +902,19 @@ class Parameter(ABC, Thread):
             not 'yaxis' in self.param['plot'][plot_name]
             and not 'xaxis' in self.param['plot'][plot_name]
         ):
-            err('Neither yaxis nor xaxis specified.')
+            err(f'Neither yaxis nor xaxis specified in plot {plot_name}.')
+            self.result_type = ResultType.ERROR
+            return None
 
         xvariable = None
         if 'xaxis' in self.param['plot'][plot_name]:
+
             xvariable = self.param['plot'][plot_name]['xaxis']
+
+            # Remove any bit slices
+            pmatch = self.vectrex.match(xvariable)
+            if pmatch:
+                xvariable = pmatch.group(1)
 
         xdisplay = xvariable
         xunit = ''
@@ -909,6 +926,12 @@ class Parameter(ABC, Thread):
             # Make a list if there's only a single entry
             if not isinstance(yvariables, list):
                 yvariables = [yvariables]
+
+            for i, yvariable in enumerate(yvariables):
+                # Remove any bit slices
+                pmatch = self.vectrex.match(yvariable)
+                if pmatch:
+                    yvariables[i] = pmatch.group(1)
 
         ydisplays = {key: key for key in yvariables}
         yunits = {key: '' for key in yvariables}
@@ -957,7 +980,7 @@ class Parameter(ABC, Thread):
         # Get the limits
         if limits != False:
 
-            # For the histgoram get limits from the x variable
+            # For the histogram get limits from the x variable
             if plot_type == 'histogram':
                 if xvariable in self.param['spec']:
                     if 'minimum' in self.param['spec'][xvariable]:
@@ -1060,7 +1083,7 @@ class Parameter(ABC, Thread):
                             'unit'
                         ]
 
-        # Assemble the string displayed at the y-axis
+        # Assemble the string displayed at the x-axis
         xdisplay = f'{xdisplay} ({xunit})' if xunit != '' else xdisplay
 
         # Assemble the string displayed at the y-axis
@@ -1181,7 +1204,8 @@ class Parameter(ABC, Thread):
                 elif xvariable in conditions:
                     xvalues = conditions[xvariable].values
                 else:
-                    err(f'Unknown variable: {xvariable}')
+                    err(f'Unknown variable: {xvariable} in plot {plot_name}.')
+                    self.result_type = ResultType.ERROR
                     return None
 
             xvalues_list.append(xvalues)
@@ -1196,7 +1220,10 @@ class Parameter(ABC, Thread):
                     elif yvariable in condition_set:
                         yvalues.append(condition_set[yvariable])
                     else:
-                        err(f'Unknown variable: {yvariable}')
+                        err(
+                            f'Unknown variable: {yvariable} in plot {plot_name}.'
+                        )
+                        self.result_type = ResultType.ERROR
                         return None
 
             yvalues_list.append(yvalues)
@@ -1205,6 +1232,11 @@ class Parameter(ABC, Thread):
             label = []
             for condition in condition_set:
                 if condition in conditions:
+                    # Don't display the condition which was
+                    # used to collate the values
+                    if condition == collate_variable:
+                        continue
+
                     # Only add conditions with more than one value
                     if len(conditions[condition].values) > 1:
                         label.append(
@@ -1223,6 +1255,15 @@ class Parameter(ABC, Thread):
                 marker = 'o'
 
             for yvalue in yvalues:
+
+                # Check length of x and y
+                if len(xvalues) != len(yvalue):
+                    err(
+                        f'Length of x and y is not the same ({len(xvalues)}, {len(yvalue)}).'
+                    )
+                    self.result_type = ResultType.ERROR
+                    return None
+
                 self.plot(
                     xvalues,
                     yvalue,
@@ -1234,6 +1275,7 @@ class Parameter(ABC, Thread):
                 )
 
             if not yvalues:
+
                 self.plot(
                     xvalues,
                     yvalues,

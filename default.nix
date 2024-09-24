@@ -31,6 +31,7 @@
   # Python
   matplotlib,
   numpy,
+  scipy,
   pillow,
   tkinter,
   rich,
@@ -77,6 +78,7 @@
         # Python
         matplotlib
         numpy
+        scipy
         pillow
         volare
         tkinter

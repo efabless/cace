@@ -22,6 +22,7 @@ import shutil
 import threading
 import subprocess
 from multiprocessing.pool import ThreadPool
+from importlib.machinery import SourceFileLoader
 
 from ..common.misc import mkdirp
 from ..common.spiceunits import spice_unit_convert
@@ -61,11 +62,13 @@ class ParameterNgspice(Parameter):
             **kwargs,
         )
 
-        self.add_argument(Argument('template', None, True))
+        self.add_argument(Argument('template', None, True))   # TODO typing
         self.add_argument(Argument('collate', None, False))
         self.add_argument(Argument('format', None, False))
         self.add_argument(Argument('suffix', None, False))
         self.add_argument(Argument('variables', [], False))
+        self.add_argument(Argument('script', None, False))
+        self.add_argument(Argument('script_variables', [], False))
 
         # Total number of simulations
         # used for the progress bar
@@ -150,12 +153,19 @@ class ParameterNgspice(Parameter):
 
     def implementation(self):
 
-        info(f'Parameter {self.param["name"]}: Generating simulation files.')
+        info(f'Parameter {self.param["name"]}: Generating simulation files…')
 
         variables = self.get_argument('variables')
 
         # Add all named results
         for variable in variables:
+            if variable != None:
+                self.add_result(Result(variable))
+
+        script_variables = self.get_argument('script_variables')
+
+        # Add all named results from the user-defined script
+        for variable in script_variables:
             if variable != None:
                 self.add_result(Result(variable))
 
@@ -226,12 +236,20 @@ class ParameterNgspice(Parameter):
             dbg(f'Total number of simulations: {self.num_sims}')
 
             # If "collate" is set this means we need to merge
-            # the results of this variable
-            # This is done by removing it from the conditions
-            # and
+            # the results were all conditions but the collate conditions is the same
+            # This is useful for MC simulations, where the results of different iterations,
+            # but under the same conditions (e.g. temperature) should be collated.
 
+            # First remove the collate condition from the conditions
+            collate_variable = None
             if self.get_argument('collate'):
                 collate_variable = self.get_argument('collate')
+
+                # Remove any bit slices
+                pmatch = self.vectrex.match(collate_variable)
+                if pmatch:
+                    collate_variable = pmatch.group(1)
+
                 info(f'Collating results using condition "{collate_variable}"')
 
                 if collate_variable in conditions:
@@ -239,7 +257,7 @@ class ParameterNgspice(Parameter):
                     dbg(collate_condition)
                 else:
                     err(
-                        f'Couldn\'t find collate variable "{collate_variable}" in conditions.'
+                        f'Couldn\'t find condition "{collate_variable}" used for collating the results.'
                     )
 
             # Generate the condition sets for each simulation
@@ -457,7 +475,7 @@ class ParameterNgspice(Parameter):
         # Run all simulations
         jobs = []
 
-        info(f'Parameter {self.param["name"]}: Running simulations.')
+        info(f'Parameter {self.param["name"]}: Running simulations…')
 
         self.cancel_point()
 
@@ -556,7 +574,7 @@ class ParameterNgspice(Parameter):
 
                 self.cancel_point()
 
-        info(f'Parameter {self.param["name"]}: Collecting results.')
+        info(f'Parameter {self.param["name"]}: Collecting results…')
 
         # Get the result
         max_digits = len(str(len(condition_sets)))
@@ -595,9 +613,6 @@ class ParameterNgspice(Parameter):
                     )
 
                 # Read the result file
-
-                collated_results = {}
-
                 if format == 'ascii':
 
                     result_file = os.path.join(
@@ -624,11 +639,20 @@ class ParameterNgspice(Parameter):
                                         collated_values[
                                             variables[_index]
                                         ].append(float(entry))
-
-                    dbg(f'collated_values: {collated_values}')
-
                 else:
                     err(f'Unsupported format for the simulation result.')
+
+            dbg(f'collated values: {collated_values}')
+
+            # Put back the collate condition for script and plotting
+            if self.get_argument('collate'):
+                condition_sets[index][collate_variable] = collate_values
+
+                dbg(
+                    f'collated condition: {condition_sets[index][collate_variable]}'
+                )
+
+            dbg(f'Extending final result…')
 
             for variable in variables:
                 if variable != None:
@@ -637,20 +661,96 @@ class ParameterNgspice(Parameter):
                         collated_values[variable]
                     )
 
+            # Postprocess using user-defined script
+            script = self.get_argument('script')
+            if script:
+                script_path = os.path.join(
+                    self.datasheet['paths']['scripts'], script
+                )
+
+                info(
+                    f"Running user-defined script '[repr.filename][link=file://{os.path.abspath(script_path)}]{os.path.relpath(script_path)}[/link][/repr.filename]'…"
+                )
+
+                if not os.path.isfile(script_path):
+                    err(f'No such user script {script_path}.')
+                    self.result_type = ResultType.ERROR
+                    return
+
+                try:
+                    user_script = SourceFileLoader(
+                        'user_script', script_path
+                    ).load_module()
+
+                    class CustomPrint:
+                        def __enter__(self):
+                            self._stdout = sys.stdout
+                            sys.stdout = self
+                            return self
+
+                        def __exit__(self, *args):
+                            sys.stdout = self._stdout
+
+                        def write(self, text):
+                            text = text.rstrip()
+                            if len(text) == 0:
+                                return
+                            info(text)
+
+                        def flush(self):
+                            self._stdout.flush()
+
+                        def __getattr__(self, attr):
+                            return getattr(self._stdout, attr)
+
+                    with CustomPrint() as output:
+                        script_values = user_script.postprocess(
+                            collated_values, condition_set
+                        )
+
+                        # Merge collated and script variables
+                        collated_values.update(script_values)
+
+                except Exception:
+                    err(f'Error in user script:')
+                    traceback.print_exc()
+                    self.result_type = ResultType.ERROR
+                    return
+
+            for variable in script_variables:
+                if variable != None:
+                    # Check for variable in results
+                    if variable not in script_values:
+                        err(f'Variable "{variable}" not in script results.')
+                        self.result_type = ResultType.ERROR
+                        return
+
+                    # Extend the final result
+                    self.get_result(variable).values.extend(
+                        script_values[variable]
+                    )
+
             simulation_values.append(collated_values)
             self.result_type = ResultType.SUCCESS
 
         dbg(f'simulation_values: {simulation_values}')
         dbg(f'results_dict: {self.results_dict}')
 
-        # TODO other tools?
+        # Put back the collate_condition
+        # TODO find a better way
+        if self.get_argument('collate'):
+            conditions[collate_variable] = collate_condition
 
         # Create a plot if specified
         if 'plot' in self.param:
             # Create the plots and save them
             for named_plot in self.param['plot']:
                 self.makeplot(
-                    named_plot, condition_sets, conditions, simulation_values
+                    named_plot,
+                    condition_sets,
+                    conditions,
+                    simulation_values,
+                    collate_variable,
                 )
 
     def get_num_steps(self):
