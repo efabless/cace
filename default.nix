@@ -19,7 +19,7 @@
   setuptools_scm,
 
   # Tools
-  klayout,
+  klayout-gdsfactory,
   magic-vlsi,
   netgen,
   volare,
@@ -33,13 +33,7 @@
   pillow,
   tkinter,
   rich,
-  gdsfactory,
 }: let
-
-  klayout-gdsfactory = klayout.withPythonPackages (ps:
-    with ps; [
-      gdsfactory
-    ]);
 
   self = buildPythonPackage rec {
       pname = "cace";

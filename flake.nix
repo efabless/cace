@@ -56,7 +56,6 @@
         util: let
           self = with util;
             {
-              gdsfactory = callPythonPackage ./nix/gdsfactory.nix {};
               colab-env = callPackage ./nix/colab-env.nix {};
               cace = callPythonPackage ./default.nix {};
               default = self.cace;
