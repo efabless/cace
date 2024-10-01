@@ -39,11 +39,11 @@
         "nixpkgs": "nixpkgs"
       },
       "locked": {
-        "lastModified": 1727616969,
-        "narHash": "sha256-/AZydG1c4Wxmm8Pw1VQR3gXlruZcoDYZCAIfNjR/2s0=",
+        "lastModified": 1727685714,
+        "narHash": "sha256-WI7eCVT8fp4k6Iizky0UeFr/3vPnOat1P1gr+tLufRk=",
         "owner": "efabless",
         "repo": "nix-eda",
-        "rev": "8052bad3f88df7660f49a772836073223b8a6f7d",
+        "rev": "3fc4884a62cd3b62230ee90b9687f5aaebe98543",
         "type": "github"
       },
       "original": {
