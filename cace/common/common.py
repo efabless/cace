@@ -145,7 +145,10 @@ def get_layout_path(projname, paths, check_magic=False):
 
         dbg('No compressed GDS layout found.')
 
-    err('Neither magic nor (compressed) GDS layout found.')
+    if check_magic:
+        err('Neither magic nor (compressed) GDS layout found.')
+    else:
+        err('No (compressed) GDS layout found.')
 
     return (None, None)
 
@@ -691,7 +694,8 @@ def run_subprocess(
         text=True,
     ) as process:
 
-        dbg(input)
+        if input != None:
+            dbg(f'input: {input}')
         stdout, stderr = process.communicate(input)
         returncode = process.returncode
 

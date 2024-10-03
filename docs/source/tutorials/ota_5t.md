@@ -1,4 +1,4 @@
-# Tutorial
+# CACE Setup for a 5T-OTA
 
 This tutorial will guide you step by step through the creation of a simple 5-transistor OTA and the CACE setup for it.
 It is assumed that you have already set up CACE and its dependencies.
@@ -443,6 +443,8 @@ If you click on one of the column headings, you will get a plot of the selected 
 
 ![CACE CLI Running](img/gui_3.png)
 
+-->
+
 ## Final Thoughts
 
 We hope this tutorial was able to give you an introduction to setting up and using CACE. If you already designed an IP block, you can add a CACE setup to it. Or you could try adding CACE to your next design. Have fun!
@@ -450,5 +452,3 @@ We hope this tutorial was able to give you an introduction to setting up and usi
 ```{note}
 Did you notice any issues with this tutorial or have ideas for improvements? Please open an [issue](https://github.com/efabless/cace/issues) so we can improve this tutorial. Thank you!
 ```
-
--->

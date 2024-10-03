@@ -1,3 +1,18 @@
+# 2.5.0
+
+## Common
+
+- Implement custom scripts for the `ngspice` tool
+  - `script` specifies the Python script
+  - `script_variables` specifies the output variables
+- Improve various error messages
+- Variables in `collate` and `plot` entries can be specified with or without bit vectors (`[a:b]`). For now bit vectors are unused.
+- A collate condition can still be used in a plot (but won't be displayed in the legend).
+
+## Documentation
+
+- Added a tutorial for custom scripts using the `ngspice` tool
+
 # 2.4.14
 
 ## Common
