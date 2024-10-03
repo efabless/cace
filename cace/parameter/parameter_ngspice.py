@@ -20,6 +20,7 @@ import yaml
 import time
 import shutil
 import threading
+import traceback
 import subprocess
 from multiprocessing.pool import ThreadPool
 from importlib.machinery import SourceFileLoader
