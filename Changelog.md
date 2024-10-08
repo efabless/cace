@@ -1,3 +1,9 @@
+# 2.5.3
+
+## Common
+
+- Add a simulation summary for the `ngspice` tool
+
 # 2.5.2
 
 ## Common
