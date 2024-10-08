@@ -115,6 +115,8 @@ pins:
     type: power
     Vmin: 1.7
     Vmax: 1.9
+    Imin: 0
+    Imax: 0.01
   ...
 ```
 
@@ -144,6 +146,15 @@ pins:
 	> The pin maximum voltage may be a value or may be referenced to
 	another pin;  and may be referenced to another pin with an offset
 	(e.g., "vdd + 0.3").
+
+- `Imin:	<number>|<expression>`
+	> The pin maximum sink current -a minimum value if specified as
+    a negative current- may be a value or may be referenced to another
+    pin; and may be referenced to another pin with an offset. 
+
+- `Imax:	<number>|<expression>`
+	> The pin maximum source current may be a value or may be referenced to
+	another pin;  and may be referenced to another pin with an offset. 
 
 ## Default Conditions
 
