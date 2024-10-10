@@ -18,8 +18,8 @@ import time
 import signal
 import logging
 import argparse
+from fnmatch import fnmatch
 from datetime import timedelta
-
 from rich.markdown import Markdown
 from rich.progress import (
     Progress,
@@ -139,7 +139,14 @@ def cli():
         '--parameter',
         nargs='+',
         default=None,
-        help='run simulations on only the named parameters, by default run all parameters',
+        help='run simulations on only the named parameters, by default run all parameters. Has support for wildcards (*) to match parts of parameters.',
+    )
+    parser.add_argument(
+        '-sp',
+        '--skip-parameter',
+        nargs='+',
+        default=None,
+        help='list parameters that should be skipped. Has support for wildcards (*) to match parts of parameters.',
     )
     parser.add_argument(
         '--parallel-parameters',
@@ -262,45 +269,87 @@ def cli():
     # Get the start timestamp
     timestamp_start = time.time()
 
+    # Get all available parameters
+    pnames = parameter_manager.get_all_pnames()
+
+    # Queued parameter names
+    queued_pnames = []
+
     # Queue specified parameters
     if args.parameter:
-        dbg(f'Running parameters: {args.parameter}')
+        dbg(f'Queuing parameters: {args.parameter}')
+
         for pname in args.parameter:
-            parameter_manager.queue_parameter(
-                pname,
-                start_cb=lambda param, steps: start_parameter(
-                    param, progress, task_ids, steps
-                ),
-                step_cb=lambda param: step_parameter(
-                    param, progress, task_ids
-                ),
-                cancel_cb=lambda param: end_parameter(
-                    param, progress, task_ids, task_id
-                ),
-                end_cb=lambda param: end_parameter(
-                    param, progress, task_ids, task_id
-                ),
-            )
+            # Directly queue a parameter name
+            if pname in pnames:
+                queued_pnames.append(pname)
+            # Try to match pattern
+            else:
+                match_pnames = [
+                    _pname for _pname in pnames if fnmatch(_pname, pname)
+                ]
+
+                if not match_pnames:
+                    err(f'{pname} does not match any parameters.')
+                    err(f'Known parameters are: {", ".join(pnames)}')
+                    sys.exit(1)
+
+                for match_pname in match_pnames:
+                    queued_pnames.append(match_pname)
     # Queue all parameters
     else:
-        pnames = parameter_manager.get_all_pnames()
-        dbg(f'Running parameters: {pnames}')
-        for pname in pnames:
-            parameter_manager.queue_parameter(
-                pname,
-                start_cb=lambda param, steps: start_parameter(
-                    param, progress, task_ids, steps
-                ),
-                step_cb=lambda param: step_parameter(
-                    param, progress, task_ids
-                ),
-                cancel_cb=lambda param: end_parameter(
-                    param, progress, task_ids, task_id
-                ),
-                end_cb=lambda param: end_parameter(
-                    param, progress, task_ids, task_id
-                ),
-            )
+        queued_pnames = pnames
+
+    # Skip specified parameters
+    if args.skip_parameter:
+        dbg(f'Skipping parameters: {args.skip_parameter}')
+
+        for pname in args.skip_parameter:
+            # Directly remove a parameter name
+            if pname in queued_pnames:
+                queued_pnames.remove(pname)
+            # Try to match pattern
+            else:
+                match_pnames = [
+                    _pname
+                    for _pname in queued_pnames
+                    if fnmatch(_pname, pname)
+                ]
+
+                if not match_pnames:
+                    err(f'{pname} does not match any queued parameters.')
+                    err(f'Queued parameters are: {", ".join(queued_pnames)}')
+                    sys.exit(1)
+
+                for match_pname in match_pnames:
+                    queued_pnames.remove(match_pname)
+
+    if not queued_pnames:
+        err('No parameters specified to run.')
+        sys.exit(1)
+
+    info(f'Running parameters: {", ".join(queued_pnames)}')
+
+    for queued_pname in queued_pnames:
+        if not queued_pname in pnames:
+            err(f'Unknown parameter {queued_pname}.')
+            err(f'Known parameters are: {", ".join(pnames)}')
+            sys.exit(1)
+
+    for pname in queued_pnames:
+        parameter_manager.queue_parameter(
+            pname,
+            start_cb=lambda param, steps: start_parameter(
+                param, progress, task_ids, steps
+            ),
+            step_cb=lambda param: step_parameter(param, progress, task_ids),
+            cancel_cb=lambda param: end_parameter(
+                param, progress, task_ids, task_id
+            ),
+            end_cb=lambda param: end_parameter(
+                param, progress, task_ids, task_id
+            ),
+        )
 
     # Set the total number of parameters in the progress bar
     progress.update(task_id, total=parameter_manager.num_queued_parameters())

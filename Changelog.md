@@ -1,3 +1,12 @@
+# 2.5.1
+
+## CLI
+
+- Allow parameters to be specified via `--parameter` as a pattern
+- Add `--skip-parameter` to skip certain parameters
+  - Applied after parameters have been queued via `--parameter`
+  - Also allows the use of patterns
+
 # 2.5.0
 
 ## Common
