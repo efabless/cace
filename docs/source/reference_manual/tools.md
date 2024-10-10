@@ -71,6 +71,10 @@ Results:
 
 ## `netgen_lvs`
 
+```{note}
+The `netgen_lvs` tool always compares the `schematic` netlist with the `layout` extracted netlist, independent of the selected netlist source.
+```
+
 Perform LVS (Layout VS Schematic) with netgen.
 
 Arguments:
