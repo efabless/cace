@@ -1,3 +1,9 @@
+# 2.5.2
+
+## Common
+
+- Add reserved variable `netlist_source`
+
 # 2.5.1
 
 ## CLI

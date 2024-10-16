@@ -326,6 +326,7 @@ class ParameterNgspice(Parameter):
                         'templates': os.path.abspath(self.paths['templates']),
                         'simpath': os.path.abspath(outpath),
                         'DUT_name': self.datasheet['name'],
+                        'netlist_source': source,
                         'N': index,
                         'DUT_path': os.path.abspath(dutpath),
                         'PDK_ROOT': get_pdk_root(),
