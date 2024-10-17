@@ -24,10 +24,6 @@ that is substituted by CACE. The syntax follows three essential rules:
 	
 	> The name of the path to simulation files.
 
-- `CACE{random}`
-	
-	> A random integer number.
-
 - `CACE{DUT_path}`
 	
 	> The full path to the DUT subcircuit definition netlist.
@@ -35,6 +31,10 @@ that is substituted by CACE. The syntax follows three essential rules:
 - `CACE{DUT_name}`
 	
 	> The name of the DUT subcircuit
+
+- `CACE{netlist_source}`
+	
+	> The current netlist source such as: schematic, layout, pex or rcx.
 
 - `CACE{PDK_ROOT}`
 	
@@ -48,6 +48,10 @@ that is substituted by CACE. The syntax follows three essential rules:
     	
 	> This is substituted with the simulation index.  Most often
 	used as a filename suffix for the output data file.
+
+- `CACE{random}`
+	
+	> A random integer number.
 
 - `CACE{cond=value}`
 	
