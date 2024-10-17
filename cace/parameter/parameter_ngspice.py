@@ -44,7 +44,9 @@ from ..logging import (
     success,
     warn,
     err,
+    console,
 )
+from rich.markdown import Markdown
 
 
 @register_parameter('ngspice')
@@ -743,6 +745,42 @@ class ParameterNgspice(Parameter):
         if self.get_argument('collate'):
             conditions[collate_variable] = collate_condition
 
+        # Extend simulation variables with script variables
+        variables.extend(script_variables)
+
+        # Write the CSV summary
+        self.write_simulation_summary_csv(
+            os.path.join(self.param_dir, f'simulation_summary.csv'),
+            conditions,
+            condition_sets,
+            variables,
+            simulation_values,
+        )
+
+        # Create the Markdown summary
+        simulation_summary = self.create_simulation_summary_markdown(
+            conditions,
+            condition_sets,
+            variables,
+            simulation_values,
+        )
+
+        # Get path for the simulation summary
+        outpath_sim_summary = os.path.join(
+            self.param_dir, f'simulation_summary.md'
+        )
+
+        # Save the simulation summary
+        with open(outpath_sim_summary, 'w') as f:
+            f.write(simulation_summary)
+
+        info(
+            f'Parameter {self.param["name"]}: Saving simulation summary as \'[repr.filename][link=file://{os.path.abspath(outpath_sim_summary)}]{os.path.relpath(outpath_sim_summary)}[/link][/repr.filename]\'…'
+        )
+
+        # Print the simulation summary in the console
+        console.print(Markdown(simulation_summary))
+
         # Create a plot if specified
         if 'plot' in self.param:
             # Create the plots and save them
@@ -754,6 +792,238 @@ class ParameterNgspice(Parameter):
                     simulation_values,
                     collate_variable,
                 )
+
+    def create_simulation_summary_markdown(
+        self,
+        conditions,
+        condition_sets,
+        variables,
+        simulation_values,
+    ):
+        """
+        Create a summary for all simulation runs in Markdown
+        """
+
+        summary_table = f'# Simulation Summary for {self.param["display"]}\n\n'
+
+        # Find all conditions with more than one value,
+        # these change between simulations
+        conditions_in_summary = []
+        for condition in conditions.values():
+            if len(condition.values) > 1:
+                conditions_in_summary.append(condition.name)
+
+        # Print the header
+        header_entries = []
+        header_separators = []
+
+        # First entry is the simulation run
+        header_entries.append('run')
+        header_separators.append(':--')
+
+        for cond in conditions_in_summary:
+            header_entries.append(str(cond))
+            header_separators.append('-' * max(len(str(cond)) - 1, 1) + ':')
+
+        # Get resulting variables (check for None)
+        for variable in variables:
+            if variable != None:
+                header_entries.append(str(variable))
+                header_separators.append(
+                    '-' * max(len(str(variable)) - 1, 1) + ':'
+                )
+
+        # Add header and separators
+        summary_table += f'| {" | ".join(header_entries)} |\n'
+        summary_table += f'| {" | ".join(header_separators)} |\n'
+
+        # Generate the entries
+        max_digits = len(str(len(condition_sets)))
+        max_entries_list = 3
+        for index, (condition_set, sim_values) in enumerate(
+            zip(condition_sets, simulation_values)
+        ):
+            body_entries = []
+            body_entries.append(f'run_{index:0{max_digits}d}')
+
+            for cond in conditions_in_summary:
+                if isinstance(condition_set[cond], list):
+                    if len(condition_set[cond]) == 1:
+                        body_entries.append(
+                            self.decimal2readable(condition_set[cond][0])
+                        )
+                        continue
+
+                    values = condition_set[cond][
+                        0 : min(max_entries_list, len(condition_set[cond]))
+                    ]
+                    values = [self.decimal2readable(value) for value in values]
+                    if len(condition_set[cond]) > max_entries_list:
+                        values.append('…')
+                    body_entries.append(f'[{", ".join(values)}]')
+                else:
+                    body_entries.append(
+                        self.decimal2readable(condition_set[cond])
+                    )
+
+            for variable in variables:
+                if variable != None:
+                    if isinstance(simulation_values[index][variable], list):
+                        if len(simulation_values[index][variable]) == 1:
+                            body_entries.append(
+                                self.decimal2readable(
+                                    simulation_values[index][variable][0]
+                                )
+                            )
+                            continue
+
+                        values = simulation_values[index][variable][
+                            0 : min(
+                                max_entries_list,
+                                len(simulation_values[index][variable]),
+                            )
+                        ]
+                        values = [
+                            self.decimal2readable(value) for value in values
+                        ]
+                        if (
+                            len(simulation_values[index][variable])
+                            > max_entries_list
+                        ):
+                            values.append('…')
+                        body_entries.append(f'[{", ".join(values)}]')
+                    else:
+                        body_entries.append(
+                            self.decimal2readable(
+                                simulation_values[index][variable]
+                            )
+                        )
+
+            summary_table += f'| {" | ".join(body_entries)} |\n'
+
+        return summary_table
+
+    def write_simulation_summary_csv(
+        self,
+        csv_file,
+        conditions,
+        condition_sets,
+        variables,
+        simulation_values,
+    ):
+        """
+        Write a summary for all simulation runs in CSV
+        """
+
+        with open(csv_file, 'w', newline='') as csvfile:
+            csvwriter = csv.writer(csvfile)
+
+            # Find all conditions with more than one value,
+            # these change between simulations
+            conditions_in_summary = []
+            for condition in conditions.values():
+                if len(condition.values) > 1:
+                    conditions_in_summary.append(condition.name)
+
+            # Print the header
+            header_entries = []
+
+            # First entry is the simulation run
+            header_entries.append('run')
+
+            for cond in conditions_in_summary:
+                header_entries.append(str(cond))
+
+            # Get resulting variables (check for None)
+            for variable in variables:
+                if variable != None:
+                    header_entries.append(str(variable))
+
+            # Write header
+            csvwriter.writerow(header_entries)
+
+            # Generate the entries
+            max_digits = len(str(len(condition_sets)))
+            max_entries_list = 3
+            for index, (condition_set, sim_values) in enumerate(
+                zip(condition_sets, simulation_values)
+            ):
+                body_entries = []
+                body_entries.append(f'run_{index:0{max_digits}d}')
+
+                for cond in conditions_in_summary:
+                    if isinstance(condition_set[cond], list):
+                        if len(condition_set[cond]) == 1:
+                            body_entries.append(
+                                self.decimal2readable(condition_set[cond][0])
+                            )
+                            continue
+
+                        values = condition_set[cond][
+                            0 : min(max_entries_list, len(condition_set[cond]))
+                        ]
+                        values = [
+                            self.decimal2readable(value) for value in values
+                        ]
+                        if len(condition_set[cond]) > max_entries_list:
+                            values.append('…')
+                        body_entries.append(f'[{", ".join(values)}]')
+                    else:
+                        body_entries.append(
+                            self.decimal2readable(condition_set[cond])
+                        )
+
+                for variable in variables:
+                    if variable != None:
+                        if isinstance(
+                            simulation_values[index][variable], list
+                        ):
+                            if len(simulation_values[index][variable]) == 1:
+                                body_entries.append(
+                                    self.decimal2readable(
+                                        simulation_values[index][variable][0]
+                                    )
+                                )
+                                continue
+
+                            values = simulation_values[index][variable][
+                                0 : min(
+                                    max_entries_list,
+                                    len(simulation_values[index][variable]),
+                                )
+                            ]
+                            values = [
+                                self.decimal2readable(value)
+                                for value in values
+                            ]
+                            if (
+                                len(simulation_values[index][variable])
+                                > max_entries_list
+                            ):
+                                values.append('…')
+                            body_entries.append(f'[{", ".join(values)}]')
+                        else:
+                            body_entries.append(
+                                self.decimal2readable(
+                                    simulation_values[index][variable]
+                                )
+                            )
+
+                # Write row
+                csvwriter.writerow(body_entries)
+
+    def decimal2readable(self, decimal):
+        if isinstance(decimal, str):
+            return decimal
+
+        # Print zero as float
+        if decimal == 0:
+            return f'{decimal:.3f}'
+
+        if decimal < 0.1 or decimal > 100000:
+            return f'{decimal:.3e}'
+        else:
+            return f'{decimal:.3f}'
 
     def get_num_steps(self):
         return self.num_sims
