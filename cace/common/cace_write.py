@@ -101,6 +101,8 @@ def generate_documentation(datasheet):
                 'direction': 'Direction',
                 'Vmin': 'Vmin',
                 'Vmax': 'Vmax',
+                'imin': 'Imin',
+                'imax': 'Imax',
                 'note': 'Note',
             }
 
