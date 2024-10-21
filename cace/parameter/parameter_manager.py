@@ -23,6 +23,8 @@ import signal
 import datetime
 import threading
 
+from ..common.custom_semaphore import CustomSemaphore
+
 from ..common.misc import mkdirp
 from ..common.cace_read import cace_read, cace_read_yaml
 from ..common.cace_write import (
@@ -104,11 +106,9 @@ class ParameterManager:
         if not jobs:
             jobs = os.cpu_count()
 
-        # Fallback jobs
-        if not jobs:
-            jobs = 4
-
-        self.jobs_sem = threading.Semaphore(value=jobs)
+        self.jobs_sem = CustomSemaphore(
+            value=jobs
+        )   # threading.Semaphore(value=jobs)
 
         dbg(f'Parameter manager: total number of jobs is {jobs}')
 

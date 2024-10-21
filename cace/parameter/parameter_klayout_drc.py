@@ -49,6 +49,7 @@ class ParameterKLayoutDRC(Parameter):
 
         self.add_result(Result('drc_errors'))
 
+        self.add_argument(Argument('jobs', 1, False))
         self.add_argument(Argument('args', [], False))
 
     def is_runnable(self):
@@ -65,64 +66,76 @@ class ParameterKLayoutDRC(Parameter):
 
         self.cancel_point()
 
-        # Acquire a job from the global jobs semaphore
-        with self.jobs_sem:
+        jobs = self.get_argument('jobs')
 
-            projname = self.datasheet['name']
-            paths = self.datasheet['paths']
+        if jobs == 'max':
+            # Set the number of jobs to the number of cores
+            jobs = os.cpu_count()
+        else:
+            # Make sure that jobs don't exceed max jobs
+            jobs = min(jobs, os.cpu_count())
 
-            info('Running KLayout to get layout DRC report.')
+        # Acquire job(s) from the global jobs semaphore
+        self.jobs_sem.acquire(jobs)
 
-            # Get the path to the layout, only GDS
-            (layout_filepath, is_magic) = get_layout_path(
-                projname, self.paths, check_magic=False
-            )
+        projname = self.datasheet['name']
+        paths = self.datasheet['paths']
 
-            # Check if layout exists
-            if not os.path.isfile(layout_filepath):
-                err('No layout found!')
-                self.result_type = ResultType.ERROR
-                return
+        info('Running KLayout to get layout DRC report.')
 
-            drc_script_path = os.path.join(
-                get_pdk_root(),
-                self.datasheet['PDK'],
-                'libs.tech',
-                'klayout',
-                'drc',
-                f'{self.datasheet["PDK"]}_mr.drc',
-            )
+        # Get the path to the layout, only GDS
+        (layout_filepath, is_magic) = get_layout_path(
+            projname, self.paths, check_magic=False
+        )
 
-            report_file_path = os.path.join(self.param_dir, 'report.xml')
+        # Check if layout exists
+        if not os.path.isfile(layout_filepath):
+            err('No layout found!')
+            self.result_type = ResultType.ERROR
+            return
 
-            if not os.path.exists(drc_script_path):
-                err(f'DRC script {drc_script_path} does not exist!')
-                self.result_type = ResultType.ERROR
-                return
+        drc_script_path = os.path.join(
+            get_pdk_root(),
+            self.datasheet['PDK'],
+            'libs.tech',
+            'klayout',
+            'drc',
+            f'{self.datasheet["PDK"]}_mr.drc',
+        )
 
-            arguments = []
+        report_file_path = os.path.join(self.param_dir, 'report.xml')
 
-            # PDK specific arguments
-            if self.datasheet['PDK'].startswith('sky130'):
-                arguments = [
-                    '-b',
-                    '-r',
-                    drc_script_path,
-                    '-rd',
-                    f'input={os.path.abspath(layout_filepath)}',
-                    '-rd',
-                    f'topcell={projname}',
-                    '-rd',
-                    f'report={report_file_path}',
-                    '-rd',
-                    f'thr={os.cpu_count()}',  # TODO how to distribute cores?
-                ]
+        if not os.path.exists(drc_script_path):
+            err(f'DRC script {drc_script_path} does not exist!')
+            self.result_type = ResultType.ERROR
+            return
 
-            returncode = self.run_subprocess(
-                'klayout',
-                arguments + self.get_argument('args'),
-                cwd=self.param_dir,
-            )
+        arguments = []
+
+        # PDK specific arguments
+        if self.datasheet['PDK'].startswith('sky130'):
+            arguments = [
+                '-b',
+                '-r',
+                drc_script_path,
+                '-rd',
+                f'input={os.path.abspath(layout_filepath)}',
+                '-rd',
+                f'topcell={projname}',
+                '-rd',
+                f'report={report_file_path}',
+                '-rd',
+                f'thr={os.cpu_count()}',  # TODO how to distribute cores?
+            ]
+
+        returncode = self.run_subprocess(
+            'klayout',
+            arguments + self.get_argument('args'),
+            cwd=self.param_dir,
+        )
+
+        # Free job(s) from the global jobs semaphore
+        self.jobs_sem.release(jobs)
 
         # Advance progress bar
         if self.step_cb:
