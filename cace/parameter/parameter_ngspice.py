@@ -74,6 +74,9 @@ class ParameterNgspice(Parameter):
         self.add_argument(Argument('variables', [], False))
         self.add_argument(Argument('script', None, False))
         self.add_argument(Argument('script_variables', [], False))
+        self.add_argument(
+            Argument('spiceinit_path', None, False)
+        )   # Specify spiceinit other than PDK spiceinit
 
         # Total number of simulations
         # used for the progress bar
@@ -179,13 +182,9 @@ class ParameterNgspice(Parameter):
         if jobs == 'max':
             # Set the number of jobs to the number of cores
             jobs = os.cpu_count()
-
-            # Fallback jobs
-            if not jobs:
-                jobs = 4
         else:
-            # Make sure that jobs don't exceed max jobs
-            jobs = min(jobs, os.cpu_count())
+            # Make sure that jobs doesn't exceed max jobs
+            jobs = min(jobs, self.max_jobs)
 
         template = self.get_argument('template')
         template_path = os.path.join(self.paths['templates'], template)
@@ -341,10 +340,11 @@ class ParameterNgspice(Parameter):
                     reserved = {
                         'filename': os.path.splitext(template)[0],
                         'templates': os.path.abspath(self.paths['templates']),
+                        'root': os.path.abspath(self.paths['root']),
                         'simpath': os.path.abspath(outpath),
                         'DUT_name': self.datasheet['name'],
                         'netlist_source': source,
-                        'jobs': jobs,  # TODO self.param['jobs'],
+                        'jobs': jobs,
                         'N': index,
                         'DUT_path': os.path.abspath(dutpath),
                         'PDK_ROOT': get_pdk_root(),
@@ -353,9 +353,17 @@ class ParameterNgspice(Parameter):
                         'random': str(int(time.time() * 1000) & 0x7FFFFFFF),
                     }
 
-                    # Set the reserved conditions
+                    # Set the reserved variables
                     for cond in condition_set:
                         if cond in reserved:
+                            # Hack until reserved variables and conditions are properly separated
+                            if (
+                                collate_index == 0
+                                and condition_set[cond] != None
+                            ):
+                                warn(
+                                    f'Condition uses name of reserved variable: {cond}'
+                                )
                             condition_set[cond] = reserved[cond]
 
                     # Add the collate condition
@@ -480,6 +488,23 @@ class ParameterNgspice(Parameter):
                     """if returncode:
                         self.result_type = ResultType.ERROR
                         return"""
+
+                    # Copy the .spiceinit file to the simulation directory
+                    spiceinit_path = self.get_argument('spiceinit_path')
+
+                    # Get the spiceinit file from the PDK
+                    if spiceinit_path == None:
+                        spiceinit_path = os.path.join(
+                            pdk_root, pdk, 'libs.tech', 'ngspice', 'spiceinit'
+                        )
+
+                    if os.path.isfile(spiceinit_path):
+                        # Copy spiceinit file to run dir
+                        shutil.copyfile(
+                            spiceinit_path, os.path.join(outpath, '.spiceinit')
+                        )
+                    else:
+                        err(f'No "spiceinit" file found in the {pdk} PDK.')
 
         # We directly got a spice netlist,
         # perform the substitutions on it
@@ -1158,7 +1183,7 @@ class SimulationJob(threading.Thread):
         # Run ngspice
         returncode = self.run_subprocess(
             'ngspice',
-            ['--batch', '--no-spiceinit', self.simfile],
+            ['--batch', self.simfile],
             cwd=self.outpath,
         )
 

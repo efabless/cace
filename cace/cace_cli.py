@@ -123,7 +123,7 @@ def cli():
         '-j',
         '--jobs',
         type=int,
-        help="""total number of jobs running in parallel""",
+        help="""maximum number of jobs running in parallel""",
     )
     parser.add_argument(
         '-s',
@@ -206,7 +206,7 @@ def cli():
 
     # Create the ParameterManager
     parameter_manager = ParameterManager(
-        max_runs=args.max_runs, run_path=args.run_path, jobs=args.jobs
+        max_runs=args.max_runs, run_path=args.run_path, max_jobs=args.jobs
     )
 
     # Load the datasheet
