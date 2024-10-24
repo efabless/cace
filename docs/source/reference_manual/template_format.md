@@ -22,7 +22,11 @@ that is substituted by CACE. The syntax follows three essential rules:
 
 - `CACE{simpath}`
 	
-	> The name of the path to simulation files.
+	> The path to the simulation directory.
+
+- `CACE{root}`
+	
+    > The root path of the project.
 
 - `CACE{DUT_path}`
 	
@@ -35,6 +39,10 @@ that is substituted by CACE. The syntax follows three essential rules:
 - `CACE{netlist_source}`
 	
 	> The current netlist source such as: schematic, layout, pex or rcx.
+
+- `CACE{jobs}`
+	
+	> The number of jobs (threads) allocated for this simulation run. Should be used to set `num_threads`.
 
 - `CACE{PDK_ROOT}`
 	
