@@ -51,6 +51,7 @@ class ParameterKLayoutDRC(Parameter):
 
         self.add_argument(Argument('jobs', 1, False))
         self.add_argument(Argument('args', [], False))
+        self.add_argument(Argument('drc_script_path', None, False))
 
     def is_runnable(self):
         netlist_source = self.runtime_options['netlist_source']
@@ -92,22 +93,27 @@ class ParameterKLayoutDRC(Parameter):
         if not os.path.isfile(layout_filepath):
             err('No layout found!')
             self.result_type = ResultType.ERROR
+            self.jobs_sem.release(jobs)
             return
 
-        drc_script_path = os.path.join(
-            get_pdk_root(),
-            self.datasheet['PDK'],
-            'libs.tech',
-            'klayout',
-            'drc',
-            f'{self.datasheet["PDK"]}_mr.drc',
-        )
+        drc_script_path = self.get_argument('drc_script_path')
+
+        if drc_script_path == None:
+            drc_script_path = os.path.join(
+                get_pdk_root(),
+                self.datasheet['PDK'],
+                'libs.tech',
+                'klayout',
+                'drc',
+                f'{self.datasheet["PDK"]}_mr.drc',
+            )
 
         report_file_path = os.path.join(self.param_dir, 'report.xml')
 
         if not os.path.exists(drc_script_path):
             err(f'DRC script {drc_script_path} does not exist!')
             self.result_type = ResultType.ERROR
+            self.jobs_sem.release(jobs)
             return
 
         arguments = []
