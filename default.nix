@@ -23,7 +23,6 @@
   magic-vlsi,
   netgen,
   volare,
-  octave,
   xschem,
   ngspice,
   
@@ -69,7 +68,6 @@
         klayout-gdsfactory
         magic-vlsi
         netgen
-        octave
         ngspice
         xschem
       ];
