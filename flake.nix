@@ -72,8 +72,9 @@
             callPackage (self.createCaceShell {
               }) {};
           notebook = callPackage (self.createCaceShell {
-            extra-packages = with pkgs; [
+            extra-python-packages = with pkgs.python3.pkgs; [
               jupyter
+              pandas
             ];
           }) {};
           dev = callPackage (self.createCaceShell {
