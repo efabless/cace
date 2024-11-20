@@ -1,3 +1,19 @@
+# 2.5.4
+
+## Common
+
+- `ngspice` tool:
+  - Add `jobs` argument
+  - Add `spiceinit_path` argument
+  - By default copy the PDK spiceinit to the simulation directory
+- `klayout_drc` tool:
+  - Add `jobs` argument
+  - Add `drc_script_path` argument
+- Reserved variables:
+  - Add `CACE{jobs}`
+  - Add `CACE{root}`
+- Issue a warning when a conditions has the same name as a reserved variable
+
 # 2.5.3
 
 ## Common

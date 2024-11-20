@@ -23,6 +23,8 @@ import signal
 import datetime
 import threading
 
+from ..common.custom_semaphore import CustomSemaphore
+
 from ..common.misc import mkdirp
 from ..common.cace_read import cace_read, cace_read_yaml
 from ..common.cace_write import (
@@ -61,7 +63,9 @@ class ParameterManager:
     manipulate it.
     """
 
-    def __init__(self, datasheet={}, max_runs=None, run_path=None, jobs=None):
+    def __init__(
+        self, datasheet={}, max_runs=None, run_path=None, max_jobs=None
+    ):
         """Initialize the object with a datasheet"""
         self.datasheet = datasheet
         self.max_runs = max_runs
@@ -99,18 +103,15 @@ class ParameterManager:
 
         self.set_default_paths()
 
-        # Set the number of jobs to the number of cores
-        # if jobs=None
-        if not jobs:
-            jobs = os.cpu_count()
+        # If not specified, set the number
+        # of jobs to the number of cpu threads
+        self.max_jobs = max_jobs
+        if not self.max_jobs:
+            self.max_jobs = os.cpu_count()
 
-        # Fallback jobs
-        if not jobs:
-            jobs = 4
+        self.jobs_sem = CustomSemaphore(value=self.max_jobs)
 
-        self.jobs_sem = threading.Semaphore(value=jobs)
-
-        dbg(f'Parameter manager: total number of jobs is {jobs}')
+        info(f'Maximum number of jobs is {self.max_jobs}.')
 
     ### datasheet functions ###
 
@@ -512,8 +513,8 @@ class ParameterManager:
                     paths,
                     self.runtime_options,
                     self.run_dir,
-                    # Semaphore for starting
-                    # new jobs
+                    self.max_jobs,
+                    # Semaphore for starting new jobs
                     self.jobs_sem,
                     # Callbacks
                     start_cb,

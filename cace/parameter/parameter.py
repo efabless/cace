@@ -200,6 +200,7 @@ class Parameter(ABC, Thread):
         paths,
         runtime_options,
         run_dir,
+        max_jobs,
         jobs_sem,
         start_cb=None,
         end_cb=None,
@@ -215,6 +216,7 @@ class Parameter(ABC, Thread):
         self.paths = paths
         self.runtime_options = runtime_options
         self.run_dir = run_dir
+        self.max_jobs = max_jobs
         self.jobs_sem = jobs_sem
         self.start_cb = start_cb
         self.end_cb = end_cb

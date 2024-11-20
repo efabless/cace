@@ -65,13 +65,18 @@ class ParameterNgspice(Parameter):
             **kwargs,
         )
 
-        self.add_argument(Argument('template', None, True))   # TODO typing
+        # TODO implement typing for the arguments
+        self.add_argument(Argument('jobs', 1, False))
+        self.add_argument(Argument('template', None, True))
         self.add_argument(Argument('collate', None, False))
         self.add_argument(Argument('format', None, False))
         self.add_argument(Argument('suffix', None, False))
         self.add_argument(Argument('variables', [], False))
         self.add_argument(Argument('script', None, False))
         self.add_argument(Argument('script_variables', [], False))
+        self.add_argument(
+            Argument('spiceinit_path', None, False)
+        )   # Specify spiceinit other than PDK spiceinit
 
         # Total number of simulations
         # used for the progress bar
@@ -171,6 +176,15 @@ class ParameterNgspice(Parameter):
         for variable in script_variables:
             if variable != None:
                 self.add_result(Result(variable))
+
+        jobs = self.get_argument('jobs')
+
+        if jobs == 'max':
+            # Set the number of jobs to the number of cores
+            jobs = os.cpu_count()
+        else:
+            # Make sure that jobs doesn't exceed max jobs
+            jobs = min(jobs, self.max_jobs)
 
         template = self.get_argument('template')
         template_path = os.path.join(self.paths['templates'], template)
@@ -326,22 +340,30 @@ class ParameterNgspice(Parameter):
                     reserved = {
                         'filename': os.path.splitext(template)[0],
                         'templates': os.path.abspath(self.paths['templates']),
+                        'root': os.path.abspath(self.paths['root']),
                         'simpath': os.path.abspath(outpath),
                         'DUT_name': self.datasheet['name'],
                         'netlist_source': source,
+                        'jobs': jobs,
                         'N': index,
                         'DUT_path': os.path.abspath(dutpath),
                         'PDK_ROOT': get_pdk_root(),
                         'PDK': get_pdk(),
                         'include_DUT': os.path.abspath(dutpath),
-                        'random': str(
-                            int(time.time() * 1000) & 0x7FFFFFFF
-                        ),  # TODO
+                        'random': str(int(time.time() * 1000) & 0x7FFFFFFF),
                     }
 
-                    # Set the reserved conditions
+                    # Set the reserved variables
                     for cond in condition_set:
                         if cond in reserved:
+                            # Hack until reserved variables and conditions are properly separated
+                            if (
+                                collate_index == 0
+                                and condition_set[cond] != None
+                            ):
+                                warn(
+                                    f'Condition uses name of reserved variable: {cond}'
+                                )
                             condition_set[cond] = reserved[cond]
 
                     # Add the collate condition
@@ -467,6 +489,23 @@ class ParameterNgspice(Parameter):
                         self.result_type = ResultType.ERROR
                         return"""
 
+                    # Copy the .spiceinit file to the simulation directory
+                    spiceinit_path = self.get_argument('spiceinit_path')
+
+                    # Get the spiceinit file from the PDK
+                    if spiceinit_path == None:
+                        spiceinit_path = os.path.join(
+                            pdk_root, pdk, 'libs.tech', 'ngspice', 'spiceinit'
+                        )
+
+                    if os.path.isfile(spiceinit_path):
+                        # Copy spiceinit file to run dir
+                        shutil.copyfile(
+                            spiceinit_path, os.path.join(outpath, '.spiceinit')
+                        )
+                    else:
+                        err(f'No "spiceinit" file found in the {pdk} PDK.')
+
         # We directly got a spice netlist,
         # perform the substitutions on it
         elif template_ext == '.spice':
@@ -477,7 +516,7 @@ class ParameterNgspice(Parameter):
             err(f'Unsupported file extension for template: {template}')
 
         # Run all simulations
-        jobs = []
+        running_jobs = []
 
         info(f'Parameter {self.param["name"]}: Running simulations…')
 
@@ -554,24 +593,27 @@ class ParameterNgspice(Parameter):
                             outpath,
                             os.path.splitext(template)[0] + '.spice',
                             self.jobs_sem,
+                            jobs,
                             self.step_cb,
                         )
                         self.add_simulation_job(new_sim_job)
 
-                        jobs.append(pool.apply_async(new_sim_job.run, ()))
+                        running_jobs.append(
+                            pool.apply_async(new_sim_job.run, ())
+                        )
 
                 # Wait for completion
                 while 1:
                     self.cancel_point()
 
                     # Check if all tasks have completed
-                    if all([job.ready() for job in jobs]):
+                    if all([job.ready() for job in running_jobs]):
                         break
 
                     time.sleep(0.1)
 
                 # Get the results
-                for job in jobs:
+                for job in running_jobs:
                     if job.get() != 0:
                         self.result_type = ResultType.ERROR
                         return
@@ -1041,6 +1083,7 @@ class SimulationJob(threading.Thread):
         outpath,
         simfile,
         jobs_sem,
+        jobs,
         step_cb,
         *args,
         **kwargs,
@@ -1049,6 +1092,7 @@ class SimulationJob(threading.Thread):
         self.outpath = outpath
         self.simfile = simfile
         self.jobs_sem = jobs_sem
+        self.jobs = jobs
         self.step_cb = step_cb
 
         self.canceled = False
@@ -1131,22 +1175,28 @@ class SimulationJob(threading.Thread):
     def run(self):
         self.cancel_point()
 
-        # Acquire a job from the global jobs semaphore
-        with self.jobs_sem:
-            self.cancel_point()
+        # Acquire job(s) from the global jobs semaphore
+        self.jobs_sem.acquire(self.jobs)
 
-            # Run ngspice
-            returncode = self.run_subprocess(
-                'ngspice', ['--batch', self.simfile], cwd=self.outpath
-            )
+        self.cancel_point()
 
-            self.cancel_point()
+        # Run ngspice
+        returncode = self.run_subprocess(
+            'ngspice',
+            ['--batch', self.simfile],
+            cwd=self.outpath,
+        )
 
-            self._return = returncode
+        self.cancel_point()
 
-            # Call the step cb -> advance progress bar
-            if self.step_cb:
-                self.step_cb(self.param)
+        self._return = returncode
+
+        # Call the step cb -> advance progress bar
+        if self.step_cb:
+            self.step_cb(self.param)
+
+        # Free job(s) from the global jobs semaphore
+        self.jobs_sem.release(self.jobs)
 
         # For when the join function is called
         return self._return
