@@ -606,16 +606,6 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
         else:
             pdk = get_pdk(magicfilename)
 
-        newenv = os.environ.copy()
-        if pdk_root and 'PDK_ROOT' not in newenv:
-            newenv['PDK_ROOT'] = pdk_root
-        if pdk and 'PDK' not in newenv:
-            newenv['PDK'] = pdk
-
-        """tclstr = set_xschem_paths(
-            datasheet, schem_netlist_path, 'set top_is_subckt 1'
-        )"""
-
         # Xschem arguments:
         # -n:  Generate a netlist
         # -s:  Netlist type is SPICE
@@ -633,13 +623,11 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
             '-q',
             '--tcl',
             'set top_is_subckt 1',
-        ]  # tclstr]
+        ]
 
-        # See if there is an xschemrc file in the project we can source
+        # Check whether there is an xschemrc file in the project
         xschemrcfile = os.path.join(schempath, 'xschemrc')
-        if os.path.isfile(xschemrcfile):
-            xschemargs.extend(['--rcfile', xschemrcfile])
-        else:
+        if not os.path.isfile(xschemrcfile):
             warn(f'No project xschemrc file found at: {xschemrcfile}')
             warn(
                 f'It is highly recommended to set up an xschemrc file for your project.'
@@ -655,17 +643,28 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
             else:
                 err(f'No xschemrc file found in the {pdk} PDK!')
 
-        xschemargs.extend(['-o', schem_netlist_path, '-N', netlistname])
-        xschemargs.append(schemfilename)
-        dbg('Executing: ' + ' '.join(xschemargs))
-        dbg('CWD is ' + root_path)
+        xschemargs.extend(
+            [
+                '-o',
+                os.path.abspath(
+                    os.path.join(root_path, schem_netlist_path)
+                ),  # output dir
+                '-N',
+                netlistname,  # spice netlist
+                xschemname,  # schematic
+            ]
+        )
 
+        dbg('Executing: ' + ' '.join(xschemargs))
+        dbg('CWD is ' + os.path.join(root_path, schempath))
+
+        # Start xschem process in schematic directory
+        # This will automatically source the project xschemrc
         xproc = subprocess.Popen(
             xschemargs,
             stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
-            cwd=root_path,
-            env=newenv,
+            cwd=os.path.join(root_path, schempath),
         )
 
         xout = xproc.communicate()[0]
