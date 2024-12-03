@@ -1,3 +1,9 @@
+# 2.5.4
+
+## Common
+
+- Execute xschem from the schematic directory
+
 # 2.5.3
 
 ## Common
