@@ -13,10 +13,10 @@
 # limitations under the License.
 {
   extra-packages ? [],
-  extra-python-packages ? []
+  extra-python-packages ? [],
+  include-cace ? true
 }: ({
   lib,
-  cace,
   git,
   zsh,
   delta,
@@ -27,12 +27,10 @@
   python3,
   devshell,
 }: let
+  cace = python3.pkgs.cace;
   cace-env = (
     python3.withPackages (pp:
-      with pp;
-        [
-          cace
-        ]
+        (if include-cace then [cace] else cace.propagatedBuildInputs)
         ++ extra-python-packages)
   );
   cace-env-sitepackages = "${cace-env}/${cace-env.sitePackages}";

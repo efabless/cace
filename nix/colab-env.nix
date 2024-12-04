@@ -13,11 +13,10 @@
 # limitations under the License.
 {
   system,
-  cace,
   python3,
   symlinkJoin,
 }:
 symlinkJoin {
   name = "cace-colab-env";
-  paths = cace.includedTools;
+  paths = python3.pkgs.cace.includedTools;
 }
