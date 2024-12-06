@@ -141,7 +141,7 @@ jobs:
           run_tests: "true"
   build-mac-amd64:
     needs: lint
-    runs-on: macos-12
+    runs-on: macos-13
     name: Build (Nix on macOS/amd64)
     steps:
       - uses: actions/checkout@v3
