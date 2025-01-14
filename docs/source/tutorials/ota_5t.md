@@ -1,5 +1,9 @@
 # CACE Setup for a 5T-OTA
 
+```{warning}
+This tutorial is currently outdated. Please take a look at the [ota-5t](https://github.com/mole99/ota-5t) directly and use [sky130_ef_ip__template](https://github.com/efabless/sky130_ef_ip__template) as a starting point for your analog projects.
+```
+
 This tutorial will guide you step by step through the creation of a simple 5-transistor OTA and the CACE setup for it.
 It is assumed that you have already set up CACE and its dependencies.
 
