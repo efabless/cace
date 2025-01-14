@@ -20,3 +20,4 @@ from .parameter_magic_area import ParameterMagicArea
 from .parameter_magic_antenna_check import ParameterMagicAntennaCheck
 from .parameter_ngspice import ParameterNgspice
 from .parameter_klayout_drc import ParameterKLayoutDRC
+from .parameter_klayout_lvs import ParameterKLayoutLVS
