@@ -133,7 +133,7 @@ class ParameterNetgenLVS(Parameter):
 
             is_subckt = False
             subrex = re.compile(
-                '^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
+                r'^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
             )
             with open(layout_netlist) as ifile:
                 spitext = ifile.read()
