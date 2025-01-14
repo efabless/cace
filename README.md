@@ -33,7 +33,7 @@ See [Nix-based installation](https://cace.readthedocs.io/en/latest/getting_start
 You'll need to bring your own compiled utilities, but otherwise, simply install CACE as follows:
 
 ```console
-	python3 -m pip install --upgrade cace
+python3 -m pip install --upgrade cace
 ```
 
 ## Usage
