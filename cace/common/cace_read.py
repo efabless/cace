@@ -565,7 +565,7 @@ def validate_datasheet(datasheet):
 
         if datasheet['cace_format'] <= 5.0:
             warn(
-                'Please convert CACE placeholders from `{condition}` and `\[expression]` to `CACE{condition}` and `CACE\[expression]`.'
+                'Please convert CACE placeholders from `{condition}` and `[expression]` to `CACE{condition}` and `CACE[expression]`.'
             )
 
     # Check if 'authorship' is a key of the datasheet
