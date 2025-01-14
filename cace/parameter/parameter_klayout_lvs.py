@@ -109,9 +109,9 @@ class ParameterKLayoutLVS(Parameter):
                 return
 
             if self.get_argument('script'):
-                    lvs_script_path = os.path.abspath(
-                        os.path.join(scriptspath, self.get_argument('script'))
-                    )
+                lvs_script_path = os.path.abspath(
+                    os.path.join(scriptspath, self.get_argument('script'))
+                )
             else:
                 lvs_script_path = os.path.join(
                     get_pdk_root(),
@@ -127,7 +127,9 @@ class ParameterKLayoutLVS(Parameter):
                 self.result_type = ResultType.ERROR
                 return
 
-            report_file_path = os.path.join(self.param_dir, f'{projname}.lvsdb')
+            report_file_path = os.path.join(
+                self.param_dir, f'{projname}.lvsdb'
+            )
 
             # PDK specific arguments
             if self.datasheet['PDK'].startswith('sky130'):
