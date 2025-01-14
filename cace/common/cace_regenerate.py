@@ -52,10 +52,10 @@ def printwarn(output):
     if not output:
         return 0
 
-    failrex = re.compile('.*failure', re.IGNORECASE)
-    warnrex = re.compile('.*warning', re.IGNORECASE)
-    errrex = re.compile('.*error', re.IGNORECASE)
-    missrex = re.compile('.*not found', re.IGNORECASE)
+    failrex = re.compile(r'.*failure', re.IGNORECASE)
+    warnrex = re.compile(r'.*warning', re.IGNORECASE)
+    errrex = re.compile(r'.*error', re.IGNORECASE)
+    missrex = re.compile(r'.*not found', re.IGNORECASE)
 
     errors = 0
     outlines = output.splitlines()
@@ -124,7 +124,7 @@ def check_layout_out_of_date(spicepath, layoutpath, debug=False):
             )
             layoutdir = os.path.split(layoutpath)[0]
             subrex = re.compile(
-                '^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
+                r'^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
             )
             with open(spicepath, 'r') as ifile:
                 duttext = ifile.read()
@@ -219,10 +219,10 @@ def check_schematic_out_of_date(spicepath, schempath, debug=False):
             # and check those dates, too.
             schemdir = os.path.split(schempath)[0]
             schrex = re.compile(
-                '\*\*[ \t]*sch_path:[ \t]*([^ \t\n]+)', re.IGNORECASE
+                r'\*\*[ \t]*sch_path:[ \t]*([^ \t\n]+)', re.IGNORECASE
             )
             subrex = re.compile(
-                '^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
+                r'^[^\*]*[ \t]*.subckt[ \t]+([^ \t]+).*$', re.IGNORECASE
             )
             with open(spicepath, 'r') as ifile:
                 duttext = ifile.read()
@@ -690,7 +690,7 @@ def regenerate_schematic_netlist(datasheet, runtime_options):
 
         else:
             # Do a quick parse of the netlist to check for errors
-            missrex = re.compile('[ \t]*([^ \t]+)[ \t]+IS MISSING')
+            missrex = re.compile(r'[ \t]*([^ \t]+)[ \t]+IS MISSING')
             with open(schem_netlist, 'r') as ifile:
                 schemlines = ifile.read().splitlines()
                 for line in schemlines:
@@ -807,7 +807,7 @@ def regenerate_testbench(datasheet, runtime_options, testbenchpath, testbench):
         printwarn(xout)
 
     # Do a quick parse of the netlist to check for errors
-    missrex = re.compile('[ \t]*([^ \t]+)[ \t]+IS MISSING')
+    missrex = re.compile(r'[ \t]*([^ \t]+)[ \t]+IS MISSING')
     with open(netlist_file, 'r') as ifile:
         schemlines = ifile.read().splitlines()
         for line in schemlines:

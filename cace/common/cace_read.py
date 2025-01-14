@@ -118,19 +118,19 @@ def cace_read(filename, debug=False):
 
     # Define regular expressions for parsing
     # Simple key:value entries
-    kvrex = re.compile('^[ \t]*([^: \t]+)[ \t]*:[ \t]+(.*)$')
+    kvrex = re.compile(r'^[ \t]*([^: \t]+)[ \t]*:[ \t]+(.*)$')
 
     # Key:dictionary entries
-    kdrex = re.compile('^[ \t]*([^ \t\{]+)[ \t]*\{[ \t]*(.*)$')
+    kdrex = re.compile(r'^[ \t]*([^ \t\{]+)[ \t]*\{[ \t]*(.*)$')
 
     # New list-of-dictionaries entry
-    listrex = re.compile('^[ \t]*\+[ \t]*(.*)$')
+    listrex = re.compile(r'^[ \t]*\+[ \t]*(.*)$')
 
     # End of dictionary
-    endrex = re.compile('^[ \t]*\}[ \t]*$')
+    endrex = re.compile(r'^[ \t]*\}[ \t]*$')
 
     # End of list
-    lendrex = re.compile('^[ \t]*\][ \t]*$')
+    lendrex = re.compile(r'^[ \t]*\][ \t]*$')
 
     # Now split into lines
     for line in clines.splitlines():
