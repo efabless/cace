@@ -102,17 +102,11 @@ class ParameterMagicDRC(Parameter):
             else:
                 if self.get_argument('gds_flatten'):
                     magic_input += 'gds flatglob *\n'
+                else:
+                    magic_input += 'gds flatglob guard_ring_gen*\n'
+                    magic_input += 'gds flatglob vias_gen*\n'
                 magic_input += f'gds read {os.path.abspath(layout_filepath)}\n'
-                magic_input += 'set toplist [cellname list top]\n'
-                magic_input += 'set numtop [llength $toplist]\n'
-                magic_input += 'if {$numtop > 1} {\n'
-                magic_input += '   foreach topcell $toplist {\n'
-                magic_input += '      if {$topcell != "(UNNAMED)"} {\n'
-                magic_input += '         load $topcell\n'
-                magic_input += '         break\n'
-                magic_input += '      }\n'
-                magic_input += '   }\n'
-                magic_input += '}\n'
+                magic_input += f'load {projname}\n'
 
             magic_input += 'drc on\n'
             magic_input += 'catch {drc style drc(full)}\n'

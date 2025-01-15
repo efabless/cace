@@ -15,8 +15,11 @@
 import os
 import re
 import sys
+import math
+import json
 
 from ..common.common import run_subprocess, get_pdk_root, get_layout_path
+
 from .parameter import Parameter, ResultType, Argument, Result
 from .parameter_manager import register_parameter
 from ..logging import (
@@ -31,10 +34,10 @@ from ..logging import (
 )
 
 
-@register_parameter('klayout_drc')
-class ParameterKLayoutDRC(Parameter):
+@register_parameter('klayout_lvs')
+class ParameterKLayoutLVS(Parameter):
     """
-    Run KLayout drc
+    Run LVS using KLayout
     """
 
     def __init__(
@@ -47,15 +50,16 @@ class ParameterKLayoutDRC(Parameter):
             **kwargs,
         )
 
-        self.add_result(Result('drc_errors'))
+        self.add_result(Result('lvs_errors'))
 
         self.add_argument(Argument('args', [], False))
+        self.add_argument(Argument('script', None, False))
 
     def is_runnable(self):
         netlist_source = self.runtime_options['netlist_source']
 
         if netlist_source == 'schematic':
-            info('Netlist source is schematic capture. Not running DRC.')
+            info('Netlist source is schematic capture. Not running LVS.')
             self.result_type = ResultType.SKIPPED
             return False
 
@@ -68,10 +72,30 @@ class ParameterKLayoutDRC(Parameter):
         # Acquire a job from the global jobs semaphore
         with self.jobs_sem:
 
+            info('Running KLayout to get LVS report.')
+
             projname = self.datasheet['name']
             paths = self.datasheet['paths']
+            root_path = self.paths['root']
 
-            info('Running KLayout to get DRC report.')
+            # Make sure that schematic netlist exist,
+            schem_netlist = None
+
+            if 'netlist' in paths:
+                schem_netlist_path = os.path.join(
+                    paths['netlist'], 'schematic'
+                )
+                schem_netlist = os.path.join(
+                    schem_netlist_path, projname + '.spice'
+                )
+                schem_netlist = os.path.abspath(schem_netlist)
+
+            if not schem_netlist or not os.path.isfile(schem_netlist):
+                err(
+                    'Schematic-captured netlist does not exist. Cannot run LVS'
+                )
+                self.result_type = ResultType.ERROR
+                return
 
             # Get the path to the layout, only GDS
             (layout_filepath, is_magic) = get_layout_path(
@@ -84,36 +108,47 @@ class ParameterKLayoutDRC(Parameter):
                 self.result_type = ResultType.ERROR
                 return
 
-            drc_script_path = os.path.join(
-                get_pdk_root(),
-                self.datasheet['PDK'],
-                'libs.tech',
-                'klayout',
-                'drc',
-                f'{self.datasheet["PDK"]}_mr.drc',
-            )
+            if self.get_argument('script'):
+                lvs_script_path = os.path.abspath(
+                    os.path.join(scriptspath, self.get_argument('script'))
+                )
+            else:
+                lvs_script_path = os.path.join(
+                    get_pdk_root(),
+                    self.datasheet['PDK'],
+                    'libs.tech',
+                    'klayout',
+                    'lvs',
+                    'sky130.lvs',
+                )
 
-            if not os.path.exists(drc_script_path):
-                err(f'DRC script {drc_script_path} does not exist!')
+            if not os.path.exists(lvs_script_path):
+                err(f'LVS script {lvs_script_path} does not exist!')
                 self.result_type = ResultType.ERROR
                 return
 
-            report_file_path = os.path.join(self.param_dir, 'report.xml')
-
-            arguments = []
+            report_file_path = os.path.join(
+                self.param_dir, f'{projname}.lvsdb'
+            )
 
             # PDK specific arguments
             if self.datasheet['PDK'].startswith('sky130'):
                 arguments = [
                     '-b',
                     '-r',
-                    drc_script_path,
+                    lvs_script_path,
                     '-rd',
                     f'input={os.path.abspath(layout_filepath)}',
                     '-rd',
                     f'top_cell={projname}',
                     '-rd',
+                    f'schematic={schem_netlist}',
+                    '-rd',
                     f'report={report_file_path}',
+                    '-rd',
+                    f'report={report_file_path}',
+                    '-rd',
+                    f'target_netlist={os.path.abspath(os.path.join(self.param_dir, projname + ".cir"))}',
                     '-rd',
                     f'thr={os.cpu_count()}',  # TODO how to distribute cores?
                 ]
@@ -124,19 +159,22 @@ class ParameterKLayoutDRC(Parameter):
                 cwd=self.param_dir,
             )
 
+            if not os.path.isfile(report_file_path):
+                err('No output file generated by KLayout!')
+                err(f'Expected file: {report_file_path}')
+                self.result_type = ResultType.ERROR
+                return
+
+            info(
+                f"KLayout LVS report at '[repr.filename][link=file://{os.path.abspath(report_file_path)}]{os.path.relpath(report_file_path)}[/link][/repr.filename]'…"
+            )
+
         # Advance progress bar
         if self.step_cb:
             self.step_cb(self.param)
 
-        if not os.path.isfile(report_file_path):
-            err('No output file generated by KLayout!')
-            err(f'Expected file: {report_file_path}')
-            self.result_type = ResultType.ERROR
-            return
-
-        info(
-            f"KLayout DRC report at '[repr.filename][link=file://{os.path.abspath(report_file_path)}]{os.path.relpath(report_file_path)}[/link][/repr.filename]'…"
-        )
+        # Match for errors in the .lvsdb file
+        lvsrex = re.compile(r"M\(E B\('.*'\)\)")
 
         # Get the result
         try:
@@ -146,11 +184,11 @@ class ParameterKLayoutDRC(Parameter):
                     err(f'File {report_file_path} is of size 0.')
                     self.result_type = ResultType.ERROR
                     return
-                drc_content = klayout_xml_report.read()
-                drc_count = drc_content.count('<item>')
+                lvs_content = klayout_xml_report.read()
+                lvs_count = len(lvsrex.findall(lvs_content))
 
                 self.result_type = ResultType.SUCCESS
-                self.get_result('drc_errors').values = [drc_count]
+                self.get_result('lvs_errors').values = [lvs_count]
                 return
 
         # Catch reports not found
