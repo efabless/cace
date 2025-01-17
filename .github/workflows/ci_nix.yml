@@ -224,7 +224,7 @@ jobs:
       - name: Smoke-Test Docker Image
         run: echo TODO
       - name: Upload Docker Artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: docker-image-${{ matrix.arch }}
           path: ${{ env.IMAGE_PATH }}

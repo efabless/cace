@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 {
+  stdenv,
   lib,
   nix-gitignore,
   buildPythonPackage,
@@ -25,6 +26,7 @@
   volare,
   xschem,
   ngspice,
+  xyce,
   
   # Python
   matplotlib,
@@ -64,13 +66,24 @@
         setuptools_scm
       ];
       
-      includedTools = [
+      includedTools = if stdenv.hostPlatform.isDarwin
+        then
+      ([
         klayout-gdsfactory
         magic-vlsi
         netgen
         ngspice
         xschem
-      ];
+      ])
+        else
+      ([
+        klayout-gdsfactory
+        magic-vlsi
+        netgen
+        ngspice
+        xschem
+        xyce
+      ]);
 
       propagatedBuildInputs = [
         # Python
@@ -83,7 +96,7 @@
         rich
       ]
       ++ self.includedTools;
-      
+
       computed_PATH = lib.makeBinPath self.propagatedBuildInputs;
 
       # Make PATH available to CACE subprocesses
