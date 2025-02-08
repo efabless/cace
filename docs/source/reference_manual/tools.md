@@ -52,10 +52,28 @@ Perform the magic antenna check to find antenna violations in the layout.
 Arguments:
 
 - `args`: `<list[string]>` Additional args that are passed to magic.
+- `gds_flatten`: `<true/false>` Flatten the GDSII layout prior to running DRC.
 
 Results:
 
 - `antenna_violations`: `<int>` The number of antenna violations.
+
+## `netgen_lvs`
+
+```{note}
+The `netgen_lvs` tool always compares the `schematic` netlist with the `layout` extracted netlist, independent of the selected netlist source.
+```
+
+Perform LVS (Layout VS Schematic) with netgen.
+
+Arguments:
+
+- `args`: `<list[string]>` Additional args that are passed to netgen.
+- `script`: `<string>` A custom LVS script relative to `scripts/`.
+
+Results:
+
+- `lvs_errors`: `<int>` Number of LVS errors.
 
 ## `klayout_drc`
 
@@ -69,18 +87,14 @@ Results:
 
 - `drc_errors`: `<int>` Number of DRC errors.
 
-## `netgen_lvs`
+## `klayout_lvs`
 
-```{note}
-The `netgen_lvs` tool always compares the `schematic` netlist with the `layout` extracted netlist, independent of the selected netlist source.
-```
-
-Perform LVS (Layout VS Schematic) with netgen.
+Perform LVS (Layout VS Schematic) with KLayout.
 
 Arguments:
 
-- `args`: `<list[string]>` Additional args that are passed to netgen.
-- `script`: `<string>` A custom LVS script under `scripts/`.
+- `args`: `<list[string]>` Additional args that are passed to KLayout. For example `['-rd', 'variable=value']`.
+- `script`: `<string>` A custom LVS script relative to `scripts/`.
 
 Results:
 

@@ -355,7 +355,8 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
             magic_input += f'path search +{os.path.abspath(os.path.dirname(layout_filepath))}\n'
             magic_input += f'load {os.path.basename(layout_filepath)}\n'
         else:
-            # magic_input += 'gds flatglob *\n'
+            magic_input += 'gds flatglob guard_ring_gen*\n'
+            magic_input += 'gds flatglob vias_gen*\n'
             magic_input += f'gds read {layout_filepath}\n'
             magic_input += f'load {dname}\n'
             # Use readspice to get the port order
@@ -366,6 +367,7 @@ def regenerate_netlist(datasheet, netlist_source, runtime_options, pex=False):
         if netlist_source == 'layout' or netlist_source == 'pex':
             magic_input += f'select top cell\n'
             magic_input += 'expand\n'
+
             magic_input += 'extract path cace_extfiles\n'
             if netlist_source == 'layout':
                 magic_input += 'extract no all\n'

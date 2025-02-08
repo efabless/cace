@@ -56,6 +56,7 @@ class ParameterMagicAntennaCheck(Parameter):
         self.add_result(Result('antenna_violations'))
 
         self.add_argument(Argument('args', [], False))
+        self.add_argument(Argument('gds_flatten', False, False))
 
     def is_runnable(self):
         netlist_source = self.runtime_options['netlist_source']
@@ -106,17 +107,13 @@ class ParameterMagicAntennaCheck(Parameter):
                 magic_input += f'path search +{os.path.abspath(os.path.dirname(layout_filepath))}\n'
                 magic_input += f'load {os.path.basename(layout_filepath)}\n'
             else:
+                if self.get_argument('gds_flatten'):
+                    magic_input += 'gds flatglob *\n'
+                else:
+                    magic_input += 'gds flatglob guard_ring_gen*\n'
+                    magic_input += 'gds flatglob vias_gen*\n'
                 magic_input += f'gds read {os.path.abspath(layout_filepath)}\n'
-                magic_input += 'set toplist [cellname list top]\n'
-                magic_input += 'set numtop [llength $toplist]\n'
-                magic_input += 'if {$numtop > 1} {\n'
-                magic_input += '   foreach topcell $toplist {\n'
-                magic_input += '      if {$topcell != "(UNNAMED)"} {\n'
-                magic_input += '         load $topcell\n'
-                magic_input += '         break\n'
-                magic_input += '      }\n'
-                magic_input += '   }\n'
-                magic_input += '}\n'
+                magic_input += f'load {projname}\n'
 
             magic_input += 'select top cell\n'
             magic_input += 'expand\n'

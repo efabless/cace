@@ -71,7 +71,7 @@ class ParameterKLayoutDRC(Parameter):
             projname = self.datasheet['name']
             paths = self.datasheet['paths']
 
-            info('Running KLayout to get layout DRC report.')
+            info('Running KLayout to get DRC report.')
 
             # Get the path to the layout, only GDS
             (layout_filepath, is_magic) = get_layout_path(
@@ -93,12 +93,12 @@ class ParameterKLayoutDRC(Parameter):
                 f'{self.datasheet["PDK"]}_mr.drc',
             )
 
-            report_file_path = os.path.join(self.param_dir, 'report.xml')
-
             if not os.path.exists(drc_script_path):
                 err(f'DRC script {drc_script_path} does not exist!')
                 self.result_type = ResultType.ERROR
                 return
+
+            report_file_path = os.path.join(self.param_dir, 'report.xml')
 
             arguments = []
 
@@ -111,7 +111,7 @@ class ParameterKLayoutDRC(Parameter):
                     '-rd',
                     f'input={os.path.abspath(layout_filepath)}',
                     '-rd',
-                    f'topcell={projname}',
+                    f'top_cell={projname}',
                     '-rd',
                     f'report={report_file_path}',
                     '-rd',
