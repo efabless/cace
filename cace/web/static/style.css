@@ -1,0 +1,17 @@
+table {
+  border-collapse: collapse;
+  margin: 25px 0;
+  font-size: 18px;
+  text-align: left;
+}
+table th,
+table td {
+  padding: 8px;
+  border: 1px solid #ddd;
+}
+table th {
+  background-color: #f2f2f2;
+}
+progress {
+  width: 300px;
+}

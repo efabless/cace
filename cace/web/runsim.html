@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>Select</th>
+          <th>Name</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for param in params %}
+        <tr>
+          <td>{{ param }}</td>
+          <td>
+            <progress id="{{param}}" value="0" max="100"></progress>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    <button onclick="window.open('http://localhost:5000/simresults','_blank')">Simulation Results</button>
+    <p>Click the button above after all simulations have finished</p>
+
+    <script>
+      // Connect to the SSE stream
+      const eventSource = new EventSource("/stream");
+
+      // Listen for messages from the server
+      eventSource.onmessage = function (event) {
+        let data = JSON.parse(event.data);
+        let task = data.task;
+        if (task == "close") {
+          eventSource.close();
+        } else if (task == "start") {
+          console.log("start");
+          let outputDiv = document.getElementById(data.param);
+          outputDiv.max = data.steps;
+        } else if (task == "step") {
+          console.log("step");
+          let outputDiv = document.getElementById(data.param);
+          outputDiv.value++;
+        } else if (task == "cancel") {
+        } else if (task == "end") {
+        }
+      };
+
+      window.onbeforeunload = function () {
+        // Send a POST request to the /ping endpoint and ignore the response
+        fetch(`${window.location.origin}/end_stream`, {
+          method: "POST",
+        });
+        eventSource.close();
+      };
+
+      eventSource.onerror = function () {
+        console.error("Error occurred while receiving SSE.");
+      };
+    </script>
+  </body>
+</html>

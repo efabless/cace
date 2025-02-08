@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="static/style.css" />
+  </head>
+  <body>
+    <table>
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Tool</th>
+          <th>Result</th>
+          <th>Minimum Limit</th>
+          <th>Minimum Value</th>
+          <th>Typical Limit</th>
+          <th>Typical Value</th>
+          <th>Maximum Limit</th>
+          <th>Maximum Value</th>
+          <th>Status</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in data %}
+        <tr>
+          <td>{{ row.parameter_str }}</td>
+          <td>{{ row.tool_str }}</td>
+          <td>{{ row.result_str }}</td>
+          <td>{{ row.min_limit_str }}</td>
+          <td>{{ row.min_value_str }}</td>
+          <td>{{ row.max_limit_str }}</td>
+          <td>{{ row.max_value_str }}</td>
+          <td>{{ row.typ_limit_str }}</td>
+          <td>{{ row.typ_value_str }}</td>
+          <td>{{ row.status_str }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </body>
+</html>
