@@ -1,0 +1,26 @@
+table {
+  border-collapse: collapse;
+  font-size: 18px;
+  text-align: left;
+}
+table th,
+table td {
+  padding: 8px;
+  border: 1px solid #ddd;
+}
+table th {
+  background-color: #f2f2f2;
+}
+progress {
+  width: 300px;
+}
+.tab {
+  overflow: hidden;
+}
+.tabcontent {
+  float: left;
+  padding: 0px 12px;
+}
+.tablinks {
+  margin-right: 25px;
+}

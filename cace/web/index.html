@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="stylesheet" href="static/style.css"/>
+  </head>
+  <body>
+    <div class="tab">
+      <button class="tablinks" onclick="openTab(event, 'Select')" id="SelectTab">Select</button>
+      <button class="tablinks" onclick="openTab(event, 'Progress')" id="ProgressTab" disabled>Progress</button>
+      <button class="tablinks" onclick="openTab(event, 'Results')" id="ResultsTab" disabled>Results</button>
+    </div>
+
+    <br>
+
+    <div id="Select" class="tabcontent">
+      <table id="select_table">
+        <thead>
+          <tr>
+            <th>Select</th>
+            <th>Param</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in data %}
+          <tr>
+            <td class="checkbox-column">
+              <input type="checkbox" name="selected_params" value="{{ row.name }}" />
+            </td>
+            <td>{{ row.name }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <br>
+      <button id="runSelected" onclick="runSimulations(all=false)">Run Selected</button>
+      <button id="runAll" onclick="runSimulations(all=true)">Run All</button>
+    </div>
+
+    <div id="Progress" class="tabcontent"></div>
+
+    <div id="Results" class="tabcontent"></div>
+
+    <script>
+      function openTab(evt, tabName) {
+        var i, tabcontent, tablinks;
+        tabcontent = document.getElementsByClassName("tabcontent");
+        for (i = 0; i < tabcontent.length; i++) {
+          tabcontent[i].style.display = "none";
+        }
+        tablinks = document.getElementsByClassName("tablinks");
+        for (i = 0; i < tablinks.length; i++) {
+          tablinks[i].className = tablinks[i].className.replace(" active", "");
+        }
+        document.getElementById(tabName).style.display = "block";
+        evt.currentTarget.className += " active";
+      }
+      document.getElementById("SelectTab").click();
+      
+      const eventSource = new EventSource("/stream");
+      
+      eventSource.onmessage = function (event) {
+        let data = JSON.parse(event.data);
+        console.log(data);
+        let task = data.task;
+        if (task == "close") {
+          eventSource.close();
+        } else if (task == "start") {
+          let outputDiv = document.getElementById(data.param);
+          outputDiv.max = data.steps;
+        } else if (task == "step") {
+          let outputDiv = document.getElementById(data.param);
+          outputDiv.value++;
+        } else if (task == "cancel") {
+        } else if (task == "end") {
+          let outputDiv = document.getElementById("overall_pb");
+          outputDiv.value++;
+
+          if (outputDiv.value == outputDiv.max) {
+            sendData({ 'task': 'fetchresults' });
+          }
+        } else if (task == "progress") {
+          document.getElementById("ProgressTab").disabled = false;
+          document.getElementById("ProgressTab").click();
+          document.getElementById("Progress").innerHTML = data.html;
+        } else if (task == "results") {
+          const contentDiv = document.getElementById('Results');
+          contentDiv.innerHTML = data.summary;
+          contentDiv.innerHTML += data.plots;
+
+          document.getElementById("Progress").innerHTML += data.summary;
+          const scripts = contentDiv.getElementsByTagName("script");
+          for (let script of scripts) {
+            eval(script.innerHTML);  // Execute the script content
+          }
+
+          document.getElementById("simresultsbtn").disabled = false;
+          document.getElementById("ResultsTab").disabled = false;
+        }
+      };
+
+      window.onbeforeunload = function () {
+        sendData({ 'task': 'end_stream' });
+      };
+
+      function sendData(jsonData) {
+        console.log(jsonData);
+        fetch('/receive_data', {
+          method: 'POST',  
+          headers: {
+            'Content-Type': 'application/json',  
+          },
+          body: JSON.stringify(jsonData)  
+        })
+        .then(response => {
+          if (response.status === 200) {                    
+          } else {
+            console.log('Error: Received status code', response.status);
+          }
+        })
+        .catch(error => {
+          console.error('Error:', error);
+        });
+      }
+
+      eventSource.onerror = function () {
+        console.error("Error occurred while receiving SSE.");
+      };
+      
+      function runSimulations(all=false) {
+        let table = document.getElementById("select_table");
+        let selected_params = [];
+        for (let i = 1; i < table.rows.length; i++) {
+          let row = table.rows[i];
+          if (row.cells[0].firstElementChild.checked && !all) {
+            selected_params.push(row.cells[0].firstElementChild.getAttribute('value'));
+          } else if (all) {
+            selected_params.push(row.cells[0].firstElementChild.getAttribute('value'));
+          }
+        }
+        if (selected_params.length > 0) {
+          document.getElementById("runAll").disabled = true;
+          document.getElementById("runSelected").disabled = true;
+
+          fetch(`${window.location.origin}/runsim`, {
+            method: "POST",
+            body: JSON.stringify({'selected_params': selected_params}),
+          });
+        }
+      }
+    </script>
+  </body>
+</html>
