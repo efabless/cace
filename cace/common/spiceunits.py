@@ -66,7 +66,7 @@ prefixtypes = {
     'f': 1e-15,
     'femto': 1e-15,
     'a': 1e-18,
-    'atto': 1e-15,
+    'atto': 1e-18,
 }
 
 # set of known unit types, including some with suffixes, along with a
